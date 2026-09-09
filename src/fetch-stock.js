@@ -4,6 +4,9 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { gzipSync } from "node:zlib";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
 
 const {
   R2_ACCOUNT_ID,
