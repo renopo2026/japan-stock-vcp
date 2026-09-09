@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
+
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
     "yahoo-finance2": "^4.0.0"
+  },
+
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }
