@@ -21,6 +21,7 @@ jobs:
 
       - name: Diagnose R2 credentials
         env:
+          R2_ACCOUNT_ID_RAW: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_RAW: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_KEY_RAW: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT_RAW: ${{ secrets.R2_ENDPOINT }}
@@ -30,20 +31,46 @@ jobs:
           set -euo pipefail
 
           # 改行・空白混入を除去
+          ACCOUNT_ID="$(printf '%s' "$R2_ACCOUNT_ID_RAW" | tr -d '[:space:]')"
           ACCESS_KEY="$(printf '%s' "$R2_ACCESS_KEY_RAW" | tr -d '[:space:]')"
           SECRET_KEY="$(printf '%s' "$R2_SECRET_KEY_RAW" | tr -d '[:space:]')"
           ENDPOINT="$(printf '%s' "$R2_ENDPOINT_RAW" | tr -d '[:space:]')"
           BUCKET="$(printf '%s' "$R2_BUCKET_RAW" | tr -d '[:space:]')"
 
+          echo "=== BASIC CHECK ==="
+          echo "Account ID length: ${#ACCOUNT_ID}"
           echo "Access Key length: ${#ACCESS_KEY}"
           echo "Secret Key length: ${#SECRET_KEY}"
+          echo "Bucket name length: ${#BUCKET}"
           echo "Endpoint starts with https: $([[ "$ENDPOINT" == https://* ]] && echo YES || echo NO)"
+
+          # 通常のR2 S3 API EndpointをAccount IDから生成
+          EXPECTED_ENDPOINT="https://${ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          if [ "$ENDPOINT" = "$EXPECTED_ENDPOINT" ]; then
+            echo "Endpoint matches Account ID: YES"
+          else
+            echo "Endpoint matches Account ID: NO"
+          fi
+
+          # GitHub Secretの値そのものは表示しない
+          if [[ "$ACCESS_KEY" =~ ^[A-Za-z0-9]+$ ]]; then
+            echo "Access Key characters: OK"
+          else
+            echo "Access Key characters: CHECK REQUIRED"
+          fi
+
+          if [[ "$SECRET_KEY" =~ ^[A-Fa-f0-9]+$ ]]; then
+            echo "Secret Key format: HEX"
+          else
+            echo "Secret Key format: NON-HEX"
+          fi
 
           export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
           export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
           export AWS_DEFAULT_REGION="auto"
 
-          # Cloudflare公式例に近づけるためpath形式を固定
+          # Virtual-host形式による差異を避けるためpath形式を固定
           aws configure set default.s3.addressing_style path
 
           echo "=== LIST TEST ==="
@@ -62,6 +89,8 @@ jobs:
             --body /tmp/r2-test.txt \
             --endpoint-url "$ENDPOINT" \
             --region auto
+
+          echo "=== AWS CLI R2 TEST SUCCESS ==="
 
       - name: Test Cloudflare R2
         env:
