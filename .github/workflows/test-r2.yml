@@ -19,6 +19,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test R2 with AWS CLI
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          echo "R2 connection test" > /tmp/r2-test.txt
+
+          aws s3 cp /tmp/r2-test.txt \
+            "s3://$R2_BUCKET_NAME/metadata/aws-cli-test.txt" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --region auto
+
+          aws s3 ls \
+            "s3://$R2_BUCKET_NAME/metadata/" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --region auto
+
       - name: Test Cloudflare R2
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
