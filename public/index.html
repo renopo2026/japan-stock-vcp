@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Japan Stock VCP</title>
+
+  <style>
+    body {
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      margin: 40px;
+      background: #f5f6f8;
+      color: #222;
+    }
+
+    .card {
+      max-width: 900px;
+      margin: auto;
+      padding: 24px;
+      background: white;
+      border-radius: 12px;
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    pre {
+      margin-top: 20px;
+      padding: 16px;
+      background: #111;
+      color: #eee;
+      overflow: auto;
+      max-height: 600px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <h1>Japan Stock VCP</h1>
+
+    <p>
+      R2から7203の株価データを取得するテストです。
+    </p>
+
+    <button id="load">
+      7203を読み込む
+    </button>
+
+    <pre id="result">
+未取得
+    </pre>
+
+  </div>
+
+  <script>
+
+    document
+      .getElementById("load")
+      .addEventListener(
+        "click",
+        async () => {
+
+          const result =
+            document.getElementById(
+              "result"
+            );
+
+          result.textContent =
+            "読み込み中...";
+
+          try {
+
+            const response =
+              await fetch(
+                "/api/stock/7203"
+              );
+
+            if (!response.ok) {
+              throw new Error(
+                `HTTP ${response.status}`
+              );
+            }
+
+            const data =
+              await response.json();
+
+            result.textContent =
+              JSON.stringify(
+                {
+                  code:
+                    data.code,
+
+                  name:
+                    data.name,
+
+                  startDate:
+                    data.startDate,
+
+                  endDate:
+                    data.endDate,
+
+                  rowCount:
+                    data.rowCount,
+
+                  latest:
+                    data.latest,
+
+                  candidateCount:
+                    data.candidateCount
+                },
+                null,
+                2
+              );
+
+          } catch (error) {
+
+            result.textContent =
+              String(error);
+          }
+        }
+      );
+
+  </script>
+
+</body>
+</html>
