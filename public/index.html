@@ -575,11 +575,11 @@ async function updateVisibleRange(start, end) {
   const nRange = rangeIncludeZero(rows.map(r => r.vcp26));
 
   const supplyRows = visibleSupplyRows(start,end);
-  const shortRange = positiveLogRange(
+  const shortRange = positiveRange(
     supplyRows.map(r => r.publicShortRatio),
     1
   );
-  const loanRange = positiveRange(
+  const loanRange = positiveLogRange(
     supplyRows.map(r => r.loanRatio),
     1
   );
@@ -1178,13 +1178,13 @@ async function drawChart() {
     );
 
   const shortRange =
-    positiveLogRange(
+    positiveRange(
       initialSupply.map(r=>r.publicShortRatio),
       1
     );
 
   const loanRange =
-    positiveRange(
+    positiveLogRange(
       initialSupply.map(r=>r.loanRatio),
       1
     );
@@ -1342,36 +1342,36 @@ async function drawChart() {
     // Same supply pane, three independent scales.
     yaxis4:{
       domain:pane.supplyDomain,
-      type:"log",
-      side:"left",
+      side:"right",
       title:{
-        text:"公表空売り %（対数）",
+        text:"公表空売り %",
         font:{color:GRAY}
       },
       range:shortRange,
+      rangemode:"tozero",
       showgrid:true,
       gridcolor:"#eee",
-      minor:{
-        showgrid:true,
-        gridcolor:"#f3f3f3"
-      },
-      zeroline:false,
+      zeroline:true,
+      zerolinecolor:"#999",
       showspikes:false,
       tickfont:{color:GRAY}
     },
-
+    
     yaxis5:{
       domain:pane.supplyDomain,
+      type:"log",
       overlaying:"y4",
       anchor:"x5",
-      side:"right",
+      side:"left",
       title:{
-        text:"貸借倍率",
+        text:"貸借倍率（対数）",
         font:{color:BLUE}
       },
       range:loanRange,
-      rangemode:"tozero",
       showgrid:false,
+      minor:{
+        showgrid:false
+      },
       zeroline:false,
       showspikes:false,
       tickfont:{color:BLUE}
