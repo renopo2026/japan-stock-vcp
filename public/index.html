@@ -42,7 +42,7 @@
       border-radius: 10px;
       padding: 15px 18px;
       margin-bottom: 10px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
     }
 
     .title-row {
@@ -147,7 +147,7 @@
       background: white;
       border-radius: 10px;
       padding: 5px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
     }
 
     #chart {
@@ -155,14 +155,9 @@
       height: 1000px;
     }
 
-    #profileInfo {
-      padding: 3px 12px 10px;
-      color: #777;
-      font-size: 12px;
-    }
-
+    #profileInfo,
     #signalInfo {
-      padding: 0 12px 10px;
+      padding: 3px 12px 8px;
       color: #666;
       font-size: 12px;
     }
@@ -256,12 +251,14 @@
     </div>
 
     <div id="signalInfo">
-      青▲＝買い候補、赤▼＝売り候補
+      VCP下段：N＝26日間の上昇VCP合計 − 下落VCP合計。
+      青▲＝買い候補、赤▼＝売り候補。
     </div>
 
   </div>
 
 </div>
+
 
 <script>
 
@@ -279,25 +276,23 @@ let profileUpdating = false;
 const chart =
   document.getElementById("chart");
 
+
 /*
- * Trace index
+ * Trace
  *
- * 0  Candle
+ * 0  ローソク
  * 1  5MA
  * 2  25MA
  * 3  50MA
- * 4  High 5MA
- * 5  Low 5MA
- * 6  52-week high
- * 7  Volume Profile UP   ← 青・右側
- * 8  Volume Profile DOWN ← 赤・左側
- * 9  Daily Volume
- * 10 Daily VCP
- * 11 Daily VCP P10
- * 12 VCP26
- * 13 VCP26 Delta5
- * 14 Buy
- * 15 Sell
+ * 4  高値5MA
+ * 5  安値5MA
+ * 6  52週高値
+ * 7  価格帯出来高 UP
+ * 8  価格帯出来高 DOWN
+ * 9  通常出来高
+ * 10 N = 26日累積差
+ * 11 買い候補
+ * 12 売り候補
  */
 
 const PROFILE_UP_INDEX = 7;
@@ -314,6 +309,7 @@ function finite(value) {
     Number.isFinite(value)
   );
 }
+
 
 function formatNumber(
   value,
@@ -338,11 +334,14 @@ function formatNumber(
     );
 }
 
+
 function parseDate(text) {
+
   return new Date(
     `${text}T00:00:00`
   );
 }
+
 
 function dateString(date) {
 
@@ -352,19 +351,25 @@ function dateString(date) {
   const m =
     String(
       date.getMonth() + 1
-    ).padStart(2, "0");
+    ).padStart(
+      2,
+      "0"
+    );
 
   const d =
     String(
       date.getDate()
-    ).padStart(2, "0");
+    ).padStart(
+      2,
+      "0"
+    );
 
   return `${y}-${m}-${d}`;
 }
 
 
 // ============================================================
-// Percentile.INC
+// PERCENTILE.INC
 // ============================================================
 
 function percentileInc(
@@ -422,8 +427,8 @@ function percentileInc(
 // ============================================================
 // 追加指標
 //
-// 52週高値
-// VCP買い候補・売り候補
+// K/L/Mは内部計算用。
+// 表示はしない。
 // ============================================================
 
 function prepareIndicators(rows) {
@@ -436,13 +441,14 @@ function prepareIndicators(rows) {
 
     // --------------------------------------------------------
     // 52週高値
-    //
-    // 252営業日のHigh最高値
+    // 252営業日のHigh最大値
     // --------------------------------------------------------
 
-    if (i >= 251) {
+    if (
+      i >= 251
+    ) {
 
-      let high52 =
+      let maxHigh =
         -Infinity;
 
       for (
@@ -451,15 +457,15 @@ function prepareIndicators(rows) {
         j++
       ) {
 
-        high52 =
+        maxHigh =
           Math.max(
-            high52,
+            maxHigh,
             rows[j].high
           );
       }
 
       rows[i].high52 =
-        high52;
+        maxHigh;
 
     }
     else {
@@ -470,11 +476,15 @@ function prepareIndicators(rows) {
 
 
     // --------------------------------------------------------
+    // Nの5日変化
     // vcp26Delta5
-    // 直近120日 P10/P90
+    //
+    // 120日P10 / P90
     // --------------------------------------------------------
 
-    if (i >= 119) {
+    if (
+      i >= 119
+    ) {
 
       const values =
         rows
@@ -487,11 +497,13 @@ function prepareIndicators(rows) {
               row.vcp26Delta5
           );
 
+
       rows[i].deltaP10 =
         percentileInc(
           values,
           0.10
         );
+
 
       rows[i].deltaP90 =
         percentileInc(
@@ -510,9 +522,12 @@ function prepareIndicators(rows) {
     }
 
 
-    // --------------------------------------------------------
-    // 日次VCPが120日下位10%
-    // --------------------------------------------------------
+    /*
+     * K = dailyVcp
+     *
+     * Kは表示しないが、
+     * 候補判定には内部的に使用。
+     */
 
     const contraction =
       finite(
@@ -525,13 +540,7 @@ function prepareIndicators(rows) {
         rows[i].dailyVcpP10;
 
 
-    // --------------------------------------------------------
     // 買い候補
-    //
-    // ① 日次VCPが120日下位10%
-    // ② 26日累積差5日変化が120日上位10%
-    // --------------------------------------------------------
-
     rows[i].buyCandidate =
       contraction &&
       finite(
@@ -544,13 +553,7 @@ function prepareIndicators(rows) {
         rows[i].deltaP90;
 
 
-    // --------------------------------------------------------
     // 売り候補
-    //
-    // ① 日次VCPが120日下位10%
-    // ② 26日累積差5日変化が120日下位10%
-    // --------------------------------------------------------
-
     rows[i].sellCandidate =
       contraction &&
       finite(
@@ -568,21 +571,22 @@ function prepareIndicators(rows) {
 // ============================================================
 // 価格帯別出来高
 //
-// 1日の出来高を終値価格帯へ100%割当。
-// 同じ価格帯の1本の棒を
+// 【終値方式】
 //
-// [ 赤：下落 ][ 青：上昇 ]
-//
-// と分割する。
+// その日の出来高全量を
+// 終値が属する価格帯へ割り当てる。
 // ============================================================
 
 function calculateVolumeProfile(
   rows
 ) {
 
-  if (!rows.length) {
+  if (
+    !rows.length
+  ) {
     return null;
   }
+
 
   const bins =
     Number(
@@ -597,16 +601,20 @@ function calculateVolumeProfile(
   const minPrice =
     Math.min(
       ...rows.map(
-        row => row.low
+        row =>
+          row.low
       )
     );
+
 
   const maxPrice =
     Math.max(
       ...rows.map(
-        row => row.high
+        row =>
+          row.high
       )
     );
+
 
   if (
     maxPrice <= minPrice
@@ -627,6 +635,7 @@ function calculateVolumeProfile(
     new Array(bins)
       .fill(0);
 
+
   const down =
     new Array(bins)
       .fill(0);
@@ -646,12 +655,14 @@ function calculateVolumeProfile(
         step
       );
 
+
     if (
       index === bins
     ) {
       index =
         bins - 1;
     }
+
 
     index =
       Math.max(
@@ -663,8 +674,14 @@ function calculateVolumeProfile(
       );
 
 
+    /*
+     * 上昇日 = 青
+     * 下落日 = 赤
+     */
+
     if (
-      row.close >= row.open
+      row.close >=
+      row.open
     ) {
 
       up[index] +=
@@ -720,7 +737,7 @@ function calculateVolumeProfile(
 
 
 // ============================================================
-// 表示期間のRows
+// 表示中のRows
 // ============================================================
 
 function visibleRows(
@@ -728,11 +745,14 @@ function visibleRows(
   end
 ) {
 
-  if (!currentStock) {
+  if (
+    !currentStock
+  ) {
     return [];
   }
 
-  return currentStock.data
+  return currentStock
+    .data
     .filter(
       row =>
         row.date >= start &&
@@ -742,10 +762,81 @@ function visibleRows(
 
 
 // ============================================================
-// 価格帯別出来高の更新
+// N軸レンジ
+//
+// 必ず0を含める。
 // ============================================================
 
-async function updateVolumeProfile(
+function calculateNRange(
+  rows
+) {
+
+  const values =
+    rows
+      .map(
+        row =>
+          row.vcp26
+      )
+      .filter(finite);
+
+
+  if (
+    !values.length
+  ) {
+
+    return [
+      -0.01,
+      0.01
+    ];
+  }
+
+
+  let min =
+    Math.min(
+      0,
+      ...values
+    );
+
+
+  let max =
+    Math.max(
+      0,
+      ...values
+    );
+
+
+  let span =
+    max - min;
+
+
+  if (
+    span === 0
+  ) {
+
+    span =
+      Math.max(
+        Math.abs(max),
+        0.01
+      );
+  }
+
+
+  const padding =
+    span * 0.10;
+
+
+  return [
+    min - padding,
+    max + padding
+  ];
+}
+
+
+// ============================================================
+// 価格帯出来高＋表示中Y軸更新
+// ============================================================
+
+async function updateVisibleRange(
   start,
   end
 ) {
@@ -764,7 +855,10 @@ async function updateVolumeProfile(
       end
     );
 
-  if (!rows.length) {
+
+  if (
+    !rows.length
+  ) {
     return;
   }
 
@@ -774,7 +868,10 @@ async function updateVolumeProfile(
       rows
     );
 
-  if (!profile) {
+
+  if (
+    !profile
+  ) {
     return;
   }
 
@@ -786,22 +883,29 @@ async function updateVolumeProfile(
     );
 
 
+  // ----------------------------------------------------------
+  // 株価表示範囲
+  // ----------------------------------------------------------
+
   let low =
     Math.min(
       ...rows.map(
-        row => row.low
+        row =>
+          row.low
       )
     );
+
 
   let high =
     Math.max(
       ...rows.map(
-        row => row.high
+        row =>
+          row.high
       )
     );
 
 
-  const high52 =
+  const high52Values =
     rows
       .map(
         row =>
@@ -809,19 +913,20 @@ async function updateVolumeProfile(
       )
       .filter(finite);
 
+
   if (
-    high52.length
+    high52Values.length
   ) {
 
     high =
       Math.max(
         high,
-        ...high52
+        ...high52Values
       );
   }
 
 
-  const padding =
+  const pricePadding =
     Math.max(
       (
         high - low
@@ -831,35 +936,48 @@ async function updateVolumeProfile(
     );
 
 
+  // ----------------------------------------------------------
+  // 通常出来高表示範囲
+  // ----------------------------------------------------------
+
+  const maxVolume =
+    Math.max(
+      ...rows.map(
+        row =>
+          row.volume
+      ),
+      1
+    );
+
+
+  // ----------------------------------------------------------
+  // N表示範囲
+  // ----------------------------------------------------------
+
+  const nRange =
+    calculateNRange(
+      rows
+    );
+
+
   profileUpdating =
     true;
 
 
   try {
 
-    /*
-     * 重要：
-     *
-     * xaxis2は逆向き。
-     *
-     * 0がチャート右端、
-     * 値が大きくなるほど左へ伸びる。
-     *
-     * stackで
-     *
-     * ① 青を先に置く
-     * ② 赤を後に積む
-     *
-     * ことで視覚的に
-     *
-     * [赤][青]|右端
-     *
-     * になる。
-     */
+    // --------------------------------------------------------
+    // 価格帯出来高
+    //
+    // 青を先にstack。
+    // xaxis2が逆向きなので青が右、
+    // 赤が左側へ積み上がる。
+    // --------------------------------------------------------
 
     await Plotly.restyle(
       chart,
       {
+
         x: [
           profile.up
         ],
@@ -875,6 +993,7 @@ async function updateVolumeProfile(
         customdata: [
           profile.up
         ]
+
       },
       [
         PROFILE_UP_INDEX
@@ -885,6 +1004,7 @@ async function updateVolumeProfile(
     await Plotly.restyle(
       chart,
       {
+
         x: [
           profile.down
         ],
@@ -900,6 +1020,7 @@ async function updateVolumeProfile(
         customdata: [
           profile.down
         ]
+
       },
       [
         PROFILE_DOWN_INDEX
@@ -907,26 +1028,38 @@ async function updateVolumeProfile(
     );
 
 
-    /*
-     * maxTotal × 3.5
-     *
-     * → 最大の価格帯出来高が
-     *   チャート横幅の約28%を占める。
-     */
-
     await Plotly.relayout(
       chart,
       {
+
+        /*
+         * 価格帯出来高
+         * 最大バー ≒ 画面横幅28%
+         */
 
         "xaxis2.range": [
           maxTotal * 3.5,
           0
         ],
 
+
+        // 株価Y軸
         "yaxis.range": [
-          low - padding,
-          high + padding
-        ]
+          low - pricePadding,
+          high + pricePadding
+        ],
+
+
+        // 通常出来高Y軸
+        "yaxis2.range": [
+          0,
+          maxVolume * 1.10
+        ],
+
+
+        // N専用Y軸
+        "yaxis3.range":
+          nRange
       }
     );
 
@@ -946,8 +1079,8 @@ async function updateVolumeProfile(
         `価格帯別出来高：${start} ～ ${end} ／ ` +
         `${rows.length}営業日 ／ ` +
         `${profile.bins}価格帯 ／ ` +
-        `左＝下落出来高（赤）、右＝上昇出来高（青） ／ ` +
-        `出来高は各日の終値価格帯へ全量割当`;
+        `終値方式 ／ ` +
+        `左＝下落出来高（赤）、右＝上昇出来高（青）`;
 
   }
   finally {
@@ -968,6 +1101,7 @@ function updateSummary(
 
   const rows =
     data.data;
+
 
   const latest =
     rows[
@@ -991,6 +1125,7 @@ function updateSummary(
 
   let signal =
     "候補なし";
+
 
   let signalClass =
     "";
@@ -1070,20 +1205,29 @@ function updateSummary(
         ${formatNumber(latest.high52, 2)}
       </div>
 
+      <div>
+        <span class="summary-label">
+          N
+        </span>
+        <strong>
+          ${formatNumber(latest.vcp26, 6)}
+        </strong>
+      </div>
+
       <div class="${signalClass}">
         ${signal}
       </div>
 
       <div>
         <span class="summary-label">
-          10年買い候補
+          買い候補
         </span>
         ${buyCount}
       </div>
 
       <div>
         <span class="summary-label">
-          10年売り候補
+          売り候補
         </span>
         ${sellCount}
       </div>
@@ -1116,13 +1260,9 @@ function getFavorites() {
 
 function updateFavoriteButton() {
 
-  const button =
-    document.getElementById(
-      "favoriteButton"
-    );
-
   const favorites =
     getFavorites();
+
 
   const active =
     favorites.includes(
@@ -1130,10 +1270,14 @@ function updateFavoriteButton() {
     );
 
 
-  button.textContent =
-    active
-      ? "★ お気に入り"
-      : "☆ お気に入り";
+  document
+    .getElementById(
+      "favoriteButton"
+    )
+    .textContent =
+      active
+        ? "★ お気に入り"
+        : "☆ お気に入り";
 }
 
 
@@ -1152,7 +1296,8 @@ function toggleFavorite() {
     favorites =
       favorites.filter(
         code =>
-          code !== currentCode
+          code !==
+          currentCode
       );
 
   }
@@ -1177,7 +1322,7 @@ function toggleFavorite() {
 
 
 // ============================================================
-// チャート
+// Chart
 // ============================================================
 
 async function drawChart(
@@ -1205,12 +1350,10 @@ async function drawChart(
     );
 
 
-  startObject
-    .setFullYear(
-      startObject
-        .getFullYear() -
-      1
-    );
+  startObject.setFullYear(
+    startObject.getFullYear() -
+    1
+  );
 
 
   let initialStart =
@@ -1252,7 +1395,8 @@ async function drawChart(
   const dailyColors =
     rows.map(
       row =>
-        row.close >= row.open
+        row.close >=
+        row.open
           ? BLUE
           : RED
     );
@@ -1272,6 +1416,12 @@ async function drawChart(
     );
 
 
+  const nRange =
+    calculateNRange(
+      initialRows
+    );
+
+
   // ==========================================================
   // Traces
   // ==========================================================
@@ -1279,10 +1429,7 @@ async function drawChart(
   const traces = [
 
 
-    // ---------------------------------------------------------
-    // 0 ローソク足
-    // ---------------------------------------------------------
-
+    // 0 ローソク
     {
       type:
         "candlestick",
@@ -1341,10 +1488,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 1 5MA
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1367,10 +1511,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 2 25MA
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1393,10 +1534,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 3 50MA
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1419,10 +1557,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 4 高値5MA
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1449,10 +1584,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 5 安値5MA
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1479,10 +1611,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 6 52週高値
-    // ---------------------------------------------------------
-
     {
       type: "scatter",
       mode: "lines",
@@ -1509,13 +1638,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
-    // 7 価格帯別出来高 UP
-    //
-    // 最初に青を積む。
-    // xaxis2は逆方向なので右側に青が来る。
-    // ---------------------------------------------------------
-
+    // 7 価格帯別出来高 上昇
     {
       type:
         "bar",
@@ -1556,13 +1679,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
-    // 8 価格帯別出来高 DOWN
-    //
-    // 青の後ろに赤を積むので
-    // 視覚的に赤が左側。
-    // ---------------------------------------------------------
-
+    // 8 価格帯別出来高 下落
     {
       type:
         "bar",
@@ -1603,10 +1720,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
     // 9 通常出来高
-    // ---------------------------------------------------------
-
     {
       type:
         "bar",
@@ -1640,46 +1754,9 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
-    // 10 日次VCP
-    // ---------------------------------------------------------
-
-    {
-      type:
-        "bar",
-
-      name:
-        "日次VCP",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          row =>
-            row.dailyVcp
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y3",
-
-      marker: {
-        color:
-          dailyColors
-      },
-
-      hovertemplate:
-        "%{x}" +
-        "<br>日次VCP %{y:.6f}" +
-        "<extra></extra>"
-    },
-
-
-    // ---------------------------------------------------------
-    // 11 日次VCP P10
+    // 10 N = 26日累積差
+    //
+    // K/L/Mは表示しない。
     // ---------------------------------------------------------
 
     {
@@ -1690,44 +1767,7 @@ async function drawChart(
         "lines",
 
       name:
-        "日次VCP 120日P10",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          row =>
-            row.dailyVcpP10
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y3",
-
-      line: {
-        width: 1,
-        dash: "dot",
-        color: "#777"
-      }
-    },
-
-
-    // ---------------------------------------------------------
-    // 12 26日累積差
-    // ---------------------------------------------------------
-
-    {
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "26日累積差",
+        "N：26日累積差",
 
       x:
         dates,
@@ -1742,64 +1782,21 @@ async function drawChart(
         "x4",
 
       yaxis:
-        "y4",
+        "y3",
 
       line: {
-        width: 1.8,
+        width: 2,
         color: "#111"
       },
 
       hovertemplate:
         "%{x}" +
-        "<br>26日累積差 %{y:.6f}" +
+        "<br>N %{y:.6f}" +
         "<extra></extra>"
     },
 
 
-    // ---------------------------------------------------------
-    // 13 累積差5日変化
-    // ---------------------------------------------------------
-
-    {
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "26日累積差 5日変化",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          row =>
-            row.vcp26Delta5
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y4",
-
-      line: {
-        width: 1,
-        dash: "dot",
-        color: "#8e24aa"
-      },
-
-      visible:
-        "legendonly"
-    },
-
-
-    // ---------------------------------------------------------
-    // 14 買い候補
-    // ---------------------------------------------------------
-
+    // 11 買い候補
     {
       type:
         "scatter",
@@ -1812,13 +1809,15 @@ async function drawChart(
 
       x:
         buyRows.map(
-          row => row.date
+          row =>
+            row.date
         ),
 
       y:
         buyRows.map(
           row =>
-            row.low * 0.985
+            row.low *
+            0.985
         ),
 
       xaxis:
@@ -1828,6 +1827,7 @@ async function drawChart(
         "y",
 
       marker: {
+
         symbol:
           "triangle-up",
 
@@ -1851,10 +1851,7 @@ async function drawChart(
     },
 
 
-    // ---------------------------------------------------------
-    // 15 売り候補
-    // ---------------------------------------------------------
-
+    // 12 売り候補
     {
       type:
         "scatter",
@@ -1867,13 +1864,15 @@ async function drawChart(
 
       x:
         sellRows.map(
-          row => row.date
+          row =>
+            row.date
         ),
 
       y:
         sellRows.map(
           row =>
-            row.high * 1.015
+            row.high *
+            1.015
         ),
 
       xaxis:
@@ -1883,6 +1882,7 @@ async function drawChart(
         "y",
 
       marker: {
+
         symbol:
           "triangle-down",
 
@@ -1904,6 +1904,7 @@ async function drawChart(
       hovertemplate:
         "%{x}<br>売り候補 ▼<extra></extra>"
     }
+
   ];
 
 
@@ -1938,15 +1939,11 @@ async function drawChart(
     dragmode:
       "pan",
 
-    /*
-     * Volume Profileだけ2系列を積み上げ。
-     *
-     * 他のBarは別subplotなので影響なし。
-     */
     barmode:
       "stack",
 
     legend: {
+
       orientation:
         "h",
 
@@ -1963,7 +1960,7 @@ async function drawChart(
 
 
     // ========================================================
-    // 株価の日付軸
+    // 株価X軸
     // ========================================================
 
     xaxis: {
@@ -2008,10 +2005,9 @@ async function drawChart(
 
 
     // ========================================================
-    // 価格帯別出来高専用軸
+    // 価格帯別出来高X軸
     //
-    // x軸を逆向きにすることで
-    // 右端から左へ横棒が伸びる。
+    // 右端から左へ伸ばす
     // ========================================================
 
     xaxis2: {
@@ -2051,7 +2047,7 @@ async function drawChart(
 
 
     // ========================================================
-    // 通常出来高の日付軸
+    // 通常出来高X軸
     // ========================================================
 
     xaxis3: {
@@ -2089,7 +2085,7 @@ async function drawChart(
 
 
     // ========================================================
-    // VCPの日付軸
+    // NペインX軸
     // ========================================================
 
     xaxis4: {
@@ -2113,6 +2109,7 @@ async function drawChart(
         "#eeeeee",
 
       rangeslider: {
+
         visible:
           true,
 
@@ -2191,7 +2188,9 @@ async function drawChart(
 
 
     // ========================================================
-    // 日次VCP
+    // N専用ペイン
+    //
+    // 0ラインを強調
     // ========================================================
 
     yaxis3: {
@@ -2200,63 +2199,34 @@ async function drawChart(
         [0, 0.24],
 
       side:
-        "left",
+        "right",
 
       title: {
         text:
-          "日次VCP"
+          "N：26日累積差"
       },
 
-      rangemode:
-        "tozero",
+      range:
+        nRange,
 
       showgrid:
         true,
 
       gridcolor:
-        "#e5e5e5",
+        "#e1e1e1",
 
       zeroline:
         true,
 
       zerolinecolor:
-        "#999"
-    },
+        "#000000",
 
-
-    // ========================================================
-    // VCP26
-    // ========================================================
-
-    yaxis4: {
-
-      overlaying:
-        "y3",
-
-      anchor:
-        "x4",
-
-      side:
-        "right",
-
-      title: {
-        text:
-          "26日累積差"
-      },
-
-      showgrid:
-        false,
-
-      zeroline:
-        true,
-
-      zerolinecolor:
-        "#777"
+      zerolinewidth:
+        3
     }
   };
 
 
-  // 再描画時のイベント重複を防ぐ
   Plotly.purge(
     chart
   );
@@ -2282,14 +2252,14 @@ async function drawChart(
   );
 
 
-  await updateVolumeProfile(
+  await updateVisibleRange(
     initialStart,
     latestDate
   );
 
 
   // ==========================================================
-  // ドラッグ・ズーム
+  // ズーム / ドラッグ
   // ==========================================================
 
   chart.on(
@@ -2321,6 +2291,7 @@ async function drawChart(
             `${axis}.range[0]`
           ];
 
+
         const end =
           event[
             `${axis}.range[1]`
@@ -2332,28 +2303,44 @@ async function drawChart(
           end
         ) {
 
-          const startText =
+          updateVisibleRange(
+
             String(start)
               .slice(
                 0,
                 10
-              );
+              ),
 
-          const endText =
             String(end)
               .slice(
                 0,
                 10
-              );
+              )
 
-
-          updateVolumeProfile(
-            startText,
-            endText
           );
 
-          break;
+          return;
         }
+      }
+
+
+      /*
+       * ダブルクリックで全期間へ戻った場合
+       */
+
+      if (
+        event[
+          "xaxis.autorange"
+        ] === true ||
+        event[
+          "xaxis4.autorange"
+        ] === true
+      ) {
+
+        updateVisibleRange(
+          currentStock.startDate,
+          currentStock.endDate
+        );
       }
     }
   );
@@ -2417,8 +2404,7 @@ async function loadStock(
   ) {
 
     if (
-      response.status ===
-      404
+      response.status === 404
     ) {
 
       throw new Error(
@@ -2499,7 +2485,7 @@ async function loadStock(
 
 
 // ============================================================
-// 期間変更
+// 期間ボタン
 // ============================================================
 
 async function setPeriod(
@@ -2532,8 +2518,7 @@ async function setPeriod(
     case "3m":
 
       start.setMonth(
-        start.getMonth() -
-        3
+        start.getMonth() - 3
       );
 
       break;
@@ -2542,8 +2527,7 @@ async function setPeriod(
     case "6m":
 
       start.setMonth(
-        start.getMonth() -
-        6
+        start.getMonth() - 6
       );
 
       break;
@@ -2552,8 +2536,7 @@ async function setPeriod(
     case "1y":
 
       start.setFullYear(
-        start.getFullYear() -
-        1
+        start.getFullYear() - 1
       );
 
       break;
@@ -2562,8 +2545,7 @@ async function setPeriod(
     case "3y":
 
       start.setFullYear(
-        start.getFullYear() -
-        3
+        start.getFullYear() - 3
       );
 
       break;
@@ -2572,8 +2554,7 @@ async function setPeriod(
     case "5y":
 
       start.setFullYear(
-        start.getFullYear() -
-        5
+        start.getFullYear() - 5
       );
 
       break;
@@ -2582,8 +2563,7 @@ async function setPeriod(
     case "10y":
 
       start.setFullYear(
-        start.getFullYear() -
-        10
+        start.getFullYear() - 10
       );
 
       break;
@@ -2642,7 +2622,7 @@ async function setPeriod(
   );
 
 
-  await updateVolumeProfile(
+  await updateVisibleRange(
     startText,
     endText
   );
@@ -2707,8 +2687,7 @@ document
     event => {
 
       if (
-        event.key ===
-        "Enter"
+        event.key === "Enter"
       ) {
 
         document
@@ -2754,9 +2733,7 @@ document
 
 
           await setPeriod(
-            button
-              .dataset
-              .period
+            button.dataset.period
           );
         }
       );
@@ -2779,12 +2756,14 @@ document
       }
 
 
-      await updateVolumeProfile(
+      await updateVisibleRange(
+
         currentRangeStart ??
           currentStock.startDate,
 
         currentRangeEnd ??
           currentStock.endDate
+
       );
     }
   );
