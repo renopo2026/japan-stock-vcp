@@ -10,7 +10,6 @@
 
   <title>Japan Stock VCP</title>
 
-  <!-- Plotly.js -->
   <script
     src="https://cdn.plot.ly/plotly-4.0.0.min.js"
     charset="utf-8"
@@ -23,82 +22,80 @@
 
     body {
       margin: 0;
+      background: #f3f4f6;
+      color: #202124;
       font-family:
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-
-      background: #f3f4f6;
-      color: #202124;
     }
 
     .app {
-      max-width: 1600px;
+      max-width: 1750px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 14px;
     }
 
     .header {
       background: white;
       border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 12px;
-
-      box-shadow:
-        0 1px 4px rgba(0, 0, 0, 0.08);
+      padding: 15px 18px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
 
     .title-row {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      align-items: center;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
     h1 {
-      font-size: 24px;
       margin: 0;
+      font-size: 23px;
     }
 
     #stockTitle {
+      margin-top: 6px;
       font-size: 18px;
       font-weight: 600;
-      margin-top: 8px;
     }
 
     .controls {
-      margin-top: 14px;
-
+      margin-top: 13px;
       display: flex;
-      gap: 8px;
-      align-items: center;
+      gap: 7px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
-    input {
-      width: 120px;
-      padding: 8px 10px;
-      font-size: 16px;
-
+    input,
+    select {
+      padding: 7px 9px;
+      font-size: 15px;
       border: 1px solid #bbb;
       border-radius: 5px;
+      background: white;
+    }
+
+    #stockCode {
+      width: 110px;
+      font-size: 16px;
     }
 
     button {
-      padding: 8px 13px;
-      font-size: 14px;
-
+      padding: 7px 12px;
       border: 1px solid #bbb;
       border-radius: 5px;
-
       background: white;
       cursor: pointer;
     }
 
     button:hover {
-      background: #f0f0f0;
+      background: #f2f2f2;
     }
 
     button.active {
@@ -114,48 +111,9 @@
     }
 
     .status {
-      margin-top: 10px;
-      font-size: 13px;
+      margin-top: 9px;
       color: #666;
-    }
-
-    .summary {
-      margin-top: 8px;
-
-      display: flex;
-      gap: 18px;
-      flex-wrap: wrap;
-
       font-size: 13px;
-    }
-
-    .summary-item {
-      white-space: nowrap;
-    }
-
-    .summary-label {
-      color: #777;
-    }
-
-    .chart-card {
-      background: white;
-      border-radius: 10px;
-
-      padding: 8px;
-
-      box-shadow:
-        0 1px 4px rgba(0, 0, 0, 0.08);
-    }
-
-    #chart {
-      width: 100%;
-      height: 880px;
-    }
-
-    #profileInfo {
-      font-size: 12px;
-      color: #777;
-      padding: 2px 12px 8px 12px;
     }
 
     .error {
@@ -163,9 +121,55 @@
       font-weight: 600;
     }
 
+    .summary {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 13px;
+    }
+
+    .summary-label {
+      color: #777;
+    }
+
+    .buy {
+      color: #1565c0;
+      font-weight: 700;
+    }
+
+    .sell {
+      color: #c62828;
+      font-weight: 700;
+    }
+
+    .chart-card {
+      background: white;
+      border-radius: 10px;
+      padding: 5px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    #chart {
+      width: 100%;
+      height: 1000px;
+    }
+
+    #profileInfo {
+      padding: 3px 12px 10px;
+      color: #777;
+      font-size: 12px;
+    }
+
+    #signalInfo {
+      padding: 0 12px 10px;
+      color: #666;
+      font-size: 12px;
+    }
+
     @media (max-width: 800px) {
       #chart {
-        height: 720px;
+        height: 820px;
       }
     }
   </style>
@@ -187,9 +191,15 @@
         </div>
       </div>
 
-      <button id="saveImage">
-        PNG保存
-      </button>
+      <div>
+        <button id="favoriteButton">
+          ☆ お気に入り
+        </button>
+
+        <button id="saveImage">
+          PNG保存
+        </button>
+      </div>
 
     </div>
 
@@ -197,10 +207,9 @@
 
       <input
         id="stockCode"
-        type="text"
-        value="7203"
+        value="9984"
         maxlength="4"
-        placeholder="7203"
+        placeholder="9984"
       >
 
       <button id="loadButton">
@@ -208,50 +217,33 @@
       </button>
 
       <div class="period-buttons">
-
-        <button data-period="3m">
-          3M
-        </button>
-
-        <button data-period="6m">
-          6M
-        </button>
-
-        <button data-period="1y" class="active">
-          1Y
-        </button>
-
-        <button data-period="3y">
-          3Y
-        </button>
-
-        <button data-period="5y">
-          5Y
-        </button>
-
-        <button data-period="10y">
-          10Y
-        </button>
-
-        <button data-period="all">
-          ALL
-        </button>
-
+        <button data-period="3m">3M</button>
+        <button data-period="6m">6M</button>
+        <button data-period="1y" class="active">1Y</button>
+        <button data-period="3y">3Y</button>
+        <button data-period="5y">5Y</button>
+        <button data-period="10y">10Y</button>
+        <button data-period="all">ALL</button>
       </div>
+
+      <label>
+        価格帯
+        <select id="profileBins">
+          <option value="20">20</option>
+          <option value="30">30</option>
+          <option value="50" selected>50</option>
+          <option value="75">75</option>
+          <option value="100">100</option>
+        </select>
+      </label>
 
     </div>
 
-    <div
-      id="status"
-      class="status"
-    >
+    <div id="status" class="status">
       R2から取得しています...
     </div>
 
-    <div
-      id="summary"
-      class="summary"
-    ></div>
+    <div id="summary" class="summary"></div>
 
   </div>
 
@@ -260,8 +252,11 @@
     <div id="chart"></div>
 
     <div id="profileInfo">
-      価格帯別出来高は現在表示中の期間で再計算します。
-      各営業日の全出来高を、その日の終値の価格帯へ割り当てています。
+      価格帯別出来高を計算中...
+    </div>
+
+    <div id="signalInfo">
+      青▲＝買い候補、赤▼＝売り候補
     </div>
 
   </div>
@@ -269,472 +264,1026 @@
 </div>
 
 <script>
-  // =========================================================
-  // 状態
-  // =========================================================
 
-  let currentStock = null;
-  let currentCode = "7203";
+const BLUE = "#1976d2";
+const RED = "#d32f2f";
 
-  let profileUpdating = false;
+let currentStock = null;
+let currentCode = "9984";
 
-  const chart =
-    document.getElementById("chart");
+let currentRangeStart = null;
+let currentRangeEnd = null;
 
-  const PROFILE_TRACE_INDEX = 6;
+let profileUpdating = false;
 
-  // =========================================================
-  // Utility
-  // =========================================================
+const chart =
+  document.getElementById("chart");
 
-  function formatNumber(value, digits = 0) {
+/*
+ * Trace index
+ *
+ * 0  Candle
+ * 1  5MA
+ * 2  25MA
+ * 3  50MA
+ * 4  High 5MA
+ * 5  Low 5MA
+ * 6  52-week high
+ * 7  Volume Profile UP   ← 青・右側
+ * 8  Volume Profile DOWN ← 赤・左側
+ * 9  Daily Volume
+ * 10 Daily VCP
+ * 11 Daily VCP P10
+ * 12 VCP26
+ * 13 VCP26 Delta5
+ * 14 Buy
+ * 15 Sell
+ */
 
-    if (
-      value === null ||
-      value === undefined ||
-      !Number.isFinite(Number(value))
-    ) {
-      return "-";
-    }
+const PROFILE_UP_INDEX = 7;
+const PROFILE_DOWN_INDEX = 8;
 
-    return Number(value)
-      .toLocaleString(
-        "ja-JP",
-        {
-          maximumFractionDigits: digits
-        }
-      );
+
+// ============================================================
+// Utility
+// ============================================================
+
+function finite(value) {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  );
+}
+
+function formatNumber(
+  value,
+  digits = 0
+) {
+
+  if (
+    !finite(
+      Number(value)
+    )
+  ) {
+    return "-";
   }
 
-  function parseDate(dateString) {
-    return new Date(
-      `${dateString}T00:00:00`
+  return Number(value)
+    .toLocaleString(
+      "ja-JP",
+      {
+        maximumFractionDigits:
+          digits
+      }
     );
+}
+
+function parseDate(text) {
+  return new Date(
+    `${text}T00:00:00`
+  );
+}
+
+function dateString(date) {
+
+  const y =
+    date.getFullYear();
+
+  const m =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+  const d =
+    String(
+      date.getDate()
+    ).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+}
+
+
+// ============================================================
+// Percentile.INC
+// ============================================================
+
+function percentileInc(
+  values,
+  p
+) {
+
+  if (
+    !values.length ||
+    !values.every(finite)
+  ) {
+    return null;
   }
 
-  function dateToString(date) {
+  const sorted =
+    [...values].sort(
+      (a, b) =>
+        a - b
+    );
 
-    const year =
-      date.getFullYear();
-
-    const month =
-      String(
-        date.getMonth() + 1
-      ).padStart(2, "0");
-
-    const day =
-      String(
-        date.getDate()
-      ).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
+  if (
+    sorted.length === 1
+  ) {
+    return sorted[0];
   }
 
-  // =========================================================
-  // 株価に応じた価格刻み
-  // =========================================================
+  const rank =
+    p *
+    (sorted.length - 1);
 
-  function niceStep(rawStep) {
+  const lower =
+    Math.floor(rank);
 
-    if (
-      !Number.isFinite(rawStep) ||
-      rawStep <= 0
-    ) {
-      return 1;
-    }
+  const upper =
+    Math.ceil(rank);
 
-    const magnitude =
-      Math.pow(
-        10,
-        Math.floor(
-          Math.log10(rawStep)
-        )
-      );
+  if (
+    lower === upper
+  ) {
+    return sorted[lower];
+  }
 
-    const normalized =
-      rawStep / magnitude;
+  const weight =
+    rank - lower;
 
-    let nice;
+  return (
+    sorted[lower] *
+      (1 - weight) +
+    sorted[upper] *
+      weight
+  );
+}
 
-    if (normalized <= 1) {
-      nice = 1;
-    }
-    else if (normalized <= 2) {
-      nice = 2;
-    }
-    else if (normalized <= 5) {
-      nice = 5;
+
+// ============================================================
+// 追加指標
+//
+// 52週高値
+// VCP買い候補・売り候補
+// ============================================================
+
+function prepareIndicators(rows) {
+
+  for (
+    let i = 0;
+    i < rows.length;
+    i++
+  ) {
+
+    // --------------------------------------------------------
+    // 52週高値
+    //
+    // 252営業日のHigh最高値
+    // --------------------------------------------------------
+
+    if (i >= 251) {
+
+      let high52 =
+        -Infinity;
+
+      for (
+        let j = i - 251;
+        j <= i;
+        j++
+      ) {
+
+        high52 =
+          Math.max(
+            high52,
+            rows[j].high
+          );
+      }
+
+      rows[i].high52 =
+        high52;
+
     }
     else {
-      nice = 10;
+
+      rows[i].high52 =
+        null;
     }
 
-    return nice * magnitude;
-  }
 
-  // =========================================================
-  // 価格帯別出来高
-  //
-  // ・表示期間のみ
-  // ・1日の全出来高を終値へ割り当てる
-  // ・約30価格帯を目標
-  // =========================================================
+    // --------------------------------------------------------
+    // vcp26Delta5
+    // 直近120日 P10/P90
+    // --------------------------------------------------------
 
-  function calculateVolumeProfile(rows) {
+    if (i >= 119) {
 
-    if (!rows.length) {
-      return null;
-    }
-
-    const minPrice =
-      Math.min(
-        ...rows.map(
-          row => row.low
-        )
-      );
-
-    const maxPrice =
-      Math.max(
-        ...rows.map(
-          row => row.high
-        )
-      );
-
-    const priceRange =
-      maxPrice - minPrice;
-
-    const rawStep =
-      priceRange / 30;
-
-    const step =
-      niceStep(rawStep);
-
-    const start =
-      Math.floor(
-        minPrice / step
-      ) * step;
-
-    const end =
-      Math.ceil(
-        maxPrice / step
-      ) * step;
-
-    const binCount =
-      Math.max(
-        1,
-        Math.round(
-          (end - start) / step
-        )
-      );
-
-    const volumes =
-      new Array(binCount)
-        .fill(0);
-
-    for (const row of rows) {
-
-      let index =
-        Math.floor(
-          (row.close - start) /
-          step
-        );
-
-      index =
-        Math.max(
-          0,
-          Math.min(
-            binCount - 1,
-            index
+      const values =
+        rows
+          .slice(
+            i - 119,
+            i + 1
           )
+          .map(
+            row =>
+              row.vcp26Delta5
+          );
+
+      rows[i].deltaP10 =
+        percentileInc(
+          values,
+          0.10
         );
 
-      volumes[index] +=
-        row.volume;
+      rows[i].deltaP90 =
+        percentileInc(
+          values,
+          0.90
+        );
+
+    }
+    else {
+
+      rows[i].deltaP10 =
+        null;
+
+      rows[i].deltaP90 =
+        null;
     }
 
-    const prices =
-      volumes.map(
-        (_, index) =>
-          start +
-          (
-            index + 0.5
-          ) * step
-      );
 
-    const widths =
-      volumes.map(
-        () =>
-          step * 0.88
-      );
+    // --------------------------------------------------------
+    // 日次VCPが120日下位10%
+    // --------------------------------------------------------
 
-    return {
-      prices,
-      volumes,
-      widths,
-      step,
-      minPrice,
-      maxPrice
-    };
+    const contraction =
+      finite(
+        rows[i].dailyVcp
+      ) &&
+      finite(
+        rows[i].dailyVcpP10
+      ) &&
+      rows[i].dailyVcp <=
+        rows[i].dailyVcpP10;
+
+
+    // --------------------------------------------------------
+    // 買い候補
+    //
+    // ① 日次VCPが120日下位10%
+    // ② 26日累積差5日変化が120日上位10%
+    // --------------------------------------------------------
+
+    rows[i].buyCandidate =
+      contraction &&
+      finite(
+        rows[i].vcp26Delta5
+      ) &&
+      finite(
+        rows[i].deltaP90
+      ) &&
+      rows[i].vcp26Delta5 >=
+        rows[i].deltaP90;
+
+
+    // --------------------------------------------------------
+    // 売り候補
+    //
+    // ① 日次VCPが120日下位10%
+    // ② 26日累積差5日変化が120日下位10%
+    // --------------------------------------------------------
+
+    rows[i].sellCandidate =
+      contraction &&
+      finite(
+        rows[i].vcp26Delta5
+      ) &&
+      finite(
+        rows[i].deltaP10
+      ) &&
+      rows[i].vcp26Delta5 <=
+        rows[i].deltaP10;
+  }
+}
+
+
+// ============================================================
+// 価格帯別出来高
+//
+// 1日の出来高を終値価格帯へ100%割当。
+// 同じ価格帯の1本の棒を
+//
+// [ 赤：下落 ][ 青：上昇 ]
+//
+// と分割する。
+// ============================================================
+
+function calculateVolumeProfile(
+  rows
+) {
+
+  if (!rows.length) {
+    return null;
   }
 
-  // =========================================================
-  // 指定期間のRows
-  // =========================================================
-
-  function getVisibleRows(
-    startDate,
-    endDate
-  ) {
-
-    if (!currentStock) {
-      return [];
-    }
-
-    return currentStock.data.filter(
-      row =>
-        row.date >= startDate &&
-        row.date <= endDate
-    );
-  }
-
-  // =========================================================
-  // 表示期間から価格帯別出来高を再計算
-  // =========================================================
-
-  async function updateVisibleRange(
-    startDate,
-    endDate
-  ) {
-
-    if (
-      profileUpdating ||
-      !currentStock
-    ) {
-      return;
-    }
-
-    const rows =
-      getVisibleRows(
-        startDate,
-        endDate
-      );
-
-    if (!rows.length) {
-      return;
-    }
-
-    const profile =
-      calculateVolumeProfile(rows);
-
-    if (!profile) {
-      return;
-    }
-
-    const maxVolume =
-      Math.max(
-        ...profile.volumes,
-        1
-      );
-
-    const low =
-      Math.min(
-        ...rows.map(
-          row => row.low
-        )
-      );
-
-    const high =
-      Math.max(
-        ...rows.map(
-          row => row.high
-        )
-      );
-
-    const padding =
-      Math.max(
-        (high - low) * 0.04,
-        profile.step
-      );
-
-    profileUpdating = true;
-
-    try {
-
-      // 価格帯別出来高データ更新
-      await Plotly.restyle(
-        chart,
-        {
-          x: [
-            profile.volumes
-          ],
-
-          y: [
-            profile.prices
-          ],
-
-          width: [
-            profile.widths
-          ]
-        },
-        [
-          PROFILE_TRACE_INDEX
-        ]
-      );
-
-      /*
-       * xaxis2は右端を0にした逆方向の数値軸。
-       *
-       * maxVolumeの約3.5倍を軸最大値にすることで、
-       * 最大の価格帯別出来高バーが
-       * チャート幅の約28%を占める。
-       */
-      await Plotly.relayout(
-        chart,
-        {
-          "xaxis2.range": [
-            maxVolume * 3.5,
-            0
-          ],
-
-          "yaxis.range": [
-            low - padding,
-            high + padding
-          ]
-        }
-      );
-
+  const bins =
+    Number(
       document
         .getElementById(
-          "profileInfo"
+          "profileBins"
         )
-        .textContent =
-          `価格帯別出来高：${startDate} ～ ${endDate} ／ ` +
-          `${rows.length}営業日 ／ ` +
-          `価格刻み ${formatNumber(profile.step, 2)}円 ／ ` +
-          `全出来高を終値価格帯へ割当`;
+        .value
+    ) || 50;
+
+
+  const minPrice =
+    Math.min(
+      ...rows.map(
+        row => row.low
+      )
+    );
+
+  const maxPrice =
+    Math.max(
+      ...rows.map(
+        row => row.high
+      )
+    );
+
+  if (
+    maxPrice <= minPrice
+  ) {
+    return null;
+  }
+
+
+  const step =
+    (
+      maxPrice -
+      minPrice
+    ) /
+    bins;
+
+
+  const up =
+    new Array(bins)
+      .fill(0);
+
+  const down =
+    new Array(bins)
+      .fill(0);
+
+
+  for (
+    const row
+    of rows
+  ) {
+
+    let index =
+      Math.floor(
+        (
+          row.close -
+          minPrice
+        ) /
+        step
+      );
+
+    if (
+      index === bins
+    ) {
+      index =
+        bins - 1;
+    }
+
+    index =
+      Math.max(
+        0,
+        Math.min(
+          bins - 1,
+          index
+        )
+      );
+
+
+    if (
+      row.close >= row.open
+    ) {
+
+      up[index] +=
+        row.volume;
 
     }
-    finally {
+    else {
 
-      profileUpdating = false;
+      down[index] +=
+        row.volume;
     }
   }
 
-  // =========================================================
-  // Summary
-  // =========================================================
 
-  function updateSummary(data) {
-
-    const latest =
-      data.latest;
-
-    const summary =
-      document.getElementById(
-        "summary"
+  const prices =
+    new Array(bins)
+      .fill(0)
+      .map(
+        (_, i) =>
+          minPrice +
+          (
+            i + 0.5
+          ) *
+          step
       );
 
-    summary.innerHTML = `
-      <div class="summary-item">
-        <span class="summary-label">終値</span>
-        <strong>${formatNumber(latest.close, 2)}</strong>
-      </div>
 
-      <div class="summary-item">
-        <span class="summary-label">出来高</span>
-        <strong>${formatNumber(latest.volume)}</strong>
-      </div>
+  const widths =
+    prices.map(
+      () =>
+        step * 0.90
+    );
 
-      <div class="summary-item">
-        <span class="summary-label">5MA</span>
-        ${formatNumber(latest.ma5, 2)}
-      </div>
 
-      <div class="summary-item">
-        <span class="summary-label">25MA</span>
-        ${formatNumber(latest.ma25, 2)}
-      </div>
+  const totals =
+    prices.map(
+      (_, i) =>
+        up[i] +
+        down[i]
+    );
 
-      <div class="summary-item">
-        <span class="summary-label">50MA</span>
-        ${formatNumber(latest.ma50, 2)}
-      </div>
 
-      <div class="summary-item">
-        <span class="summary-label">VCP候補</span>
+  return {
+    prices,
+    up,
+    down,
+    totals,
+    widths,
+    step,
+    bins
+  };
+}
+
+
+// ============================================================
+// 表示期間のRows
+// ============================================================
+
+function visibleRows(
+  start,
+  end
+) {
+
+  if (!currentStock) {
+    return [];
+  }
+
+  return currentStock.data
+    .filter(
+      row =>
+        row.date >= start &&
+        row.date <= end
+    );
+}
+
+
+// ============================================================
+// 価格帯別出来高の更新
+// ============================================================
+
+async function updateVolumeProfile(
+  start,
+  end
+) {
+
+  if (
+    profileUpdating ||
+    !currentStock
+  ) {
+    return;
+  }
+
+
+  const rows =
+    visibleRows(
+      start,
+      end
+    );
+
+  if (!rows.length) {
+    return;
+  }
+
+
+  const profile =
+    calculateVolumeProfile(
+      rows
+    );
+
+  if (!profile) {
+    return;
+  }
+
+
+  const maxTotal =
+    Math.max(
+      ...profile.totals,
+      1
+    );
+
+
+  let low =
+    Math.min(
+      ...rows.map(
+        row => row.low
+      )
+    );
+
+  let high =
+    Math.max(
+      ...rows.map(
+        row => row.high
+      )
+    );
+
+
+  const high52 =
+    rows
+      .map(
+        row =>
+          row.high52
+      )
+      .filter(finite);
+
+  if (
+    high52.length
+  ) {
+
+    high =
+      Math.max(
+        high,
+        ...high52
+      );
+  }
+
+
+  const padding =
+    Math.max(
+      (
+        high - low
+      ) *
+      0.045,
+      profile.step
+    );
+
+
+  profileUpdating =
+    true;
+
+
+  try {
+
+    /*
+     * 重要：
+     *
+     * xaxis2は逆向き。
+     *
+     * 0がチャート右端、
+     * 値が大きくなるほど左へ伸びる。
+     *
+     * stackで
+     *
+     * ① 青を先に置く
+     * ② 赤を後に積む
+     *
+     * ことで視覚的に
+     *
+     * [赤][青]|右端
+     *
+     * になる。
+     */
+
+    await Plotly.restyle(
+      chart,
+      {
+        x: [
+          profile.up
+        ],
+
+        y: [
+          profile.prices
+        ],
+
+        width: [
+          profile.widths
+        ],
+
+        customdata: [
+          profile.up
+        ]
+      },
+      [
+        PROFILE_UP_INDEX
+      ]
+    );
+
+
+    await Plotly.restyle(
+      chart,
+      {
+        x: [
+          profile.down
+        ],
+
+        y: [
+          profile.prices
+        ],
+
+        width: [
+          profile.widths
+        ],
+
+        customdata: [
+          profile.down
+        ]
+      },
+      [
+        PROFILE_DOWN_INDEX
+      ]
+    );
+
+
+    /*
+     * maxTotal × 3.5
+     *
+     * → 最大の価格帯出来高が
+     *   チャート横幅の約28%を占める。
+     */
+
+    await Plotly.relayout(
+      chart,
+      {
+
+        "xaxis2.range": [
+          maxTotal * 3.5,
+          0
+        ],
+
+        "yaxis.range": [
+          low - padding,
+          high + padding
+        ]
+      }
+    );
+
+
+    currentRangeStart =
+      start;
+
+    currentRangeEnd =
+      end;
+
+
+    document
+      .getElementById(
+        "profileInfo"
+      )
+      .textContent =
+        `価格帯別出来高：${start} ～ ${end} ／ ` +
+        `${rows.length}営業日 ／ ` +
+        `${profile.bins}価格帯 ／ ` +
+        `左＝下落出来高（赤）、右＝上昇出来高（青） ／ ` +
+        `出来高は各日の終値価格帯へ全量割当`;
+
+  }
+  finally {
+
+    profileUpdating =
+      false;
+  }
+}
+
+
+// ============================================================
+// Summary
+// ============================================================
+
+function updateSummary(
+  data
+) {
+
+  const rows =
+    data.data;
+
+  const latest =
+    rows[
+      rows.length - 1
+    ];
+
+
+  const buyCount =
+    rows.filter(
+      row =>
+        row.buyCandidate
+    ).length;
+
+
+  const sellCount =
+    rows.filter(
+      row =>
+        row.sellCandidate
+    ).length;
+
+
+  let signal =
+    "候補なし";
+
+  let signalClass =
+    "";
+
+
+  if (
+    latest.buyCandidate
+  ) {
+
+    signal =
+      "▲ 買い候補";
+
+    signalClass =
+      "buy";
+  }
+
+
+  if (
+    latest.sellCandidate
+  ) {
+
+    signal =
+      "▼ 売り候補";
+
+    signalClass =
+      "sell";
+  }
+
+
+  document
+    .getElementById(
+      "summary"
+    )
+    .innerHTML = `
+
+      <div>
+        <span class="summary-label">
+          終値
+        </span>
         <strong>
-          ${latest.vcpCandidate ? "YES" : "NO"}
+          ${formatNumber(latest.close, 2)}
         </strong>
       </div>
 
-      <div class="summary-item">
-        <span class="summary-label">10年間候補数</span>
-        ${formatNumber(data.candidateCount)}
+      <div>
+        <span class="summary-label">
+          出来高
+        </span>
+        ${formatNumber(latest.volume)}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          5MA
+        </span>
+        ${formatNumber(latest.ma5, 2)}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          25MA
+        </span>
+        ${formatNumber(latest.ma25, 2)}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          50MA
+        </span>
+        ${formatNumber(latest.ma50, 2)}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          52週高値
+        </span>
+        ${formatNumber(latest.high52, 2)}
+      </div>
+
+      <div class="${signalClass}">
+        ${signal}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          10年買い候補
+        </span>
+        ${buyCount}
+      </div>
+
+      <div>
+        <span class="summary-label">
+          10年売り候補
+        </span>
+        ${sellCount}
       </div>
     `;
-  }
+}
 
-  // =========================================================
-  // Chart
-  // =========================================================
 
-  async function drawChart(data) {
+// ============================================================
+// お気に入り
+// ============================================================
 
-    const rows =
-      data.data;
+function getFavorites() {
 
-    if (!rows?.length) {
-      throw new Error(
-        "株価データがありません"
-      );
-    }
+  try {
 
-    const dates =
-      rows.map(
-        row => row.date
-      );
-
-    const latestDate =
-      dates[
-        dates.length - 1
-      ];
-
-    const end =
-      parseDate(latestDate);
-
-    const start =
-      new Date(end);
-
-    // 初期表示1年
-    start.setFullYear(
-      start.getFullYear() - 1
+    return JSON.parse(
+      localStorage.getItem(
+        "stockFavorites"
+      ) ||
+      "[]"
     );
 
-    const initialStart =
-      dateToString(start);
+  }
+  catch {
 
-    const profile =
-      calculateVolumeProfile(
-        getVisibleRows(
-          initialStart,
-          latestDate
-        )
+    return [];
+  }
+}
+
+
+function updateFavoriteButton() {
+
+  const button =
+    document.getElementById(
+      "favoriteButton"
+    );
+
+  const favorites =
+    getFavorites();
+
+  const active =
+    favorites.includes(
+      currentCode
+    );
+
+
+  button.textContent =
+    active
+      ? "★ お気に入り"
+      : "☆ お気に入り";
+}
+
+
+function toggleFavorite() {
+
+  let favorites =
+    getFavorites();
+
+
+  if (
+    favorites.includes(
+      currentCode
+    )
+  ) {
+
+    favorites =
+      favorites.filter(
+        code =>
+          code !== currentCode
       );
 
-    const maxProfileVolume =
-      profile
-        ? Math.max(
-            ...profile.volumes,
-            1
-          )
-        : 1;
+  }
+  else {
+
+    favorites.push(
+      currentCode
+    );
+  }
+
+
+  localStorage.setItem(
+    "stockFavorites",
+    JSON.stringify(
+      favorites
+    )
+  );
+
+
+  updateFavoriteButton();
+}
+
+
+// ============================================================
+// チャート
+// ============================================================
+
+async function drawChart(
+  data
+) {
+
+  const rows =
+    data.data;
+
+
+  const dates =
+    rows.map(
+      row =>
+        row.date
+    );
+
+
+  const latestDate =
+    data.endDate;
+
+
+  const startObject =
+    parseDate(
+      latestDate
+    );
+
+
+  startObject
+    .setFullYear(
+      startObject
+        .getFullYear() -
+      1
+    );
+
+
+  let initialStart =
+    dateString(
+      startObject
+    );
+
+
+  if (
+    initialStart <
+    data.startDate
+  ) {
+
+    initialStart =
+      data.startDate;
+  }
+
+
+  const initialRows =
+    visibleRows(
+      initialStart,
+      latestDate
+    );
+
+
+  const profile =
+    calculateVolumeProfile(
+      initialRows
+    );
+
+
+  const maxProfile =
+    Math.max(
+      ...profile.totals,
+      1
+    );
+
+
+  const dailyColors =
+    rows.map(
+      row =>
+        row.close >= row.open
+          ? BLUE
+          : RED
+    );
+
+
+  const buyRows =
+    rows.filter(
+      row =>
+        row.buyCandidate
+    );
+
+
+  const sellRows =
+    rows.filter(
+      row =>
+        row.sellCandidate
+    );
+
+
+  // ==========================================================
+  // Traces
+  // ==========================================================
+
+  const traces = [
+
 
     // ---------------------------------------------------------
-    // 1 ローソク足
+    // 0 ローソク足
     // ---------------------------------------------------------
 
-    const candle = {
-
+    {
       type:
         "candlestick",
 
@@ -771,222 +1320,203 @@
         "y",
 
       increasing: {
+
         line: {
-          color: "#d32f2f"
+          color: BLUE
         },
 
         fillcolor:
-          "#ef5350"
+          BLUE
       },
 
       decreasing: {
+
         line: {
-          color: "#1976d2"
+          color: RED
         },
 
         fillcolor:
-          "#42a5f5"
-      },
-
-      hoverlabel: {
-        namelength: 0
+          RED
       }
-    };
+    },
+
 
     // ---------------------------------------------------------
-    // 移動平均
+    // 1 5MA
     // ---------------------------------------------------------
 
-    const ma5 = {
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "5MA",
 
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "5MA",
-
-      x:
-        dates,
+      x: dates,
 
       y:
         rows.map(
           row => row.ma5
         ),
 
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      xaxis: "x",
+      yaxis: "y",
 
       line: {
-        width: 1.3,
+        width: 1.4,
         color: "#f57c00"
-      },
+      }
+    },
 
-      hovertemplate:
-        "5MA %{y:.2f}<extra></extra>"
-    };
 
-    const ma25 = {
+    // ---------------------------------------------------------
+    // 2 25MA
+    // ---------------------------------------------------------
 
-      type:
-        "scatter",
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "25MA",
 
-      mode:
-        "lines",
-
-      name:
-        "25MA",
-
-      x:
-        dates,
+      x: dates,
 
       y:
         rows.map(
           row => row.ma25
         ),
 
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      xaxis: "x",
+      yaxis: "y",
 
       line: {
-        width: 1.3,
+        width: 1.4,
         color: "#7b1fa2"
-      },
+      }
+    },
 
-      hovertemplate:
-        "25MA %{y:.2f}<extra></extra>"
-    };
 
-    const ma50 = {
+    // ---------------------------------------------------------
+    // 3 50MA
+    // ---------------------------------------------------------
 
-      type:
-        "scatter",
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "50MA",
 
-      mode:
-        "lines",
-
-      name:
-        "50MA",
-
-      x:
-        dates,
+      x: dates,
 
       y:
         rows.map(
           row => row.ma50
         ),
 
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      xaxis: "x",
+      yaxis: "y",
 
       line: {
-        width: 1.3,
+        width: 1.4,
         color: "#388e3c"
-      },
+      }
+    },
 
-      hovertemplate:
-        "50MA %{y:.2f}<extra></extra>"
-    };
 
     // ---------------------------------------------------------
-    // 高値・安値5MA
+    // 4 高値5MA
     // ---------------------------------------------------------
 
-    const highMa5 = {
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "高値5MA",
 
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "高値5MA",
-
-      x:
-        dates,
+      x: dates,
 
       y:
         rows.map(
           row => row.highMa5
         ),
 
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      xaxis: "x",
+      yaxis: "y",
 
       line: {
         width: 1,
-        color: "#9e9e9e",
-        dash: "dot"
+        dash: "dot",
+        color: "#777"
       },
 
       visible:
-        "legendonly",
+        "legendonly"
+    },
 
-      hovertemplate:
-        "高値5MA %{y:.2f}<extra></extra>"
-    };
 
-    const lowMa5 = {
+    // ---------------------------------------------------------
+    // 5 安値5MA
+    // ---------------------------------------------------------
 
-      type:
-        "scatter",
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "安値5MA",
 
-      mode:
-        "lines",
-
-      name:
-        "安値5MA",
-
-      x:
-        dates,
+      x: dates,
 
       y:
         rows.map(
           row => row.lowMa5
         ),
 
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      xaxis: "x",
+      yaxis: "y",
 
       line: {
         width: 1,
-        color: "#616161",
-        dash: "dot"
+        dash: "dot",
+        color: "#999"
       },
 
       visible:
-        "legendonly",
+        "legendonly"
+    },
+
+
+    // ---------------------------------------------------------
+    // 6 52週高値
+    // ---------------------------------------------------------
+
+    {
+      type: "scatter",
+      mode: "lines",
+      name: "52週高値",
+
+      x: dates,
+
+      y:
+        rows.map(
+          row => row.high52
+        ),
+
+      xaxis: "x",
+      yaxis: "y",
+
+      line: {
+        width: 1.4,
+        dash: "dash",
+        color: "#111"
+      },
 
       hovertemplate:
-        "安値5MA %{y:.2f}<extra></extra>"
-    };
+        "52週高値 %{y:.2f}<extra></extra>"
+    },
+
 
     // ---------------------------------------------------------
-    // 価格帯別出来高
+    // 7 価格帯別出来高 UP
     //
-    // 数値軸x2をローソク足x軸へ重ねる。
+    // 最初に青を積む。
+    // xaxis2は逆方向なので右側に青が来る。
     // ---------------------------------------------------------
 
-    const volumeProfile = {
-
+    {
       type:
         "bar",
 
@@ -994,16 +1524,19 @@
         "h",
 
       name:
-        "価格帯別出来高",
+        "価格帯出来高 上昇",
 
       x:
-        profile?.volumes ?? [],
+        profile.up,
 
       y:
-        profile?.prices ?? [],
+        profile.prices,
 
       width:
-        profile?.widths ?? [],
+        profile.widths,
+
+      customdata:
+        profile.up,
 
       xaxis:
         "x2",
@@ -1013,38 +1546,80 @@
 
       marker: {
         color:
-          "rgba(80, 80, 80, 0.28)",
-
-        line: {
-          width: 0
-        }
+          "rgba(25,118,210,0.50)"
       },
 
       hovertemplate:
-        "価格帯 %{y:.2f}円" +
-        "<br>出来高 %{x:,.0f}" +
+        "価格 %{y:.2f}円" +
+        "<br>上昇出来高 %{customdata:,.0f}" +
         "<extra></extra>"
-    };
+    },
+
 
     // ---------------------------------------------------------
-    // 日次VCP 陽線
+    // 8 価格帯別出来高 DOWN
+    //
+    // 青の後ろに赤を積むので
+    // 視覚的に赤が左側。
     // ---------------------------------------------------------
 
-    const upVcp = {
+    {
+      type:
+        "bar",
 
+      orientation:
+        "h",
+
+      name:
+        "価格帯出来高 下落",
+
+      x:
+        profile.down,
+
+      y:
+        profile.prices,
+
+      width:
+        profile.widths,
+
+      customdata:
+        profile.down,
+
+      xaxis:
+        "x2",
+
+      yaxis:
+        "y",
+
+      marker: {
+        color:
+          "rgba(211,47,47,0.50)"
+      },
+
+      hovertemplate:
+        "価格 %{y:.2f}円" +
+        "<br>下落出来高 %{customdata:,.0f}" +
+        "<extra></extra>"
+    },
+
+
+    // ---------------------------------------------------------
+    // 9 通常出来高
+    // ---------------------------------------------------------
+
+    {
       type:
         "bar",
 
       name:
-        "日次VCP 陽線",
+        "出来高",
 
       x:
         dates,
 
       y:
         rows.map(
-          row =>
-            row.upVcp ?? 0
+          row => row.volume
         ),
 
       xaxis:
@@ -1055,24 +1630,26 @@
 
       marker: {
         color:
-          "#ef5350"
+          dailyColors
       },
 
       hovertemplate:
-        "%{x}<br>陽線VCP %{y:.6f}<extra></extra>"
-    };
+        "%{x}" +
+        "<br>出来高 %{y:,.0f}" +
+        "<extra></extra>"
+    },
+
 
     // ---------------------------------------------------------
-    // 日次VCP 陰線
+    // 10 日次VCP
     // ---------------------------------------------------------
 
-    const downVcp = {
-
+    {
       type:
         "bar",
 
       name:
-        "日次VCP 陰線",
+        "日次VCP",
 
       x:
         dates,
@@ -1080,30 +1657,32 @@
       y:
         rows.map(
           row =>
-            row.downVcp ?? 0
+            row.dailyVcp
         ),
 
       xaxis:
-        "x3",
+        "x4",
 
       yaxis:
-        "y2",
+        "y3",
 
       marker: {
         color:
-          "#42a5f5"
+          dailyColors
       },
 
       hovertemplate:
-        "%{x}<br>陰線VCP %{y:.6f}<extra></extra>"
-    };
+        "%{x}" +
+        "<br>日次VCP %{y:.6f}" +
+        "<extra></extra>"
+    },
+
 
     // ---------------------------------------------------------
-    // 日次VCP 120日10パーセンタイル
+    // 11 日次VCP P10
     // ---------------------------------------------------------
 
-    const dailyP10 = {
-
+    {
       type:
         "scatter",
 
@@ -1123,27 +1702,24 @@
         ),
 
       xaxis:
-        "x3",
+        "x4",
 
       yaxis:
-        "y2",
+        "y3",
 
       line: {
         width: 1,
         dash: "dot",
         color: "#777"
-      },
+      }
+    },
 
-      hovertemplate:
-        "120日P10 %{y:.6f}<extra></extra>"
-    };
 
     // ---------------------------------------------------------
-    // 26日累積差
+    // 12 26日累積差
     // ---------------------------------------------------------
 
-    const vcp26 = {
-
+    {
       type:
         "scatter",
 
@@ -1163,26 +1739,28 @@
         ),
 
       xaxis:
-        "x3",
+        "x4",
 
       yaxis:
-        "y3",
+        "y4",
 
       line: {
         width: 1.8,
-        color: "#212121"
+        color: "#111"
       },
 
       hovertemplate:
-        "%{x}<br>26日累積差 %{y:.6f}<extra></extra>"
-    };
+        "%{x}" +
+        "<br>26日累積差 %{y:.6f}" +
+        "<extra></extra>"
+    },
+
 
     // ---------------------------------------------------------
-    // 26日累積差の5日変化
+    // 13 累積差5日変化
     // ---------------------------------------------------------
 
-    const delta5 = {
-
+    {
       type:
         "scatter",
 
@@ -1202,36 +1780,27 @@
         ),
 
       xaxis:
-        "x3",
+        "x4",
 
       yaxis:
-        "y3",
+        "y4",
 
       line: {
         width: 1,
-        dash: "dash",
+        dash: "dot",
         color: "#8e24aa"
       },
 
       visible:
-        "legendonly",
+        "legendonly"
+    },
 
-      hovertemplate:
-        "%{x}<br>5日変化 %{y:.6f}<extra></extra>"
-    };
 
     // ---------------------------------------------------------
-    // VCP候補マーカー
+    // 14 買い候補
     // ---------------------------------------------------------
 
-    const candidates =
-      rows.filter(
-        row =>
-          row.vcpCandidate
-      );
-
-    const candidateTrace = {
-
+    {
       type:
         "scatter",
 
@@ -1239,792 +1808,1070 @@
         "markers",
 
       name:
-        "VCP候補",
+        "買い候補 ▲",
 
       x:
-        candidates.map(
-          row =>
-            row.date
+        buyRows.map(
+          row => row.date
         ),
 
       y:
-        candidates.map(
+        buyRows.map(
           row =>
-            row.dailyVcp
+            row.low * 0.985
         ),
 
       xaxis:
-        "x3",
+        "x",
 
       yaxis:
-        "y2",
+        "y",
 
       marker: {
         symbol:
           "triangle-up",
 
         size:
-          10,
+          13,
 
         color:
-          "#000"
-      },
+          BLUE,
 
-      hovertemplate:
-        "%{x}<br>VCP候補<extra></extra>"
-    };
-
-    // =========================================================
-    // Layout
-    // =========================================================
-
-    const layout = {
-
-      autosize:
-        true,
-
-      height:
-        880,
-
-      margin: {
-        l: 65,
-        r: 75,
-        t: 35,
-        b: 45
-      },
-
-      paper_bgcolor:
-        "#ffffff",
-
-      plot_bgcolor:
-        "#ffffff",
-
-      hovermode:
-        "x unified",
-
-      dragmode:
-        "pan",
-
-      barmode:
-        "overlay",
-
-      legend: {
-        orientation:
-          "h",
-
-        x:
-          0,
-
-        y:
-          1.06,
-
-        font: {
-          size: 11
+        line: {
+          color: "#fff",
+          width: 1
         }
       },
 
-      // -------------------------------------------------------
-      // メイン日付軸
-      // -------------------------------------------------------
+      cliponaxis:
+        false,
 
-      xaxis: {
+      hovertemplate:
+        "%{x}<br>買い候補 ▲<extra></extra>"
+    },
 
-        type:
-          "date",
 
-        domain:
-          [0, 1],
+    // ---------------------------------------------------------
+    // 15 売り候補
+    // ---------------------------------------------------------
 
-        anchor:
-          "y",
+    {
+      type:
+        "scatter",
 
-        range: [
-          initialStart,
-          latestDate
-        ],
+      mode:
+        "markers",
 
-        showticklabels:
-          false,
+      name:
+        "売り候補 ▼",
 
-        showgrid:
-          true,
+      x:
+        sellRows.map(
+          row => row.date
+        ),
 
-        gridcolor:
-          "#eeeeee",
+      y:
+        sellRows.map(
+          row =>
+            row.high * 1.015
+        ),
 
-        rangeslider: {
-          visible:
-            false
-        },
+      xaxis:
+        "x",
 
-        rangebreaks: [
-          {
-            bounds: [
-              "sat",
-              "mon"
-            ]
-          }
-        ]
+      yaxis:
+        "y",
+
+      marker: {
+        symbol:
+          "triangle-down",
+
+        size:
+          13,
+
+        color:
+          RED,
+
+        line: {
+          color: "#fff",
+          width: 1
+        }
       },
 
-      // -------------------------------------------------------
-      // 価格帯別出来高用の数値軸
-      // -------------------------------------------------------
+      cliponaxis:
+        false,
 
-      xaxis2: {
+      hovertemplate:
+        "%{x}<br>売り候補 ▼<extra></extra>"
+    }
+  ];
 
-        overlaying:
-          "x",
 
-        anchor:
-          "y",
+  // ==========================================================
+  // Layout
+  // ==========================================================
 
-        side:
-          "top",
+  const layout = {
 
-        range: [
-          maxProfileVolume * 3.5,
-          0
-        ],
+    height:
+      1000,
 
-        showgrid:
-          false,
+    autosize:
+      true,
 
-        showticklabels:
-          false,
+    margin: {
+      l: 70,
+      r: 75,
+      t: 42,
+      b: 45
+    },
 
-        zeroline:
-          false,
+    paper_bgcolor:
+      "#fff",
 
-        fixedrange:
-          true
-      },
+    plot_bgcolor:
+      "#fff",
 
-      // -------------------------------------------------------
-      // VCPペイン日付軸
-      // -------------------------------------------------------
+    hovermode:
+      "x unified",
 
-      xaxis3: {
+    dragmode:
+      "pan",
 
-        type:
-          "date",
+    /*
+     * Volume Profileだけ2系列を積み上げ。
+     *
+     * 他のBarは別subplotなので影響なし。
+     */
+    barmode:
+      "stack",
 
-        domain:
-          [0, 1],
+    legend: {
+      orientation:
+        "h",
 
-        anchor:
-          "y2",
+      x:
+        0,
 
-        matches:
-          "x",
+      y:
+        1.06,
 
-        showgrid:
-          true,
+      font: {
+        size: 11
+      }
+    },
 
-        gridcolor:
-          "#eeeeee",
 
-        rangeslider: {
-          visible:
-            true,
+    // ========================================================
+    // 株価の日付軸
+    // ========================================================
 
-          thickness:
-            0.06
-        },
+    xaxis: {
 
-        rangebreaks: [
-          {
-            bounds: [
-              "sat",
-              "mon"
-            ]
-          }
-        ]
-      },
+      type:
+        "date",
 
-      // -------------------------------------------------------
-      // 株価軸
-      // -------------------------------------------------------
+      domain:
+        [0, 1],
 
-      yaxis: {
+      anchor:
+        "y",
 
-        domain: [
-          0.37,
-          1
-        ],
+      range: [
+        initialStart,
+        latestDate
+      ],
 
-        title: {
-          text:
-            "株価"
-        },
+      showticklabels:
+        false,
 
-        side:
-          "right",
+      showgrid:
+        true,
 
-        showgrid:
-          true,
+      gridcolor:
+        "#eeeeee",
 
-        gridcolor:
-          "#e6e6e6",
-
-        zeroline:
+      rangeslider: {
+        visible:
           false
       },
 
-      // -------------------------------------------------------
-      // 日次VCP軸
-      // -------------------------------------------------------
+      rangebreaks: [
+        {
+          bounds: [
+            "sat",
+            "mon"
+          ]
+        }
+      ]
+    },
 
-      yaxis2: {
 
-        domain: [
-          0,
-          0.29
-        ],
+    // ========================================================
+    // 価格帯別出来高専用軸
+    //
+    // x軸を逆向きにすることで
+    // 右端から左へ横棒が伸びる。
+    // ========================================================
 
-        title: {
-          text:
-            "日次VCP"
-        },
+    xaxis2: {
 
-        side:
-          "left",
+      type:
+        "linear",
 
-        showgrid:
+      overlaying:
+        "x",
+
+      anchor:
+        "y",
+
+      side:
+        "top",
+
+      range: [
+        maxProfile * 3.5,
+        0
+      ],
+
+      fixedrange:
+        true,
+
+      showgrid:
+        false,
+
+      showticklabels:
+        false,
+
+      showline:
+        false,
+
+      zeroline:
+        false
+    },
+
+
+    // ========================================================
+    // 通常出来高の日付軸
+    // ========================================================
+
+    xaxis3: {
+
+      type:
+        "date",
+
+      domain:
+        [0, 1],
+
+      anchor:
+        "y2",
+
+      matches:
+        "x",
+
+      showticklabels:
+        false,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eeeeee",
+
+      rangebreaks: [
+        {
+          bounds: [
+            "sat",
+            "mon"
+          ]
+        }
+      ]
+    },
+
+
+    // ========================================================
+    // VCPの日付軸
+    // ========================================================
+
+    xaxis4: {
+
+      type:
+        "date",
+
+      domain:
+        [0, 1],
+
+      anchor:
+        "y3",
+
+      matches:
+        "x",
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eeeeee",
+
+      rangeslider: {
+        visible:
           true,
 
-        gridcolor:
-          "#e6e6e6",
-
-        zeroline:
-          true,
-
-        zerolinecolor:
-          "#999"
+        thickness:
+          0.05
       },
 
-      // -------------------------------------------------------
-      // 26日累積差軸
-      // -------------------------------------------------------
-
-      yaxis3: {
-
-        overlaying:
-          "y2",
-
-        anchor:
-          "x3",
-
-        side:
-          "right",
-
-        title: {
-          text:
-            "26日累積差"
-        },
-
-        showgrid:
-          false,
-
-        zeroline:
-          true,
-
-        zerolinecolor:
-          "#777"
-      }
-    };
-
-    // =========================================================
-    // 描画
-    // =========================================================
-
-    await Plotly.newPlot(
-      chart,
-      [
-        candle,
-        ma5,
-        ma25,
-        ma50,
-        highMa5,
-        lowMa5,
-
-        // index 6
-        volumeProfile,
-
-        upVcp,
-        downVcp,
-        dailyP10,
-        vcp26,
-        delta5,
-        candidateTrace
-      ],
-      layout,
-      {
-        responsive:
-          true,
-
-        scrollZoom:
-          true,
-
-        displaylogo:
-          false,
-
-        doubleClick:
-          "reset"
-      }
-    );
-
-    // 初回のY軸・価格帯出来高調整
-    await updateVisibleRange(
-      initialStart,
-      latestDate
-    );
-
-    // =========================================================
-    // ズーム・ドラッグ時
-    //
-    // 表示期間が変わったら
-    // 価格帯別出来高を再計算する。
-    // =========================================================
-
-    chart.on(
-      "plotly_relayout",
-      event => {
-
-        if (
-          profileUpdating ||
-          !currentStock
-        ) {
-          return;
-        }
-
-        let startDate = null;
-        let endDate = null;
-
-        if (
-          event[
-            "xaxis.range[0]"
-          ] &&
-          event[
-            "xaxis.range[1]"
+      rangebreaks: [
+        {
+          bounds: [
+            "sat",
+            "mon"
           ]
-        ) {
-
-          startDate =
-            String(
-              event[
-                "xaxis.range[0]"
-              ]
-            ).slice(0, 10);
-
-          endDate =
-            String(
-              event[
-                "xaxis.range[1]"
-              ]
-            ).slice(0, 10);
         }
+      ]
+    },
 
-        else if (
+
+    // ========================================================
+    // 株価Y軸
+    // ========================================================
+
+    yaxis: {
+
+      domain:
+        [0.45, 1],
+
+      side:
+        "right",
+
+      title: {
+        text:
+          "株価"
+      },
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#e5e5e5",
+
+      zeroline:
+        false
+    },
+
+
+    // ========================================================
+    // 通常出来高Y軸
+    // ========================================================
+
+    yaxis2: {
+
+      domain:
+        [0.29, 0.41],
+
+      side:
+        "right",
+
+      title: {
+        text:
+          "出来高"
+      },
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eeeeee",
+
+      zeroline:
+        false
+    },
+
+
+    // ========================================================
+    // 日次VCP
+    // ========================================================
+
+    yaxis3: {
+
+      domain:
+        [0, 0.24],
+
+      side:
+        "left",
+
+      title: {
+        text:
+          "日次VCP"
+      },
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#e5e5e5",
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#999"
+    },
+
+
+    // ========================================================
+    // VCP26
+    // ========================================================
+
+    yaxis4: {
+
+      overlaying:
+        "y3",
+
+      anchor:
+        "x4",
+
+      side:
+        "right",
+
+      title: {
+        text:
+          "26日累積差"
+      },
+
+      showgrid:
+        false,
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#777"
+    }
+  };
+
+
+  // 再描画時のイベント重複を防ぐ
+  Plotly.purge(
+    chart
+  );
+
+
+  await Plotly.newPlot(
+    chart,
+    traces,
+    layout,
+    {
+      responsive:
+        true,
+
+      scrollZoom:
+        true,
+
+      displaylogo:
+        false,
+
+      doubleClick:
+        "reset"
+    }
+  );
+
+
+  await updateVolumeProfile(
+    initialStart,
+    latestDate
+  );
+
+
+  // ==========================================================
+  // ドラッグ・ズーム
+  // ==========================================================
+
+  chart.on(
+    "plotly_relayout",
+    event => {
+
+      if (
+        profileUpdating ||
+        !currentStock
+      ) {
+        return;
+      }
+
+
+      const axes = [
+        "xaxis",
+        "xaxis3",
+        "xaxis4"
+      ];
+
+
+      for (
+        const axis
+        of axes
+      ) {
+
+        const start =
           event[
-            "xaxis3.range[0]"
-          ] &&
+            `${axis}.range[0]`
+          ];
+
+        const end =
           event[
-            "xaxis3.range[1]"
-          ]
-        ) {
+            `${axis}.range[1]`
+          ];
 
-          startDate =
-            String(
-              event[
-                "xaxis3.range[0]"
-              ]
-            ).slice(0, 10);
-
-          endDate =
-            String(
-              event[
-                "xaxis3.range[1]"
-              ]
-            ).slice(0, 10);
-        }
 
         if (
-          startDate &&
-          endDate
+          start &&
+          end
         ) {
 
-          updateVisibleRange(
-            startDate,
-            endDate
+          const startText =
+            String(start)
+              .slice(
+                0,
+                10
+              );
+
+          const endText =
+            String(end)
+              .slice(
+                0,
+                10
+              );
+
+
+          updateVolumeProfile(
+            startText,
+            endText
           );
+
+          break;
         }
       }
+    }
+  );
+}
+
+
+// ============================================================
+// 銘柄ロード
+// ============================================================
+
+async function loadStock(
+  code
+) {
+
+  code =
+    code
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    !/^[0-9A-Z]{4}$/
+      .test(code)
+  ) {
+
+    throw new Error(
+      "東証銘柄コードを4文字で入力してください"
     );
   }
 
-  // =========================================================
-  // 銘柄取得
-  // =========================================================
 
-  async function loadStock(code) {
+  const status =
+    document.getElementById(
+      "status"
+    );
 
-    code =
-      code
-        .trim()
-        .toUpperCase();
 
-    if (
-      !/^[0-9A-Z]{4}$/
-        .test(code)
-    ) {
-
-      throw new Error(
-        "銘柄コードは4桁で入力してください"
-      );
-    }
-
-    const status =
-      document.getElementById(
-        "status"
-      );
-
-    status.classList.remove(
+  status
+    .classList
+    .remove(
       "error"
     );
 
-    status.textContent =
-      `${code} をR2から取得しています...`;
 
-    const response =
-      await fetch(
-        `/api/stock/${code}`,
-        {
-          cache:
-            "no-store"
-        }
-      );
+  status.textContent =
+    `${code} を読み込み中...`;
 
-    if (!response.ok) {
 
-      if (
-        response.status === 404
-      ) {
-
-        throw new Error(
-          `${code} のデータはまだR2に保存されていません`
-        );
+  const response =
+    await fetch(
+      `/api/stock/${code}`,
+      {
+        cache:
+          "no-store"
       }
-
-      throw new Error(
-        `HTTP ${response.status}`
-      );
-    }
-
-    const data =
-      await response.json();
-
-    currentStock =
-      data;
-
-    currentCode =
-      code;
-
-    document
-      .getElementById(
-        "stockCode"
-      )
-      .value =
-        code;
-
-    document
-      .getElementById(
-        "stockTitle"
-      )
-      .textContent =
-        `${code}  ${data.name ?? ""}`;
-
-    updateSummary(
-      data
     );
 
-    await drawChart(
-      data
-    );
 
-    status.textContent =
-      `表示中：${data.startDate} ～ ${data.endDate} ／ ` +
-      `${formatNumber(data.rowCount)}営業日 ／ ` +
-      `最終取得 ${data.fetchedAt ?? "-"}`;
-  }
-
-  // =========================================================
-  // 期間変更
-  // =========================================================
-
-  async function setPeriod(period) {
-
-    if (!currentStock) {
-      return;
-    }
-
-    const latest =
-      parseDate(
-        currentStock.endDate
-      );
-
-    let start;
-
-    if (period === "all") {
-
-      start =
-        parseDate(
-          currentStock.startDate
-        );
-    }
-    else {
-
-      start =
-        new Date(
-          latest
-        );
-
-      switch (period) {
-
-        case "3m":
-          start.setMonth(
-            start.getMonth() - 3
-          );
-          break;
-
-        case "6m":
-          start.setMonth(
-            start.getMonth() - 6
-          );
-          break;
-
-        case "1y":
-          start.setFullYear(
-            start.getFullYear() - 1
-          );
-          break;
-
-        case "3y":
-          start.setFullYear(
-            start.getFullYear() - 3
-          );
-          break;
-
-        case "5y":
-          start.setFullYear(
-            start.getFullYear() - 5
-          );
-          break;
-
-        case "10y":
-          start.setFullYear(
-            start.getFullYear() - 10
-          );
-          break;
-      }
-    }
-
-    let startDate =
-      dateToString(start);
+  if (
+    !response.ok
+  ) {
 
     if (
-      startDate <
-      currentStock.startDate
+      response.status ===
+      404
     ) {
-      startDate =
-        currentStock.startDate;
+
+      throw new Error(
+        `${code} のデータはR2に保存されていません`
+      );
     }
 
-    const endDate =
-      currentStock.endDate;
 
-    await Plotly.relayout(
-      chart,
-      {
-        "xaxis.range": [
-          startDate,
-          endDate
-        ],
-
-        "xaxis3.range": [
-          startDate,
-          endDate
-        ]
-      }
-    );
-
-    await updateVisibleRange(
-      startDate,
-      endDate
+    throw new Error(
+      `HTTP ${response.status}`
     );
   }
 
-  // =========================================================
-  // Events
-  // =========================================================
 
-  document
-    .getElementById(
-      "loadButton"
-    )
-    .addEventListener(
-      "click",
-      async () => {
+  const data =
+    await response.json();
 
-        try {
 
-          await loadStock(
-            document
-              .getElementById(
-                "stockCode"
-              )
-              .value
-          );
-        }
-        catch (error) {
+  if (
+    !Array.isArray(
+      data.data
+    ) ||
+    !data.data.length
+  ) {
 
-          const status =
-            document.getElementById(
-              "status"
-            );
-
-          status.classList.add(
-            "error"
-          );
-
-          status.textContent =
-            String(
-              error.message ??
-              error
-            );
-        }
-      }
+    throw new Error(
+      "株価データがありません"
     );
+  }
+
+
+  currentStock =
+    data;
+
+  currentCode =
+    code;
+
+
+  prepareIndicators(
+    data.data
+  );
+
 
   document
     .getElementById(
       "stockCode"
     )
-    .addEventListener(
-      "keydown",
-      event => {
+    .value =
+      code;
 
-        if (
-          event.key === "Enter"
-        ) {
-
-          document
-            .getElementById(
-              "loadButton"
-            )
-            .click();
-        }
-      }
-    );
-
-  document
-    .querySelectorAll(
-      "[data-period]"
-    )
-    .forEach(
-      button => {
-
-        button.addEventListener(
-          "click",
-          async () => {
-
-            document
-              .querySelectorAll(
-                "[data-period]"
-              )
-              .forEach(
-                item =>
-                  item.classList.remove(
-                    "active"
-                  )
-              );
-
-            button
-              .classList.add(
-                "active"
-              );
-
-            await setPeriod(
-              button.dataset.period
-            );
-          }
-        );
-      }
-    );
-
-  // =========================================================
-  // PNG保存
-  // =========================================================
 
   document
     .getElementById(
-      "saveImage"
+      "stockTitle"
     )
-    .addEventListener(
-      "click",
-      async () => {
+    .textContent =
+      `${code} ${data.name ?? ""}`;
 
-        if (!currentStock) {
-          return;
-        }
 
-        await Plotly.downloadImage(
-          chart,
-          {
-            format:
-              "png",
+  updateSummary(
+    data
+  );
 
-            filename:
-              `${currentCode}_${currentStock.endDate}_VCP`,
 
-            width:
-              1600,
+  updateFavoriteButton();
 
-            height:
-              1000,
 
-            scale:
-              1
-          }
-        );
-      }
+  await drawChart(
+    data
+  );
+
+
+  status.textContent =
+    `表示データ：${data.startDate} ～ ${data.endDate} ／ ` +
+    `${formatNumber(data.rowCount)}営業日 ／ ` +
+    `最終取得 ${data.fetchedAt ?? "-"}`;
+}
+
+
+// ============================================================
+// 期間変更
+// ============================================================
+
+async function setPeriod(
+  period
+) {
+
+  if (
+    !currentStock
+  ) {
+    return;
+  }
+
+
+  const end =
+    parseDate(
+      currentStock.endDate
     );
 
-  // =========================================================
-  // 初期起動
-  // =========================================================
 
-  loadStock(
-    "7203"
-  ).catch(
-    error => {
+  let start =
+    new Date(
+      end
+    );
 
-      const status =
-        document.getElementById(
+
+  switch (
+    period
+  ) {
+
+    case "3m":
+
+      start.setMonth(
+        start.getMonth() -
+        3
+      );
+
+      break;
+
+
+    case "6m":
+
+      start.setMonth(
+        start.getMonth() -
+        6
+      );
+
+      break;
+
+
+    case "1y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        1
+      );
+
+      break;
+
+
+    case "3y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        3
+      );
+
+      break;
+
+
+    case "5y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        5
+      );
+
+      break;
+
+
+    case "10y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        10
+      );
+
+      break;
+
+
+    case "all":
+
+      start =
+        parseDate(
+          currentStock.startDate
+        );
+
+      break;
+  }
+
+
+  let startText =
+    dateString(
+      start
+    );
+
+
+  if (
+    startText <
+    currentStock.startDate
+  ) {
+
+    startText =
+      currentStock.startDate;
+  }
+
+
+  const endText =
+    currentStock.endDate;
+
+
+  await Plotly.relayout(
+    chart,
+    {
+
+      "xaxis.range": [
+        startText,
+        endText
+      ],
+
+      "xaxis3.range": [
+        startText,
+        endText
+      ],
+
+      "xaxis4.range": [
+        startText,
+        endText
+      ]
+    }
+  );
+
+
+  await updateVolumeProfile(
+    startText,
+    endText
+  );
+}
+
+
+// ============================================================
+// Events
+// ============================================================
+
+document
+  .getElementById(
+    "loadButton"
+  )
+  .addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        await loadStock(
+          document
+            .getElementById(
+              "stockCode"
+            )
+            .value
+        );
+
+      }
+      catch (
+        error
+      ) {
+
+        const status =
+          document
+            .getElementById(
+              "status"
+            );
+
+
+        status
+          .classList
+          .add(
+            "error"
+          );
+
+
+        status.textContent =
+          error.message ??
+          String(error);
+      }
+    }
+  );
+
+
+document
+  .getElementById(
+    "stockCode"
+  )
+  .addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key ===
+        "Enter"
+      ) {
+
+        document
+          .getElementById(
+            "loadButton"
+          )
+          .click();
+      }
+    }
+  );
+
+
+document
+  .querySelectorAll(
+    "[data-period]"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        async () => {
+
+          document
+            .querySelectorAll(
+              "[data-period]"
+            )
+            .forEach(
+              item =>
+                item
+                  .classList
+                  .remove(
+                    "active"
+                  )
+            );
+
+
+          button
+            .classList
+            .add(
+              "active"
+            );
+
+
+          await setPeriod(
+            button
+              .dataset
+              .period
+          );
+        }
+      );
+    }
+  );
+
+
+document
+  .getElementById(
+    "profileBins"
+  )
+  .addEventListener(
+    "change",
+    async () => {
+
+      if (
+        !currentStock
+      ) {
+        return;
+      }
+
+
+      await updateVolumeProfile(
+        currentRangeStart ??
+          currentStock.startDate,
+
+        currentRangeEnd ??
+          currentStock.endDate
+      );
+    }
+  );
+
+
+document
+  .getElementById(
+    "favoriteButton"
+  )
+  .addEventListener(
+    "click",
+    toggleFavorite
+  );
+
+
+// ============================================================
+// PNG保存
+// ============================================================
+
+document
+  .getElementById(
+    "saveImage"
+  )
+  .addEventListener(
+    "click",
+    async () => {
+
+      if (
+        !currentStock
+      ) {
+        return;
+      }
+
+
+      await Plotly.downloadImage(
+        chart,
+        {
+
+          format:
+            "png",
+
+          filename:
+            `${currentCode}_${currentStock.endDate}_VCP`,
+
+          width:
+            1750,
+
+          height:
+            1100,
+
+          scale:
+            1
+        }
+      );
+    }
+  );
+
+
+// ============================================================
+// 起動
+// ============================================================
+
+loadStock(
+  "9984"
+)
+.catch(
+  error => {
+
+    const status =
+      document
+        .getElementById(
           "status"
         );
 
-      status.classList.add(
+
+    status
+      .classList
+      .add(
         "error"
       );
 
-      status.textContent =
-        String(
-          error.message ??
-          error
-        );
-    }
-  );
+
+    status.textContent =
+      error.message ??
+      String(error);
+  }
+);
 
 </script>
 
