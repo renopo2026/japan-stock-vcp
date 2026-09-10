@@ -427,6 +427,49 @@ function positiveRange(values, fallback=1) {
   ];
 }
 
+function positiveLogRange(
+  values,
+  fallbackMin=.1,
+  fallbackMax=1
+) {
+  const valid = values.filter(
+    value =>
+      isFiniteNumber(value) &&
+      value > 0
+  );
+
+  if (!valid.length) {
+    return [
+      Math.log10(fallbackMin),
+      Math.log10(fallbackMax)
+    ];
+  }
+
+  let min = Math.min(...valid);
+  let max = Math.max(...valid);
+
+  if (min === max) {
+    min = Math.max(
+      min/1.5,
+      .000001
+    );
+
+    max *= 1.5;
+  } else {
+    min = Math.max(
+      min*.85,
+      .000001
+    );
+
+    max *= 1.15;
+  }
+
+  return [
+    Math.log10(min),
+    Math.log10(max)
+  ];
+}  
+  
 function getPaneLayout() {
   if (showVolumePane) {
     return {
@@ -532,7 +575,7 @@ async function updateVisibleRange(start, end) {
   const nRange = rangeIncludeZero(rows.map(r => r.vcp26));
 
   const supplyRows = visibleSupplyRows(start,end);
-  const shortRange = positiveRange(
+  const shortRange = positiveLogRange(
     supplyRows.map(r => r.publicShortRatio),
     1
   );
@@ -1135,7 +1178,7 @@ async function drawChart() {
     );
 
   const shortRange =
-    positiveRange(
+    positiveLogRange(
       initialSupply.map(r=>r.publicShortRatio),
       1
     );
@@ -1299,17 +1342,20 @@ async function drawChart() {
     // Same supply pane, three independent scales.
     yaxis4:{
       domain:pane.supplyDomain,
+      type:"log",
       side:"left",
       title:{
-        text:"公表空売り %",
+        text:"公表空売り %（対数）",
         font:{color:GRAY}
       },
       range:shortRange,
-      rangemode:"tozero",
       showgrid:true,
       gridcolor:"#eee",
-      zeroline:true,
-      zerolinecolor:"#999",
+      minor:{
+        showgrid:true,
+        gridcolor:"#f3f3f3"
+      },
+      zeroline:false,
       showspikes:false,
       tickfont:{color:GRAY}
     },
