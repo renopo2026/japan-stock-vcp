@@ -787,163 +787,118 @@ async function downloadToBuffer(download) {
   return Buffer.concat(chunks);
 }
 
-async function requestJsfCsv(
-  page,
-  startIso,
-  endIso
-) {
+async function requestJsfCsv(page, startIso, endIso) {
   const detailUrl =
-    `https://www.taisyaku.jp/app/stock/detail/` +
-    `${CODE}-01`;
+    `https://www.taisyaku.jp/app/stock/detail/${CODE}-01`;
 
-  await page.goto(detailUrl, {
-    waitUntil: "domcontentloaded",
-    timeout: 60000
-  });
+  await page.goto(
+    detailUrl,
+    {
+      waitUntil: "domcontentloaded",
+      timeout: 60000
+    }
+  );
 
   const periodInputs =
-    page.locator(
-      'input[placeholder*="YYYY"]'
-    );
+    page.locator('input[placeholder*="YYYY"]');
 
-  if (
-    await periodInputs.count() < 2
-  ) {
-    throw new Error(
-      "JSF period inputs not found"
-    );
+  if (await periodInputs.count() < 2) {
+    throw new Error("JSF period inputs not found");
   }
 
   /*
-   * サイト側JavaScriptの確認ダイアログを経由せず、
-   * 検索フォームを直接送信する。
+   * 検索期間を設定する。
    */
-  await Promise.all([
-    page.waitForNavigation({
-      waitUntil: "domcontentloaded",
-      timeout: 60000
-    }),
+  await page.evaluate(
+    ({ start, end }) => {
+      const from =
+        document.querySelector(
+          'input[name="mkYmdFrom"]'
+        );
 
-    page.evaluate(
-      ({ start, end }) => {
-        const from =
-          document.querySelector(
-            'input[name="mkYmdFrom"]'
-          );
+      const to =
+        document.querySelector(
+          'input[name="mkYmdTo"]'
+        );
 
-        const to =
-          document.querySelector(
-            'input[name="mkYmdTo"]'
-          );
+      const noPreset =
+        document.querySelector(
+          'input[name="kjnYmdDays"][value=""]'
+        );
 
-        const noPreset =
-          document.querySelector(
-            'input[name="kjnYmdDays"][value=""]'
-          );
+      const tokyo =
+        document.querySelector(
+          'input[name="trjoKbn"][value="01"]'
+        );
 
-        const tokyo =
-          document.querySelector(
-            'input[name="trjoKbn"][value="01"]'
-          );
-
-        const form =
-          from?.closest("form");
-
-        if (
-          !from ||
-          !to ||
-          !form
-        ) {
-          throw new Error(
-            "JSF search form not found"
-          );
-        }
-
-        from.value = start;
-        to.value = end;
-
-        if (noPreset) {
-          noPreset.checked = true;
-        }
-
-        if (tokyo) {
-          tokyo.checked = true;
-        }
-
-        form.submit();
-      },
-      {
-        start:
-          formatJsfDate(startIso),
-        end:
-          formatJsfDate(endIso)
+      if (!from || !to) {
+        throw new Error(
+          "JSF period inputs not found"
+        );
       }
-    )
-  ]);
 
-  const appliedFrom =
-    await page
-      .locator(
-        'input[name="mkYmdFrom"]'
-      )
-      .inputValue()
-      .catch(() => "");
+      from.value = start;
+      to.value = end;
 
-  const appliedTo =
-    await page
-      .locator(
-        'input[name="mkYmdTo"]'
-      )
-      .inputValue()
-      .catch(() => "");
+      /*
+       * 日証金ページ側に日付変更を認識させる。
+       */
+      from.dispatchEvent(
+        new Event("input", {bubbles:true})
+      );
 
-  const expectedFrom =
-    startIso.replaceAll(
-      "-",
-      " / "
-    );
+      from.dispatchEvent(
+        new Event("change", {bubbles:true})
+      );
 
-  const expectedTo =
-    endIso.replaceAll(
-      "-",
-      " / "
-    );
+      to.dispatchEvent(
+        new Event("input", {bubbles:true})
+      );
 
-  if (
-    !appliedFrom.includes(expectedFrom) ||
-    !appliedTo.includes(expectedTo)
-  ) {
-    throw new Error(
-      `JSF period was not applied: ` +
-      `${appliedFrom}..${appliedTo}`
-    );
-  }
+      to.dispatchEvent(
+        new Event("change", {bubbles:true})
+      );
 
-  const csvLink =
-    page
-      .getByRole("link", {
-        name: "CSV",
-        exact: true
-      })
-      .first();
+      if (noPreset) {
+        noPreset.checked = true;
+      }
 
-  if (
-    await csvLink.count() === 0
-  ) {
-    throw new Error(
-      "JSF CSV link not found after period selection"
-    );
-  }
+      if (tokyo) {
+        tokyo.checked = true;
+      }
+    },
+    {
+      start:formatJsfDate(startIso),
+      end:formatJsfDate(endIso)
+    }
+  );
 
+  /*
+   * 8営業日以上を指定した場合、
+   * 確認ダイアログ承認後に直接ダウンロードが始まる。
+   *
+   * 検索ボタンを押す前に、
+   * ダウンロードの待機を開始しておく。
+   */
   const downloadPromise =
     page.waitForEvent(
       "download",
-      {
-        timeout: 30000
-      }
+      {timeout:60000}
     );
 
-  await csvLink.click();
+  const searchButton =
+    page.getByRole(
+      "button",
+      {name:/検索/}
+    ).first();
+
+  if (await searchButton.count() === 0) {
+    throw new Error(
+      "JSF search button not found"
+    );
+  }
+
+  await searchButton.click();
 
   const download =
     await downloadPromise;
