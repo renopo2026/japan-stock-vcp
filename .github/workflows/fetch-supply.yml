@@ -4,10 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       stock_code:
-        description: "東証銘柄コード"
+        description: "銘柄コード"
         required: true
         default: "9984"
         type: string
+
+      force_jsf_backfill:
+        description: "貸借倍率の過去データを強制再取得"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   fetch-supply:
