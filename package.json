@@ -7,6 +7,7 @@
     "@aws-sdk/client-s3": "^3.0.0",
     "cheerio": "^1.0.0",
     "iconv-lite": "^0.6.3",
+    "playwright": "^1.55.0",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^4.0.0"
   },
