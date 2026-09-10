@@ -1770,157 +1770,17 @@ function parseJsfHistoricalCsv(
 
 
   /*
-  ------------------------------------------------------------
-  Pattern A
-  日付が縦方向の普通のCSV
-  ------------------------------------------------------------
-  */
+  ============================================================
+  JSF CSVは横持ち形式を優先して解析する。
 
-  for (
-    let h = 0;
-    h < Math.min(
-      rows.length,
-      20
-    );
-    h++
-  ) {
+  重要：
+  「直後基準日 2026/09/30」などのメタデータを
+  申込日として誤認しないように、
 
-    const header =
-      rows[h]
-        .map(
-          cleanText
-        );
+  「申込日」というセルより右側だけ
 
-
-    const dateCol =
-      header.findIndex(
-        v =>
-          v.includes(
-            "申込日"
-          )
-        ||
-          v.includes(
-            "基準日"
-          )
-      );
-
-
-    const loanCol =
-      header.findIndex(
-        v =>
-          v.includes(
-            "融資残高"
-          )
-      );
-
-
-    const stockLoanCol =
-      header.findIndex(
-        v =>
-          v.includes(
-            "貸株残高"
-          )
-      );
-
-
-    if (
-      dateCol >= 0
-      &&
-      loanCol >= 0
-      &&
-      stockLoanCol >= 0
-    ) {
-
-      const out =
-        [];
-
-
-      for (
-        let r =
-          h + 1;
-
-        r <
-          rows.length;
-
-        r++
-      ) {
-
-        const date =
-          normalizeDate(
-            rows[r][dateCol]
-          );
-
-
-        if (
-          !date
-        ) {
-
-          continue;
-        }
-
-
-        const loanBalance =
-          parseNumber(
-            rows[r][loanCol]
-          );
-
-
-        const stockLoanBalance =
-          parseNumber(
-            rows[r][stockLoanCol]
-          );
-
-
-        if (
-          loanBalance ===
-            null
-          ||
-          stockLoanBalance ===
-            null
-        ) {
-
-          continue;
-        }
-
-
-        out.push({
-
-          date,
-
-          loanBalance,
-
-          stockLoanBalance,
-
-          loanRatio:
-            stockLoanBalance >
-            0
-            ?
-              round(
-                loanBalance /
-                stockLoanBalance,
-                6
-              )
-            :
-              null
-        });
-      }
-
-
-      if (
-        out.length
-      ) {
-
-        return out;
-      }
-    }
-  }
-
-
-  /*
-  ------------------------------------------------------------
-  Pattern B
-  横方向の表
-  ------------------------------------------------------------
+  を日付系列として使用する。
+  ============================================================
   */
 
   let dates =
@@ -1932,27 +1792,48 @@ function parseJsfHistoricalCsv(
     of rows
   ) {
 
-    if (
-      !row.some(
-        v =>
+    const labelIndex =
+      row.findIndex(
+        value =>
           cleanText(
-            v
+            value
           ) ===
           "申込日"
-      )
+      );
+
+
+    if (
+      labelIndex <
+      0
     ) {
 
       continue;
     }
 
 
+    /*
+      「申込日」より左側または別フィールドにある
+      直後基準日などを除外する。
+    */
+
     dates =
       row
+        .slice(
+          labelIndex + 1
+        )
         .map(
-          normalizeDate
+          value =>
+            normalizeDate(
+              value
+            )
         )
         .filter(
           Boolean
+        )
+        .filter(
+          date =>
+            date <=
+            todayJstString()
         );
 
 
@@ -1965,179 +1846,495 @@ function parseJsfHistoricalCsv(
   }
 
 
+  /*
+  ============================================================
+  横持ち形式
+  ============================================================
+  */
+
   if (
-    !dates.length
+    dates.length
   ) {
 
-    throw new Error(
-      "JSF historical CSV: date row not found"
+    console.log(
+      `[JSF parser] application dates found: ${dates.length}`
     );
+
+
+    console.log(
+      `[JSF parser] date range: ` +
+      `${dates[dates.length - 1]} -> ${dates[0]}`
+    );
+
+
+    let section =
+      null;
+
+
+    let loanValues =
+      null;
+
+
+    let stockLoanValues =
+      null;
+
+
+    for (
+      const row
+      of rows
+    ) {
+
+      const labels =
+        row.map(
+          value =>
+            cleanText(
+              value
+            )
+        );
+
+
+      /*
+      ----------------------------------------------------------
+      融資セクション開始
+      ----------------------------------------------------------
+      */
+
+      if (
+        labels.some(
+          value =>
+            value ===
+            "融資"
+        )
+      ) {
+
+        section =
+          "loan";
+      }
+
+
+      /*
+      ----------------------------------------------------------
+      貸株セクション開始
+      ----------------------------------------------------------
+      */
+
+      if (
+        labels.some(
+          value =>
+            value ===
+            "貸株"
+        )
+      ) {
+
+        section =
+          "stockLoan";
+      }
+
+
+      /*
+      ----------------------------------------------------------
+      「残高」の行だけ取得する。
+
+      新規・返済は使わない。
+      ----------------------------------------------------------
+      */
+
+      const hasExactBalance =
+        labels.some(
+          value =>
+            value ===
+            "残高"
+        );
+
+
+      if (
+        !hasExactBalance
+        ||
+        !section
+      ) {
+
+        continue;
+      }
+
+
+      /*
+      ----------------------------------------------------------
+      JSF CSVでは先頭の見出し列数が行によって異なるため、
+      右端から申込日数分を取得する。
+
+      datesは既に「申込日より右側」のみなので、
+      直後基準日による1列ズレは発生しない。
+      ----------------------------------------------------------
+      */
+
+      const values =
+        row
+          .slice(
+            -dates.length
+          )
+          .map(
+            value =>
+              parseNumber(
+                value
+              )
+          );
+
+
+      if (
+        section ===
+        "loan"
+        &&
+        loanValues ===
+        null
+      ) {
+
+        loanValues =
+          values;
+
+
+        console.log(
+          `[JSF parser] loan balance row found: ${values.length}`
+        );
+      }
+
+
+      if (
+        section ===
+        "stockLoan"
+        &&
+        stockLoanValues ===
+        null
+      ) {
+
+        stockLoanValues =
+          values;
+
+
+        console.log(
+          `[JSF parser] stock loan balance row found: ${values.length}`
+        );
+      }
+    }
+
+
+    if (
+      loanValues
+      &&
+      stockLoanValues
+    ) {
+
+      const out =
+        [];
+
+
+      const count =
+        Math.min(
+          dates.length,
+          loanValues.length,
+          stockLoanValues.length
+        );
+
+
+      for (
+        let i = 0;
+        i < count;
+        i++
+      ) {
+
+        const date =
+          dates[i];
+
+
+        const loanBalance =
+          loanValues[i];
+
+
+        const stockLoanBalance =
+          stockLoanValues[i];
+
+
+        if (
+          !date
+          ||
+          loanBalance ===
+          null
+          ||
+          stockLoanBalance ===
+          null
+        ) {
+
+          continue;
+        }
+
+
+        /*
+          貸株残高 = 0 の場合は倍率を定義できないので
+          nullとする。
+        */
+
+        const loanRatio =
+          stockLoanBalance >
+          0
+          ?
+            round(
+              loanBalance /
+              stockLoanBalance,
+              6
+            )
+          :
+            null;
+
+
+        out.push({
+
+          date,
+
+          loanBalance,
+
+          stockLoanBalance,
+
+          loanRatio
+        });
+      }
+
+
+      /*
+      ----------------------------------------------------------
+      日付重複除去
+      ----------------------------------------------------------
+      */
+
+      const result =
+        dedupeRows(
+          out
+        );
+
+
+      console.log(
+        `[JSF parser] parsed historical rows: ${result.length}`
+      );
+
+
+      const validRatios =
+        result.filter(
+          row =>
+            row.loanRatio !==
+            null
+          &&
+            row.loanRatio !==
+            undefined
+        );
+
+
+      console.log(
+        `[JSF parser] valid loanRatio rows: ${validRatios.length}`
+      );
+
+
+      if (
+        result.length
+      ) {
+
+        console.log(
+          `[JSF parser] first row:`,
+          result[0]
+        );
+
+
+        console.log(
+          `[JSF parser] last row:`,
+          result[
+            result.length - 1
+          ]
+        );
+      }
+
+
+      return result;
+    }
   }
 
 
-  let section =
-    null;
+  /*
+  ============================================================
+  縦持ちCSV fallback
 
-  let loanValues =
-    null;
+  将来JSF側のCSV形式が変わった場合用。
+  ============================================================
+  */
 
-  let stockValues =
-    null;
+  console.log(
+    "[JSF parser] horizontal format not detected; trying vertical format"
+  );
 
 
   for (
-    const row
-    of rows
+    let h = 0;
+    h <
+      Math.min(
+        rows.length,
+        30
+      );
+    h++
   ) {
 
-    const labels =
-      row.map(
-        cleanText
+    const header =
+      rows[h]
+        .map(
+          value =>
+            cleanText(
+              value
+            )
+        );
+
+
+    const dateCol =
+      header.findIndex(
+        value =>
+          value.includes(
+            "申込日"
+          )
+      );
+
+
+    const loanCol =
+      header.findIndex(
+        value =>
+          value.includes(
+            "融資残高"
+          )
+      );
+
+
+    const stockLoanCol =
+      header.findIndex(
+        value =>
+          value.includes(
+            "貸株残高"
+          )
       );
 
 
     if (
-      labels.some(
-        v =>
-          v ===
-          "融資"
-      )
-    ) {
-
-      section =
-        "fund";
-    }
-
-
-    if (
-      labels.some(
-        v =>
-          v ===
-          "貸株"
-      )
-    ) {
-
-      section =
-        "stock";
-    }
-
-
-    if (
-      !labels.some(
-        v =>
-          v ===
-          "残高"
-      )
+      dateCol <
+      0
       ||
-      !section
+      loanCol <
+      0
+      ||
+      stockLoanCol <
+      0
     ) {
 
       continue;
     }
 
 
-    const tail =
-      row
-        .slice(
-          -dates.length
-        )
-        .map(
-          parseNumber
+    const out =
+      [];
+
+
+    for (
+      let r =
+        h + 1;
+
+      r <
+        rows.length;
+
+      r++
+    ) {
+
+      const date =
+        normalizeDate(
+          rows[r][dateCol]
         );
 
 
-    if (
-      section ===
-        "fund"
-      &&
-      !loanValues
-    ) {
+      /*
+        将来日や基準日を除外
+      */
 
-      loanValues =
-        tail;
-    }
+      if (
+        !date
+        ||
+        date >
+        todayJstString()
+      ) {
 
-
-    if (
-      section ===
-        "stock"
-      &&
-      !stockValues
-    ) {
-
-      stockValues =
-        tail;
-    }
-  }
+        continue;
+      }
 
 
-  if (
-    !loanValues
-    ||
-    !stockValues
-  ) {
-
-    throw new Error(
-      "JSF historical CSV: balance rows not found"
-    );
-  }
+      const loanBalance =
+        parseNumber(
+          rows[r][loanCol]
+        );
 
 
-  const out =
-    [];
+      const stockLoanBalance =
+        parseNumber(
+          rows[r][stockLoanCol]
+        );
 
 
-  for (
-    let i = 0;
-    i < dates.length;
-    i++
-  ) {
-
-    const loanBalance =
-      loanValues[i];
-
-
-    const stockLoanBalance =
-      stockValues[i];
-
-
-    if (
-      loanBalance ===
+      if (
+        loanBalance ===
         null
-      ||
-      stockLoanBalance ===
+        ||
+        stockLoanBalance ===
         null
-    ) {
+      ) {
 
-      continue;
-    }
+        continue;
+      }
 
 
-    out.push({
+      out.push({
 
-      date:
-        dates[i],
+        date,
 
-      loanBalance,
+        loanBalance,
 
-      stockLoanBalance,
+        stockLoanBalance,
 
-      loanRatio:
-        stockLoanBalance >
-        0
-        ?
-          round(
-            loanBalance /
+        loanRatio:
+          stockLoanBalance >
+          0
+          ?
+            round(
+              loanBalance /
               stockLoanBalance,
-            6
-          )
-        :
-          null
-    });
+              6
+            )
+          :
+            null
+      });
+    }
+
+
+    if (
+      out.length
+    ) {
+
+      const result =
+        dedupeRows(
+          out
+        );
+
+
+      console.log(
+        `[JSF parser] vertical format rows: ${result.length}`
+      );
+
+
+      return result;
+    }
   }
 
 
-  return out;
+  throw new Error(
+    "JSF historical CSV: loan/stock-loan balance rows could not be parsed"
+  );
 }
 
 
