@@ -12,25 +12,13 @@ import { gzipSync, gunzipSync } from "node:zlib";
 const CODE = String(process.env.STOCK_CODE || "9984").trim().toUpperCase();
 const BUCKET = process.env.R2_BUCKET_NAME;
 const ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
-const ENDPOINT =
-  process.env.R2_ENDPOINT ||
-  `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`;
-const JSF_BACKFILL_YEARS = Math.max(
-  1,
-  Number(process.env.JSF_BACKFILL_YEARS || 10)
-);
+const ENDPOINT = process.env.R2_ENDPOINT || `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`;
+const JSF_BACKFILL_YEARS = Math.max(1, Number(process.env.JSF_BACKFILL_YEARS || 10));
+const FORCE_JSF_BACKFILL = String(process.env.FORCE_JSF_BACKFILL || "").toLowerCase() === "true";
 const R2_KEY = `supply/${CODE}.json.gz`;
 
-if (!/^[0-9A-Z]{4}$/.test(CODE)) {
-  throw new Error(`Invalid STOCK_CODE: ${CODE}`);
-}
-
-if (
-  !BUCKET ||
-  !ACCOUNT_ID ||
-  !process.env.R2_ACCESS_KEY_ID ||
-  !process.env.R2_SECRET_ACCESS_KEY
-) {
+if (!/^[0-9A-Z]{4}$/.test(CODE)) throw new Error(`Invalid STOCK_CODE: ${CODE}`);
+if (!BUCKET || !ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
   throw new Error("R2 environment variables are missing");
 }
 
@@ -46,45 +34,30 @@ const s3 = new S3Client({
 });
 
 const DEFAULT_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
   "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.7,en;q=0.5"
 };
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function cleanText(value) {
-  return String(value ?? "")
-    .replace(/\u3000/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(value ?? "").replace(/\u3000/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function normalizeCode(value) {
-  let code = cleanText(value)
-    .toUpperCase()
-    .replace(/[^0-9A-Z]/g, "");
-
-  if (/^[0-9]{5}$/.test(code) && code.endsWith("0")) {
-    code = code.slice(0, 4);
-  }
-
+  let code = cleanText(value).toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (/^[0-9]{5}$/.test(code) && code.endsWith("0")) code = code.slice(0, 4);
   return code;
 }
 
 function parseNumber(value) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
+  if (value === null || value === undefined || value === "") return null;
   const text = String(value)
     .replace(/,/g, "")
     .replace(/▲/g, "-")
     .replace(/[^\d.\-]/g, "");
 
-  if (!text || text === "-" || text === ".") {
-    return null;
-  }
+  if (!text || text === "-" || text === ".") return null;
 
   const number = Number(text);
   return Number.isFinite(number) ? number : null;
@@ -95,7 +68,6 @@ function normalizeDate(value) {
     const year = value.getUTCFullYear();
     const month = String(value.getUTCMonth() + 1).padStart(2, "0");
     const day = String(value.getUTCDate()).padStart(2, "0");
-
     return `${year}-${month}-${day}`;
   }
 
@@ -103,22 +75,15 @@ function normalizeDate(value) {
     const parsed = XLSX.SSF.parse_date_code(value);
 
     if (parsed) {
-      return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(
-        parsed.d
-      ).padStart(2, "0")}`;
+      return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
     }
   }
 
   const text = cleanText(value);
-
-  let match = text.match(
-    /(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/
-  );
+  let match = text.match(/(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/);
 
   if (match) {
-    return `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(
-      match[3]
-    ).padStart(2, "0")}`;
+    return `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}`;
   }
 
   match = text.match(/^(\d{4})(\d{2})(\d{2})$/);
@@ -138,10 +103,7 @@ function todayJstString() {
     day: "2-digit"
   }).formatToParts(new Date());
 
-  const map = Object.fromEntries(
-    parts.map(part => [part.type, part.value])
-  );
-
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
   return `${map.year}-${map.month}-${map.day}`;
 }
 
@@ -149,14 +111,12 @@ function yearsAgoDateString(years) {
   const today = todayJstString();
   const [year, month, day] = today.split("-").map(Number);
   const date = new Date(Date.UTC(year - years, month - 1, day));
-
   return date.toISOString().slice(0, 10);
 }
 
 function addDaysDateString(iso, days) {
   const [year, month, day] = iso.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day + days));
-
   return date.toISOString().slice(0, 10);
 }
 
@@ -176,9 +136,7 @@ function formatJsfDate(iso) {
 }
 
 function round(value, digits = 6) {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
+  if (!Number.isFinite(value)) return null;
 
   const scale = 10 ** digits;
   return Math.round(value * scale) / scale;
@@ -216,13 +174,9 @@ async function fetchResponse(url, attempts = 4) {
         redirect: "follow"
       });
 
-      if (response.ok) {
-        return response;
-      }
+      if (response.ok) return response;
 
-      throw new Error(
-        `HTTP ${response.status} ${response.statusText}`
-      );
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
     } catch (error) {
       lastError = error;
 
@@ -244,8 +198,9 @@ async function fetchText(url) {
 }
 
 async function fetchBuffer(url) {
-  const response = await fetchResponse(url);
-  return Buffer.from(await response.arrayBuffer());
+  return Buffer.from(
+    await (await fetchResponse(url)).arrayBuffer()
+  );
 }
 
 async function loadExistingSupply() {
@@ -352,32 +307,20 @@ async function fetchJsfCurrentCsv() {
   console.log("\n=== JSF current zandaka.csv ===");
 
   const text = decodeJapaneseCsv(
-    await fetchBuffer(
-      "https://www.taisyaku.jp/data/zandaka.csv"
-    )
+    await fetchBuffer("https://www.taisyaku.jp/data/zandaka.csv")
   );
 
   const records = parseCsv(text);
   const candidates = [];
 
   for (const row of records) {
-    if (row.length < 13) {
-      continue;
-    }
-
-    if (normalizeCode(row[2]) !== CODE) {
-      continue;
-    }
-
-    if (!cleanText(row[4]).includes("東証")) {
-      continue;
-    }
+    if (row.length < 13) continue;
+    if (normalizeCode(row[2]) !== CODE) continue;
+    if (!cleanText(row[4]).includes("東証")) continue;
 
     const date = normalizeDate(row[0]);
 
-    if (!date) {
-      continue;
-    }
+    if (!date) continue;
 
     const status = cleanText(row[6]);
     const loanBalance = parseNumber(row[9]);
@@ -439,63 +382,60 @@ function htmlTableToGrid($, table) {
   const grid = [];
   const spans = [];
 
-  $(table)
-    .find("tr")
-    .each((_, tableRow) => {
-      const row = [];
-      let column = 0;
+  $(table).find("tr").each((_, tableRow) => {
+    const row = [];
+    let column = 0;
 
-      const placePending = () => {
-        while (spans[column]?.remaining > 0) {
-          row[column] = spans[column].text;
-          spans[column].remaining--;
+    const placePending = () => {
+      while (spans[column]?.remaining > 0) {
+        row[column] = spans[column].text;
+        spans[column].remaining--;
 
-          if (spans[column].remaining <= 0) {
-            spans[column] = null;
-          }
-
-          column++;
+        if (spans[column].remaining <= 0) {
+          spans[column] = null;
         }
-      };
 
+        column++;
+      }
+    };
+
+    placePending();
+
+    $(tableRow).children("th,td").each((_, cell) => {
       placePending();
 
-      $(tableRow)
-        .children("th,td")
-        .each((_, cell) => {
-          placePending();
+      const text = cleanText($(cell).text());
+      const rowspan = Math.max(
+        1,
+        Number($(cell).attr("rowspan") || 1)
+      );
 
-          const text = cleanText($(cell).text());
-          const rowspan = Math.max(
-            1,
-            Number($(cell).attr("rowspan") || 1)
-          );
-          const colspan = Math.max(
-            1,
-            Number($(cell).attr("colspan") || 1)
-          );
+      const colspan = Math.max(
+        1,
+        Number($(cell).attr("colspan") || 1)
+      );
 
-          for (
-            let colspanIndex = 0;
-            colspanIndex < colspan;
-            colspanIndex++
-          ) {
-            row[column + colspanIndex] = text;
+      for (
+        let colspanIndex = 0;
+        colspanIndex < colspan;
+        colspanIndex++
+      ) {
+        row[column + colspanIndex] = text;
 
-            if (rowspan > 1) {
-              spans[column + colspanIndex] = {
-                text,
-                remaining: rowspan - 1
-              };
-            }
-          }
+        if (rowspan > 1) {
+          spans[column + colspanIndex] = {
+            text,
+            remaining: rowspan - 1
+          };
+        }
+      }
 
-          column += colspan;
-        });
-
-      placePending();
-      grid.push(row);
+      column += colspan;
     });
+
+    placePending();
+    grid.push(row);
+  });
 
   return grid;
 }
@@ -521,17 +461,13 @@ async function fetchJsfRecentDetail() {
     }
   });
 
-  if (!bestGrid) {
-    return [];
-  }
+  if (!bestGrid) return [];
 
   let dateColumns = [];
 
   for (const row of bestGrid) {
     if (
-      !row.some(
-        value => cleanText(value) === "申込日"
-      )
+      !row.some(value => cleanText(value) === "申込日")
     ) {
       continue;
     }
@@ -546,9 +482,7 @@ async function fetchJsfRecentDetail() {
     break;
   }
 
-  if (!dateColumns.length) {
-    return [];
-  }
+  if (!dateColumns.length) return [];
 
   const data = new Map();
   let section = null;
@@ -567,9 +501,7 @@ async function fetchJsfRecentDetail() {
     }
 
     if (
-      !row.some(
-        value => cleanText(value) === "残高"
-      ) ||
+      !row.some(value => cleanText(value) === "残高") ||
       !section
     ) {
       continue;
@@ -578,9 +510,7 @@ async function fetchJsfRecentDetail() {
     for (const item of dateColumns) {
       const value = parseNumber(row[item.index]);
 
-      if (value === null) {
-        continue;
-      }
+      if (value === null) continue;
 
       if (!data.has(item.date)) {
         data.set(item.date, {
@@ -615,8 +545,9 @@ async function fetchJsfRecentDetail() {
             )
           : null
     }))
-    .sort((first, second) =>
-      first.date.localeCompare(second.date)
+    .sort(
+      (first, second) =>
+        first.date.localeCompare(second.date)
     );
 
   console.log(
@@ -641,11 +572,7 @@ async function downloadToBuffer(download) {
   return Buffer.concat(chunks);
 }
 
-async function requestJsfCsv(
-  page,
-  startIso,
-  endIso
-) {
+async function requestJsfCsv(page, startIso, endIso) {
   const detailUrl =
     `https://www.taisyaku.jp/app/stock/detail/${CODE}-01`;
 
@@ -657,12 +584,16 @@ async function requestJsfCsv(
   /*
    * 期間プリセットを先に解除する。
    * 日付入力後に「選択なし」を押すと、
-   * 指定した開始日がリセットされる場合がある。
+   * 入力した開始日がリセットされる可能性がある。
    */
   try {
     await page
-      .getByText("選択なし", { exact: true })
-      .click({ timeout: 2000 });
+      .getByText("選択なし", {
+        exact: true
+      })
+      .click({
+        timeout: 2000
+      });
   } catch {
     // 「選択なし」が押せない場合は続行する。
   }
@@ -699,7 +630,9 @@ async function requestJsfCsv(
     .getByRole("button", {
       name: "この条件で表示する"
     })
-    .click({ timeout: 10000 });
+    .click({
+      timeout: 10000
+    });
 
   downloaded = await firstDownload;
 
@@ -723,12 +656,10 @@ async function requestJsfCsv(
       );
     }
 
-    const secondDownload = page.waitForEvent(
-      "download",
-      {
+    const secondDownload =
+      page.waitForEvent("download", {
         timeout: 20000
-      }
-    );
+      });
 
     await csvLink.click();
     downloaded = await secondDownload;
@@ -742,13 +673,11 @@ function parseJsfHistoricalCsv(buffer) {
     decodeJapaneseCsv(buffer)
   );
 
-  if (!rows.length) {
-    return [];
-  }
+  if (!rows.length) return [];
 
   /*
    * Pattern A:
-   * 行単位の表形式CSV
+   * 日付・融資残高・貸株残高が列になっている形式。
    */
   for (
     let headerIndex = 0;
@@ -769,9 +698,10 @@ function parseJsfHistoricalCsv(buffer) {
       value => value.includes("融資残高")
     );
 
-    const stockLoanColumn = header.findIndex(
-      value => value.includes("貸株残高")
-    );
+    const stockLoanColumn =
+      header.findIndex(
+        value => value.includes("貸株残高")
+      );
 
     if (
       dateColumn >= 0 &&
@@ -789,17 +719,16 @@ function parseJsfHistoricalCsv(buffer) {
           rows[rowIndex][dateColumn]
         );
 
-        if (!date) {
-          continue;
-        }
+        if (!date) continue;
 
         const loanBalance = parseNumber(
           rows[rowIndex][loanColumn]
         );
 
-        const stockLoanBalance = parseNumber(
-          rows[rowIndex][stockLoanColumn]
-        );
+        const stockLoanBalance =
+          parseNumber(
+            rows[rowIndex][stockLoanColumn]
+          );
 
         if (
           loanBalance === null ||
@@ -831,7 +760,7 @@ function parseJsfHistoricalCsv(buffer) {
 
   /*
    * Pattern B:
-   * 縦横が転置された詳細表形式CSV
+   * 日付が横方向に並ぶ転置形式。
    */
   let dates = [];
 
@@ -848,9 +777,7 @@ function parseJsfHistoricalCsv(buffer) {
       .map(normalizeDate)
       .filter(Boolean);
 
-    if (dates.length) {
-      break;
-    }
+    if (dates.length) break;
   }
 
   if (!dates.length) {
@@ -879,9 +806,7 @@ function parseJsfHistoricalCsv(buffer) {
     }
 
     if (
-      !labels.some(
-        value => value === "残高"
-      ) ||
+      !labels.some(value => value === "残高") ||
       !section
     ) {
       continue;
@@ -919,7 +844,9 @@ function parseJsfHistoricalCsv(buffer) {
     index < dates.length;
     index++
   ) {
-    const loanBalance = loanValues[index];
+    const loanBalance =
+      loanValues[index];
+
     const stockLoanBalance =
       stockValues[index];
 
@@ -948,9 +875,7 @@ function parseJsfHistoricalCsv(buffer) {
   return output;
 }
 
-async function fetchJsfHistoricalCsv(
-  years = 10
-) {
+async function fetchJsfHistoricalCsv(years = 10) {
   console.log(
     `\n=== JSF historical CSV backfill (${years}y) ===`
   );
@@ -971,14 +896,16 @@ async function fetchJsfHistoricalCsv(
       `[JSF dialog] ${dialog.message()}`
     );
 
-    await dialog.accept().catch(() => {});
+    await dialog
+      .accept()
+      .catch(() => {});
   });
 
   try {
     /*
-     * 最初に全期間を一括取得する。
-     * 件数だけでなく、実際の開始日が要求期間まで
-     * 到達しているかを検証する。
+     * 最初に10年間の一括取得を試す。
+     * 件数だけでなく、実際の開始日が要求日まで
+     * 到達しているかを確認する。
      */
     try {
       const buffer = await requestJsfCsv(
@@ -987,12 +914,16 @@ async function fetchJsfHistoricalCsv(
         end
       );
 
+      /*
+       * 要求期間外のメタデータ日付を除外してから
+       * 重複除去する。
+       */
       const parsed = dedupeRows(
-        parseJsfHistoricalCsv(buffer)
-      ).filter(
-        row =>
-          row.date >= start &&
-          row.date <= end
+        parseJsfHistoricalCsv(buffer).filter(
+          row =>
+            row.date >= start &&
+            row.date <= end
+        )
       );
 
       const range = minMaxDates(parsed);
@@ -1013,7 +944,12 @@ async function fetchJsfHistoricalCsv(
         parsed.length >= 100 &&
         reachesRequestedStart
       ) {
-        return parsed;
+        return {
+          rows: parsed,
+          attempted: true,
+          usedYearlyChunks: false,
+          failedChunks: 0
+        };
       }
 
       console.warn(
@@ -1028,11 +964,17 @@ async function fetchJsfHistoricalCsv(
       );
     }
 
+    /*
+     * 全期間取得で要求開始日まで届かなかった場合、
+     * 年単位で一度だけ取得を試す。
+     */
     console.log(
       "[JSF] falling back to yearly CSV chunks"
     );
 
     const all = [];
+    let failedChunks = 0;
+
     const [startYear] = start
       .split("-")
       .map(Number);
@@ -1057,19 +999,22 @@ async function fetchJsfHistoricalCsv(
           : `${year}-12-31`;
 
       try {
-        const buffer = await requestJsfCsv(
-          page,
-          chunkStart,
-          chunkEnd
-        );
+        const buffer =
+          await requestJsfCsv(
+            page,
+            chunkStart,
+            chunkEnd
+          );
 
         const parsed = dedupeRows(
-          parseJsfHistoricalCsv(buffer)
-        ).filter(
-          row =>
-            row.date >= chunkStart &&
-            row.date <= chunkEnd &&
-            row.date <= end
+          parseJsfHistoricalCsv(
+            buffer
+          ).filter(
+            row =>
+              row.date >= chunkStart &&
+              row.date <= chunkEnd &&
+              row.date <= end
+          )
         );
 
         console.log(
@@ -1080,6 +1025,8 @@ async function fetchJsfHistoricalCsv(
 
         all.push(...parsed);
       } catch (error) {
+        failedChunks++;
+
         console.warn(
           `[JSF] chunk ${year} failed: ` +
             `${error.message}`
@@ -1089,7 +1036,12 @@ async function fetchJsfHistoricalCsv(
       await sleep(400);
     }
 
-    return dedupeRows(all);
+    return {
+      rows: dedupeRows(all),
+      attempted: true,
+      usedYearlyChunks: true,
+      failedChunks
+    };
   } finally {
     await browser.close();
   }
@@ -1099,14 +1051,13 @@ async function fetchJsfHistoricalCsv(
  * Yahoo! Finance weekly margin balance / margin ratio
  * -------------------------------------------------------------------------- */
 
-async function fetchYahooMarginHistory(
-  years = 10
-) {
+async function fetchYahooMarginHistory(years = 10) {
   console.log(
     "\n=== Yahoo margin history ==="
   );
 
-  const cutoff = yearsAgoDateString(years);
+  const cutoff =
+    yearsAgoDateString(years);
 
   let url =
     `https://finance.yahoo.co.jp/quote/` +
@@ -1128,6 +1079,7 @@ async function fetchYahooMarginHistory(
       console.warn(
         `[Yahoo margin] stopped: ${error.message}`
       );
+
       break;
     }
 
@@ -1164,15 +1116,12 @@ async function fetchYahooMarginHistory(
             )
             .get();
 
-          if (cells.length < 6) {
-            return;
-          }
+          if (cells.length < 6) return;
 
-          const date = normalizeDate(cells[0]);
+          const date =
+            normalizeDate(cells[0]);
 
-          if (!date) {
-            return;
-          }
+          if (!date) return;
 
           if (!firstDate) {
             firstDate = date;
@@ -1180,9 +1129,7 @@ async function fetchYahooMarginHistory(
 
           oldestDate = date;
 
-          if (date < cutoff) {
-            return;
-          }
+          if (date < cutoff) return;
 
           const marginSell =
             parseNumber(cells[1]);
@@ -1213,9 +1160,7 @@ async function fetchYahooMarginHistory(
         });
     });
 
-    if (!tableFound) {
-      break;
-    }
+    if (!tableFound) break;
 
     if (
       firstDate &&
@@ -1245,14 +1190,19 @@ async function fetchYahooMarginHistory(
 
     $("a").each((_, anchor) => {
       if (
-        cleanText($(anchor).text()) === "次へ"
+        cleanText($(anchor).text()) ===
+        "次へ"
       ) {
-        nextHref = $(anchor).attr("href");
+        nextHref =
+          $(anchor).attr("href");
       }
     });
 
     if (nextHref) {
-      url = absoluteUrl(url, nextHref);
+      url = absoluteUrl(
+        url,
+        nextHref
+      );
     } else {
       const fallback = new URL(
         `https://finance.yahoo.co.jp/quote/` +
@@ -1275,10 +1225,13 @@ async function fetchYahooMarginHistory(
     await sleep(700);
   }
 
-  const rows = [...results.values()].sort(
-    (first, second) =>
-      first.date.localeCompare(second.date)
-  );
+  const rows = [...results.values()]
+    .sort(
+      (first, second) =>
+        first.date.localeCompare(
+          second.date
+        )
+    );
 
   console.log(
     `[Yahoo margin] ${rows.length} rows`
@@ -1317,7 +1270,8 @@ async function parseJpxShortPage(pageUrl) {
     );
 
     const publicationDate =
-      datesFromPageText(rowText)[0] || null;
+      datesFromPageText(rowText)[0] ||
+      null;
 
     $(tableRow)
       .find("a[href]")
@@ -1381,11 +1335,7 @@ async function parseJpxShortPage(pageUrl) {
   };
 }
 
-function sheetCell(
-  sheet,
-  row,
-  column
-) {
+function sheetCell(sheet, row, column) {
   return sheet[
     XLSX.utils.encode_cell({
       r: row,
@@ -1399,25 +1349,25 @@ function sheetCellText(
   row,
   column
 ) {
-  const cell = sheetCell(
-    sheet,
-    row,
-    column
-  );
+  const cell =
+    sheetCell(sheet, row, column);
 
   return cell
-    ? cleanText(cell.w ?? cell.v ?? "")
+    ? cleanText(
+        cell.w ?? cell.v ?? ""
+      )
     : "";
 }
 
 function parsePercentCell(cell) {
-  if (!cell) {
-    return null;
-  }
+  if (!cell) return null;
 
   if (typeof cell.v === "number") {
-    const format = String(cell.z ?? "");
-    const display = String(cell.w ?? "");
+    const format =
+      String(cell.z ?? "");
+
+    const display =
+      String(cell.w ?? "");
 
     return round(
       format.includes("%") ||
@@ -1451,13 +1401,12 @@ function parseJpxShortWorkbook(
     const sheet =
       workbook.Sheets[sheetName];
 
-    if (!sheet["!ref"]) {
-      continue;
-    }
+    if (!sheet["!ref"]) continue;
 
-    const range = XLSX.utils.decode_range(
-      sheet["!ref"]
-    );
+    const range =
+      XLSX.utils.decode_range(
+        sheet["!ref"]
+      );
 
     const headerMaxRow = Math.min(
       range.e.r,
@@ -1547,7 +1496,8 @@ function parseJpxShortWorkbook(
         !text.includes("直近") &&
         !/previous|last/i.test(text)
       ) {
-        calculationDateColumn = column;
+        calculationDateColumn =
+          column;
       }
 
       if (
@@ -1588,11 +1538,12 @@ function parseJpxShortWorkbook(
         continue;
       }
 
-      const calculationCell = sheetCell(
-        sheet,
-        row,
-        calculationDateColumn
-      );
+      const calculationCell =
+        sheetCell(
+          sheet,
+          row,
+          calculationDateColumn
+        );
 
       const calculationDate =
         normalizeDate(
@@ -1600,13 +1551,14 @@ function parseJpxShortWorkbook(
             calculationCell?.w
         );
 
-      const ratio = parsePercentCell(
-        sheetCell(
-          sheet,
-          row,
-          ratioColumn
-        )
-      );
+      const ratio =
+        parsePercentCell(
+          sheetCell(
+            sheet,
+            row,
+            ratioColumn
+          )
+        );
 
       if (
         !calculationDate ||
@@ -1705,14 +1657,15 @@ async function fetchJpxShortHistory(
     unique.set(file.url, file);
   }
 
-  files = [...unique.values()].sort(
-    (first, second) =>
-      (
-        first.publicationDate || ""
-      ).localeCompare(
-        second.publicationDate || ""
-      )
-  );
+  files = [...unique.values()]
+    .sort(
+      (first, second) =>
+        (
+          first.publicationDate || ""
+        ).localeCompare(
+          second.publicationDate || ""
+        )
+    );
 
   console.log(
     `[JPX] Excel files: ${files.length}`
@@ -1828,9 +1781,10 @@ function applyShortEvents(
     )
     .sort((first, second) => {
       const dateComparison =
-        first.calculationDate.localeCompare(
-          second.calculationDate
-        );
+        first.calculationDate
+          .localeCompare(
+            second.calculationDate
+          );
 
       return (
         dateComparison ||
@@ -1919,10 +1873,12 @@ function applyShortEvents(
     snapshots,
     state: {
       asOfDate,
-      active: [...active.values()].sort(
-        (first, second) =>
-          second.ratio - first.ratio
-      )
+      active: [...active.values()]
+        .sort(
+          (first, second) =>
+            second.ratio -
+            first.ratio
+        )
     },
     appliedEventCount:
       relevant.length
@@ -1938,18 +1894,11 @@ function dedupeRows(rows) {
   const today = todayJstString();
 
   for (const row of rows) {
-    if (!row?.date) {
-      continue;
-    }
+    if (!row?.date) continue;
 
-    /*
-     * 過去に保存された未来日付も、
-     * 新しく取得された未来日付も除外する。
-     */
     if (row.date > today) {
       console.warn(
-        `[DATA] future row removed: ` +
-          `${row.date}`
+        `[DATA] future row removed: ${row.date}`
       );
 
       continue;
@@ -1961,16 +1910,16 @@ function dedupeRows(rows) {
     });
   }
 
-  return [...map.values()].sort(
-    (first, second) =>
-      first.date.localeCompare(second.date)
-  );
+  return [...map.values()]
+    .sort(
+      (first, second) =>
+        first.date.localeCompare(
+          second.date
+        )
+    );
 }
 
-function mergeRows(
-  existingRows,
-  sources
-) {
+function mergeRows(existingRows, sources) {
   return dedupeRows([
     ...(existingRows || []),
     ...sources.flat()
@@ -2021,10 +1970,6 @@ function buildPublicShortCoverage(
     jpxResult.failedFiles > 0 ||
     jpxResult.pageFailures > 0;
 
-  /*
-   * フルバックフィル時は過去件数を足さない。
-   * これにより再走査時の二重加算を防止する。
-   */
   const totalKnownEvents =
     jpxResult.fullBackfill
       ? shortApplied.appliedEventCount
@@ -2072,13 +2017,6 @@ function buildPublicShortCoverage(
 
     eventCount: totalKnownEvents,
 
-    /*
-     * filesScanned:
-     * フルアーカイブ走査時の走査件数を維持する。
-     *
-     * lastRunFilesScanned:
-     * 今回の実行で走査した件数。
-     */
     filesScanned:
       jpxResult.fullBackfill
         ? jpxResult.processedFiles
@@ -2146,10 +2084,6 @@ async function main() {
   const existing =
     await loadExistingSupply();
 
-  /*
-   * R2に残っている既存データにも
-   * 未来日付除外を適用する。
-   */
   const existingRows = dedupeRows(
     Array.isArray(existing?.rows)
       ? existing.rows
@@ -2174,59 +2108,75 @@ async function main() {
       JSF_BACKFILL_YEARS
     );
 
-  /*
-   * 開始日が休日の場合を考慮し、
-   * 要求開始日から14日間の許容幅を持たせる。
-   */
   const loanStartTolerance =
     addDaysDateString(
       requestedLoanStart,
       14
     );
 
-  const needLoanBackfill =
+  const priorLoanCoverage =
+    existing?.coverage?.loanRatio ||
+    null;
+
+  const loanHistoryIncomplete =
     existingLoanCount < 100 ||
     !existingLoanCoverage.startDate ||
     existingLoanCoverage.startDate >
       loanStartTolerance;
 
+  /*
+   * この銘柄について過去取得を一度正常に試し、
+   * エラーなしで取得できなかった期間は
+   * 日次実行で再試行しない。
+   *
+   * 2023-04-03などの固定日付は使用しない。
+   */
+  const completedLoanBackfillAttempt =
+    Boolean(
+      priorLoanCoverage
+        ?.backfillAttempted &&
+      priorLoanCoverage
+        ?.requestedStartDate ===
+        requestedLoanStart &&
+      Number(
+        priorLoanCoverage
+          ?.failedChunks || 0
+      ) === 0
+    );
+
+  const needLoanBackfill =
+    FORCE_JSF_BACKFILL ||
+    (
+      loanHistoryIncomplete &&
+      !completedLoanBackfillAttempt
+    );
+
   const priorShortCoverage =
     existing?.coverage?.publicShort ||
     null;
 
-  /*
-   * JPXの公開バックナンバーはおおむね1年分。
-   * 開始日に31日間の許容幅を持たせる。
-   */
   const shortArchiveStartTolerance =
     addDaysDateString(
       yearsAgoDateString(1),
       31
     );
 
-  /*
-   * 走査済みファイルが100件未満なら、
-   * Coverageの日付だけが古くても
-   * フルアーカイブ走査完了とはみなさない。
-   *
-   * partialも完了扱いしない。
-   */
   const haveCompletedShortBackfill =
     Boolean(
       priorShortCoverage &&
-        [
-          "ok",
-          "no_events_in_coverage"
-        ].includes(
-          priorShortCoverage.status
-        ) &&
-        priorShortCoverage.startDate &&
-        priorShortCoverage.startDate <=
-          shortArchiveStartTolerance &&
-        Number(
-          priorShortCoverage.filesScanned ||
-            0
-        ) >= 100
+      [
+        "ok",
+        "no_events_in_coverage"
+      ].includes(
+        priorShortCoverage.status
+      ) &&
+      priorShortCoverage.startDate &&
+      priorShortCoverage.startDate <=
+        shortArchiveStartTolerance &&
+      Number(
+        priorShortCoverage
+          .filesScanned || 0
+      ) >= 100
     );
 
   const fullShortBackfill =
@@ -2288,10 +2238,17 @@ async function main() {
       ? marginResult.value
       : [];
 
-  const jsfHistory =
+  const historyPayload =
     historyResult.status === "fulfilled"
       ? historyResult.value
-      : [];
+      : null;
+
+  const jsfHistory =
+    Array.isArray(historyPayload)
+      ? historyPayload
+      : (
+          historyPayload?.rows || []
+        );
 
   const jpxResult =
     jpxResultSettled.status ===
@@ -2359,7 +2316,8 @@ async function main() {
     loanCoverage.count > 0 &&
     loanCoverage.count < 100
   ) {
-    loanCoverage.status = "partial";
+    loanCoverage.status =
+      "partial";
   }
 
   if (
@@ -2367,19 +2325,67 @@ async function main() {
     loanCoverage.startDate >
       loanStartTolerance
   ) {
-    loanCoverage.status = "partial";
+    loanCoverage.status =
+      "partial";
   }
 
   if (
     needLoanBackfill &&
-    historyResult.status === "rejected" &&
+    historyResult.status ===
+      "rejected" &&
     loanCoverage.count > 0
   ) {
-    loanCoverage.status = "partial";
+    loanCoverage.status =
+      "partial";
   }
 
   loanCoverage.requestedStartDate =
     requestedLoanStart;
+
+  const completedAttemptThisRun =
+    Boolean(
+      needLoanBackfill &&
+      historyResult.status ===
+        "fulfilled" &&
+      historyPayload?.attempted
+    );
+
+  loanCoverage.backfillAttempted =
+    Boolean(
+      completedAttemptThisRun ||
+      priorLoanCoverage
+        ?.backfillAttempted
+    );
+
+  loanCoverage.backfillAttemptedAt =
+    completedAttemptThisRun
+      ? new Date().toISOString()
+      : (
+          priorLoanCoverage
+            ?.backfillAttemptedAt ||
+          null
+        );
+
+  loanCoverage.failedChunks =
+    completedAttemptThisRun
+      ? Number(
+          historyPayload
+            ?.failedChunks || 0
+        )
+      : Number(
+          priorLoanCoverage
+            ?.failedChunks || 0
+        );
+
+  loanCoverage.sourceLimited =
+    Boolean(
+      loanCoverage.status ===
+        "partial" &&
+      loanCoverage
+        .backfillAttempted &&
+      loanCoverage
+        .failedChunks === 0
+    );
 
   const marginCoverage =
     metricCoverage(
