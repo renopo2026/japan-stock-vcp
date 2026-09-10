@@ -1,374 +1,194 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>
-    Japan Stock VCP
-  </title>
-
-  <script
-    src="https://cdn.plot.ly/plotly-3.7.0.min.js"
-    charset="utf-8"
-  ></script>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japan Stock VCP</title>
+  <script src="https://cdn.plot.ly/plotly-3.7.0.min.js" charset="utf-8"></script>
   <style>
-
-    * {
-      box-sizing:
-        border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      margin:
-        0;
-
-      background:
-        #f3f4f6;
-
-      color:
-        #202124;
-
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
+      margin: 0;
+      background: #f3f4f6;
+      color: #202124;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .app {
-      max-width:
-        1800px;
-
-      margin:
-        0 auto;
-
-      padding:
-        14px;
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 14px;
     }
 
     .header,
     .chart-card {
-      background:
-        #fff;
-
-      border-radius:
-        10px;
-
-      box-shadow:
-        0 1px 4px
-        rgba(0,0,0,.08);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
     }
 
     .header {
-      padding:
-        15px 18px;
-
-      margin-bottom:
-        10px;
+      padding: 15px 18px;
+      margin-bottom: 10px;
     }
 
     .chart-card {
-      padding:
-        5px;
+      padding: 5px;
     }
 
     .title-row {
-      display:
-        flex;
-
-      justify-content:
-        space-between;
-
-      align-items:
-        center;
-
-      gap:
-        10px;
-
-      flex-wrap:
-        wrap;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     h1 {
-      margin:
-        0;
-
-      font-size:
-        23px;
+      margin: 0;
+      font-size: 23px;
     }
 
     #stockTitle {
-      margin-top:
-        6px;
-
-      font-size:
-        18px;
-
-      font-weight:
-        600;
+      margin-top: 6px;
+      font-size: 18px;
+      font-weight: 600;
     }
 
     .controls {
-      margin-top:
-        13px;
-
-      display:
-        flex;
-
-      align-items:
-        center;
-
-      gap:
-        8px;
-
-      flex-wrap:
-        wrap;
+      margin-top: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     input,
     select,
     button {
-      padding:
-        7px 9px;
-
-      border:
-        1px solid #bbb;
-
-      border-radius:
-        5px;
-
-      background:
-        #fff;
-
-      font-size:
-        14px;
+      padding: 7px 9px;
+      border: 1px solid #bbb;
+      border-radius: 5px;
+      background: #fff;
+      font-size: 14px;
     }
 
     #stockCode {
-      width:
-        110px;
-
-      font-size:
-        16px;
+      width: 110px;
+      font-size: 16px;
     }
 
     button {
-      cursor:
-        pointer;
-
-      padding:
-        7px 12px;
+      cursor: pointer;
+      padding: 7px 12px;
     }
 
     button:hover {
-      background:
-        #f2f2f2;
+      background: #f2f2f2;
     }
 
     button.active {
-      color:
-        #fff;
-
-      background:
-        #222;
-
-      border-color:
-        #222;
+      color: #fff;
+      background: #222;
+      border-color: #222;
     }
 
     .period-buttons {
-      display:
-        flex;
-
-      gap:
-        4px;
-
-      flex-wrap:
-        wrap;
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
     }
 
     .checkbox-control {
-      display:
-        inline-flex;
-
-      align-items:
-        center;
-
-      gap:
-        5px;
-
-      padding:
-        6px 9px;
-
-      border:
-        1px solid #ccc;
-
-      border-radius:
-        5px;
-
-      background:
-        #fafafa;
-
-      cursor:
-        pointer;
-
-      user-select:
-        none;
-
-      font-size:
-        14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 9px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: #fafafa;
+      cursor: pointer;
+      user-select: none;
+      font-size: 14px;
     }
 
     .checkbox-control input {
-      margin:
-        0;
-
-      width:
-        16px;
-
-      height:
-        16px;
-
-      cursor:
-        pointer;
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
     }
 
     .status {
-      margin-top:
-        9px;
-
-      font-size:
-        13px;
-
-      color:
-        #666;
+      margin-top: 9px;
+      font-size: 13px;
+      color: #666;
     }
 
     .error {
-      color:
-        #c62828;
-
-      font-weight:
-        600;
+      color: #c62828;
+      font-weight: 600;
     }
 
     .summary {
-      margin-top:
-        8px;
-
-      display:
-        flex;
-
-      flex-wrap:
-        wrap;
-
-      gap:
-        15px;
-
-      font-size:
-        13px;
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 13px;
     }
 
     .summary-label {
-      color:
-        #777;
+      color: #777;
     }
 
     .buy {
-      color:
-        #1565c0;
-
-      font-weight:
-        700;
+      color: #1565c0;
+      font-weight: 700;
     }
 
     .sell {
-      color:
-        #c62828;
-
-      font-weight:
-        700;
+      color: #c62828;
+      font-weight: 700;
     }
 
     #chart {
-      width:
-        100%;
-
-      height:
-        1080px;
+      width: 100%;
+      height: 1080px;
     }
 
     .info {
-      padding:
-        3px 12px 8px;
-
-      color:
-        #666;
-
-      font-size:
-        12px;
+      padding: 3px 12px 8px;
+      color: #666;
+      font-size: 12px;
     }
 
-    @media (
-      max-width: 800px
-    ) {
-
+    @media (max-width: 800px) {
       #chart {
-        height:
-          900px;
+        height: 900px;
       }
     }
-
   </style>
-
 </head>
 
 <body>
-
 <div class="app">
 
   <div class="header">
-
     <div class="title-row">
-
       <div>
-
-        <h1>
-          Japan Stock VCP
-        </h1>
-
-        <div id="stockTitle">
-          読み込み中...
-        </div>
-
+        <h1>Japan Stock VCP</h1>
+        <div id="stockTitle">読み込み中...</div>
       </div>
 
-
       <div>
-
-        <button id="favoriteButton">
-          ☆ お気に入り
-        </button>
-
-        <button id="saveImage">
-          PNG保存
-        </button>
-
+        <button id="favoriteButton">☆ お気に入り</button>
+        <button id="saveImage">PNG保存</button>
       </div>
-
     </div>
 
-
     <div class="controls">
-
       <input
         id="stockCode"
         value="9984"
@@ -376,307 +196,113 @@
         placeholder="9984"
       >
 
-
-      <button id="loadButton">
-        読み込む
-      </button>
-
+      <button id="loadButton">読み込む</button>
 
       <div class="period-buttons">
-
-        <button data-period="3m">
-          3M
-        </button>
-
-        <button data-period="6m">
-          6M
-        </button>
-
-        <button
-          data-period="1y"
-          class="active"
-        >
-          1Y
-        </button>
-
-        <button data-period="3y">
-          3Y
-        </button>
-
-        <button data-period="5y">
-          5Y
-        </button>
-
-        <button data-period="10y">
-          10Y
-        </button>
-
-        <button data-period="all">
-          ALL
-        </button>
-
+        <button data-period="3m">3M</button>
+        <button data-period="6m">6M</button>
+        <button data-period="1y" class="active">1Y</button>
+        <button data-period="3y">3Y</button>
+        <button data-period="5y">5Y</button>
+        <button data-period="10y">10Y</button>
+        <button data-period="all">ALL</button>
       </div>
 
-
       <label>
-
         価格帯
-
         <select id="profileBins">
-
-          <option value="20">
-            20
-          </option>
-
-          <option value="30">
-            30
-          </option>
-
-          <option
-            value="50"
-            selected
-          >
-            50
-          </option>
-
-          <option value="75">
-            75
-          </option>
-
-          <option value="100">
-            100
-          </option>
-
+          <option value="20">20</option>
+          <option value="30">30</option>
+          <option value="50" selected>50</option>
+          <option value="75">75</option>
+          <option value="100">100</option>
         </select>
-
       </label>
-
 
       <label class="checkbox-control">
-
-        <input
-          type="checkbox"
-          id="showVolumePane"
-        >
-
+        <input type="checkbox" id="showVolumePane">
         出来高ペイン
-
       </label>
-
     </div>
 
-
-    <div
-      id="status"
-      class="status"
-    >
-      読み込み中...
-    </div>
-
-
-    <div
-      id="summary"
-      class="summary"
-    ></div>
-
+    <div id="status" class="status">読み込み中...</div>
+    <div id="summary" class="summary"></div>
   </div>
 
-
   <div class="chart-card">
-
     <div id="chart"></div>
 
-
-    <div
-      id="profileInfo"
-      class="info"
-    >
+    <div id="profileInfo" class="info">
       価格帯別出来高を計算中...
     </div>
 
-
-    <div
-      id="vcpInfo"
-      class="info"
-    >
+    <div id="vcpInfo" class="info">
       VCP：青棒＝N（26日上昇VCP合計 − 26日下落VCP合計）、
-      オレンジ＝5MA、紫＝25MA、黒太線＝0。
-      K/L/Mは非表示。
+      オレンジ＝5MA、紫＝25MA、黒太線＝0。K/L/Mは非表示。
     </div>
 
-
-    <div
-      id="supplyInfo"
-      class="info"
-    >
+    <div id="supplyInfo" class="info">
       需給データを確認中...
     </div>
-
   </div>
 
 </div>
 
-
 <script>
+const BLUE = "#1976d2";
+const RED = "#d32f2f";
+const ORANGE = "#ef6c00";
+const PURPLE = "#7b1fa2";
+const GREEN = "#388e3c";
+const BLACK = "#111111";
+const GRAY = "#616161";
 
-const BLUE =
-  "#1976d2";
+const chart = document.getElementById("chart");
 
-const RED =
-  "#d32f2f";
-
-const ORANGE =
-  "#ef6c00";
-
-const PURPLE =
-  "#7b1fa2";
-
-const GREEN =
-  "#388e3c";
-
-const BLACK =
-  "#111111";
-
-const GRAY =
-  "#616161";
-
-
-const chart =
-  document.getElementById(
-    "chart"
-  );
-
-
-let currentStock =
-  null;
-
-let currentSupply =
-  null;
-
-let currentSupplyDaily =
-  [];
-
-let currentCode =
-  "9984";
-
-let currentRangeStart =
-  null;
-
-let currentRangeEnd =
-  null;
-
-let updatingRange =
-  false;
-
-let showVolumePane =
-  false;
-
+let currentStock = null;
+let currentSupply = null;
+let currentSupplyDaily = [];
+let currentCode = "9984";
+let currentRangeStart = null;
+let currentRangeEnd = null;
+let updatingRange = false;
+let showVolumePane = false;
 
 /*
-価格帯別出来高だけ
-restyleでTrace番号を直接使うため固定。
-*/
+ * OHLC表示用の透明なscatterトレースを追加したため、
+ * 価格帯別出来高のトレース番号は8と9になる。
+ */
+const PROFILE_UP_INDEX = 8;
+const PROFILE_DOWN_INDEX = 9;
 
-const PROFILE_UP_INDEX =
-  7;
-
-const PROFILE_DOWN_INDEX =
-  8;
-
-
-/*
-==============================================================
-Utility
-==============================================================
-*/
-
-function isFiniteNumber(
-  v
-) {
-
-  return (
-    typeof v ===
-    "number"
-    &&
-    Number.isFinite(
-      v
-    )
-  );
+function isFiniteNumber(v) {
+  return typeof v === "number" && Number.isFinite(v);
 }
 
-
-function toNumber(
-  v
-) {
-
-  if (
-    v === null
-    ||
-    v === undefined
-    ||
-    v === ""
-  ) {
-
+function toNumber(v) {
+  if (v === null || v === undefined || v === "") {
     return null;
   }
 
-
-  const n =
-    Number(
-      v
-    );
-
-
-  return Number.isFinite(
-    n
-  )
-    ?
-      n
-    :
-      null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
+function formatNumber(v, digits = 0) {
+  const n = toNumber(v);
 
-function formatNumber(
-  v,
-  digits = 0
-) {
-
-  const n =
-    toNumber(
-      v
-    );
-
-
-  return n ===
-    null
-    ?
-      "-"
-    :
-      n.toLocaleString(
-        "ja-JP",
-        {
-          maximumFractionDigits:
-            digits
-        }
-      );
+  return n === null
+    ? "-"
+    : n.toLocaleString("ja-JP", {
+        maximumFractionDigits: digits
+      });
 }
 
-
-function parseDate(
-  text
-) {
-
-  return new Date(
-    `${text}T00:00:00`
-  );
+function parseDate(text) {
+  return new Date(`${text}T00:00:00`);
 }
 
-
-function dateString(
-  date
-) {
-
+function dateString(date) {
   return (
     `${date.getFullYear()}-` +
     `${String(date.getMonth() + 1).padStart(2, "0")}-` +
@@ -684,2662 +310,1035 @@ function dateString(
   );
 }
 
-
-/*
-==============================================================
-PERCENTILE.INC
-==============================================================
-*/
-
-function percentileInc(
-  values,
-  p
-) {
-
-  if (
-    !values.length
-    ||
-    !values.every(
-      isFiniteNumber
-    )
-  ) {
-
+function percentileInc(values, p) {
+  if (!values.length || !values.every(isFiniteNumber)) {
     return null;
   }
 
+  const sorted = [...values].sort((a, b) => a - b);
 
-  const sorted =
-    [...values]
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          a - b
-      );
-
-
-  if (
-    sorted.length ===
-    1
-  ) {
-
+  if (sorted.length === 1) {
     return sorted[0];
   }
 
+  const rank = p * (sorted.length - 1);
+  const lower = Math.floor(rank);
+  const upper = Math.ceil(rank);
 
-  const rank =
-    p *
-    (
-      sorted.length -
-      1
-    );
-
-
-  const lower =
-    Math.floor(
-      rank
-    );
-
-
-  const upper =
-    Math.ceil(
-      rank
-    );
-
-
-  if (
-    lower ===
-    upper
-  ) {
-
-    return sorted[
-      lower
-    ];
+  if (lower === upper) {
+    return sorted[lower];
   }
 
-
-  const w =
-    rank -
-    lower;
-
+  const w = rank - lower;
 
   return (
-    sorted[lower] *
-      (
-        1 -
-        w
-      )
-    +
-    sorted[upper] *
-      w
+    sorted[lower] * (1 - w) +
+    sorted[upper] * w
   );
 }
 
+function calculateSma(rows, key, period) {
+  const result = new Array(rows.length).fill(null);
 
-/*
-==============================================================
-SMA
-==============================================================
-*/
+  for (let i = period - 1; i < rows.length; i++) {
+    const values = rows
+      .slice(i - period + 1, i + 1)
+      .map(row => row[key]);
 
-function calculateSma(
-  rows,
-  key,
-  period
-) {
-
-  const result =
-    new Array(
-      rows.length
-    )
-    .fill(
-      null
-    );
-
-
-  for (
-    let i =
-      period - 1;
-
-    i <
-      rows.length;
-
-    i++
-  ) {
-
-    const values =
-      rows
-        .slice(
-          i - period + 1,
-          i + 1
-        )
-        .map(
-          r =>
-            r[key]
-        );
-
-
-    if (
-      values.every(
-        isFiniteNumber
-      )
-    ) {
-
+    if (values.every(isFiniteNumber)) {
       result[i] =
-        values.reduce(
-          (
-            a,
-            b
-          ) =>
-            a + b,
-          0
-        )
-        /
+        values.reduce((a, b) => a + b, 0) /
         period;
     }
   }
 
-
   return result;
 }
 
+function prepareIndicators(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    if (i >= 251) {
+      let maxHigh = -Infinity;
 
-/*
-==============================================================
-追加指標
-==============================================================
-*/
-
-function prepareIndicators(
-  rows
-) {
-
-  for (
-    let i = 0;
-    i < rows.length;
-    i++
-  ) {
-
-    /*
-    52週高値
-    */
-
-    if (
-      i >=
-      251
-    ) {
-
-      let maxHigh =
-        -Infinity;
-
-
-      for (
-        let j =
-          i - 251;
-
-        j <= i;
-
-        j++
-      ) {
-
-        maxHigh =
-          Math.max(
-            maxHigh,
-            rows[j].high
-          );
+      for (let j = i - 251; j <= i; j++) {
+        maxHigh = Math.max(maxHigh, rows[j].high);
       }
 
-
-      rows[i].high52 =
-        maxHigh;
-
+      rows[i].high52 = maxHigh;
+    } else {
+      rows[i].high52 = null;
     }
-    else {
-
-      rows[i].high52 =
-        null;
-    }
-
-
-    /*
-    Nの5日変化
-    */
 
     if (
-      !isFiniteNumber(
-        rows[i]
-          .vcp26Delta5
-      )
-      &&
-      i >=
-        5
-      &&
-      isFiniteNumber(
-        rows[i]
-          .vcp26
-      )
-      &&
-      isFiniteNumber(
-        rows[i - 5]
-          .vcp26
-      )
+      !isFiniteNumber(rows[i].vcp26Delta5) &&
+      i >= 5 &&
+      isFiniteNumber(rows[i].vcp26) &&
+      isFiniteNumber(rows[i - 5].vcp26)
     ) {
-
-      rows[i]
-        .vcp26Delta5 =
-          rows[i]
-            .vcp26
-          -
-          rows[i - 5]
-            .vcp26;
+      rows[i].vcp26Delta5 =
+        rows[i].vcp26 -
+        rows[i - 5].vcp26;
     }
 
+    if (i >= 119) {
+      const values = rows
+        .slice(i - 119, i + 1)
+        .map(row => row.vcp26Delta5);
 
-    /*
-    120日P10 / P90
-    */
-
-    if (
-      i >=
-      119
-    ) {
-
-      const values =
-        rows
-          .slice(
-            i - 119,
-            i + 1
-          )
-          .map(
-            r =>
-              r.vcp26Delta5
-          );
-
-
-      rows[i]
-        .deltaP10 =
-          percentileInc(
-            values,
-            .10
-          );
-
-
-      rows[i]
-        .deltaP90 =
-          percentileInc(
-            values,
-            .90
-          );
-
+      rows[i].deltaP10 = percentileInc(values, 0.10);
+      rows[i].deltaP90 = percentileInc(values, 0.90);
+    } else {
+      rows[i].deltaP10 = null;
+      rows[i].deltaP90 = null;
     }
-    else {
-
-      rows[i]
-        .deltaP10 =
-          null;
-
-
-      rows[i]
-        .deltaP90 =
-          null;
-    }
-
 
     const contraction =
-      isFiniteNumber(
-        rows[i]
-          .dailyVcp
-      )
-      &&
-      isFiniteNumber(
-        rows[i]
-          .dailyVcpP10
-      )
-      &&
-      rows[i]
-        .dailyVcp
-      <=
-      rows[i]
-        .dailyVcpP10;
+      isFiniteNumber(rows[i].dailyVcp) &&
+      isFiniteNumber(rows[i].dailyVcpP10) &&
+      rows[i].dailyVcp <= rows[i].dailyVcpP10;
 
+    rows[i].buyCandidate =
+      contraction &&
+      isFiniteNumber(rows[i].vcp26Delta5) &&
+      isFiniteNumber(rows[i].deltaP90) &&
+      rows[i].vcp26Delta5 >= rows[i].deltaP90;
 
-    rows[i]
-      .buyCandidate =
-        contraction
-        &&
-        isFiniteNumber(
-          rows[i]
-            .vcp26Delta5
-        )
-        &&
-        isFiniteNumber(
-          rows[i]
-            .deltaP90
-        )
-        &&
-        rows[i]
-          .vcp26Delta5
-        >=
-        rows[i]
-          .deltaP90;
-
-
-    rows[i]
-      .sellCandidate =
-        contraction
-        &&
-        isFiniteNumber(
-          rows[i]
-            .vcp26Delta5
-        )
-        &&
-        isFiniteNumber(
-          rows[i]
-            .deltaP10
-        )
-        &&
-        rows[i]
-          .vcp26Delta5
-        <=
-        rows[i]
-          .deltaP10;
+    rows[i].sellCandidate =
+      contraction &&
+      isFiniteNumber(rows[i].vcp26Delta5) &&
+      isFiniteNumber(rows[i].deltaP10) &&
+      rows[i].vcp26Delta5 <= rows[i].deltaP10;
   }
 
+  const ma5 = calculateSma(rows, "vcp26", 5);
+  const ma25 = calculateSma(rows, "vcp26", 25);
 
-  const ma5 =
-    calculateSma(
-      rows,
-      "vcp26",
-      5
-    );
-
-
-  const ma25 =
-    calculateSma(
-      rows,
-      "vcp26",
-      25
-    );
-
-
-  for (
-    let i = 0;
-    i < rows.length;
-    i++
-  ) {
-
-    rows[i]
-      .vcp26Ma5 =
-        ma5[i];
-
-
-    rows[i]
-      .vcp26Ma25 =
-        ma25[i];
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].vcp26Ma5 = ma5[i];
+    rows[i].vcp26Ma25 = ma25[i];
   }
 }
 
-
 /*
-==============================================================
-価格帯別出来高
-終値方式
-==============================================================
-*/
-
-function calculateVolumeProfile(
-  rows
-) {
-
-  if (
-    !rows.length
-  ) {
-
+ * 価格帯別出来高
+ * 各日の全出来高を、その日の終値が属する価格帯へ割り当てる。
+ */
+function calculateVolumeProfile(rows) {
+  if (!rows.length) {
     return null;
   }
-
 
   const bins =
-    Number(
-      document
-        .getElementById(
-          "profileBins"
-        )
-        .value
-    )
-    ||
+    Number(document.getElementById("profileBins").value) ||
     50;
 
+  const minPrice = Math.min(...rows.map(row => row.low));
+  const maxPrice = Math.max(...rows.map(row => row.high));
 
-  const minPrice =
-    Math.min(
-      ...rows.map(
-        r =>
-          r.low
-      )
-    );
-
-
-  const maxPrice =
-    Math.max(
-      ...rows.map(
-        r =>
-          r.high
-      )
-    );
-
-
-  if (
-    !(
-      maxPrice >
-      minPrice
-    )
-  ) {
-
+  if (!(maxPrice > minPrice)) {
     return null;
   }
 
+  const step = (maxPrice - minPrice) / bins;
+  const up = new Array(bins).fill(0);
+  const down = new Array(bins).fill(0);
 
-  const step =
-    (
-      maxPrice -
-      minPrice
-    )
-    /
-    bins;
-
-
-  const up =
-    new Array(
-      bins
-    )
-    .fill(
-      0
+  for (const row of rows) {
+    let index = Math.floor(
+      (row.close - minPrice) / step
     );
 
+    if (index === bins) {
+      index = bins - 1;
+    }
 
-  const down =
-    new Array(
-      bins
-    )
-    .fill(
-      0
+    index = Math.max(
+      0,
+      Math.min(bins - 1, index)
     );
 
-
-  for (
-    const row
-    of rows
-  ) {
-
-    let index =
-      Math.floor(
-        (
-          row.close -
-          minPrice
-        )
-        /
-        step
-      );
-
-
-    if (
-      index ===
-      bins
-    ) {
-
-      index =
-        bins -
-        1;
-    }
-
-
-    index =
-      Math.max(
-        0,
-        Math.min(
-          bins - 1,
-          index
-        )
-      );
-
-
-    if (
-      row.close >=
-      row.open
-    ) {
-
-      up[index] +=
-        row.volume;
-
-    }
-    else {
-
-      down[index] +=
-        row.volume;
+    if (row.close >= row.open) {
+      up[index] += row.volume;
+    } else {
+      down[index] += row.volume;
     }
   }
 
-
-  const prices =
-    Array.from(
-      {
-        length:
-          bins
-      },
-      (
-        _,
-        i
-      ) =>
-        minPrice
-        +
-        (
-          i +
-          .5
-        )
-        *
-        step
-    );
-
+  const prices = Array.from(
+    { length: bins },
+    (_, i) => minPrice + (i + 0.5) * step
+  );
 
   return {
-
     bins,
-
     prices,
-
-    widths:
-      prices.map(
-        () =>
-          step *
-          .90
-      ),
-
+    widths: prices.map(() => step * 0.90),
     up,
-
     down,
-
-    totals:
-      prices.map(
-        (
-          _,
-          i
-        ) =>
-          up[i] +
-          down[i]
-      ),
-
+    totals: prices.map((_, i) => up[i] + down[i]),
     step
   };
 }
 
+function buildSupplyDaily(stockRows, supplyRows) {
+  const source = [...(supplyRows || [])]
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-/*
-==============================================================
-需給を株価営業日へForward Fill
-==============================================================
-*/
+  const result = [];
 
-function buildSupplyDaily(
-  stockRows,
-  supplyRows
-) {
+  let sourceIndex = 0;
+  let publicShortRatio = null;
+  let publicShortInstitutions = [];
+  let loanRatio = null;
+  let loanBalance = null;
+  let stockLoanBalance = null;
+  let marginRatio = null;
+  let marginBuy = null;
+  let marginSell = null;
 
-  const source =
-    [
-      ...(
-        supplyRows ||
-        []
-      )
-    ]
-    .sort(
-      (
-        a,
-        b
-      ) =>
-        a.date
-          .localeCompare(
-            b.date
-          )
-    );
-
-
-  const result =
-    [];
-
-
-  let sourceIndex =
-    0;
-
-
-  let publicShortRatio =
-    null;
-
-  let publicShortInstitutions =
-    [];
-
-
-  let loanRatio =
-    null;
-
-  let loanBalance =
-    null;
-
-  let stockLoanBalance =
-    null;
-
-
-  let marginRatio =
-    null;
-
-  let marginBuy =
-    null;
-
-  let marginSell =
-    null;
-
-
-  for (
-    const stockRow
-    of stockRows
-  ) {
-
+  for (const stockRow of stockRows) {
     while (
-      sourceIndex <
-      source.length
-      &&
-      source[
-        sourceIndex
-      ].date <=
-      stockRow.date
+      sourceIndex < source.length &&
+      source[sourceIndex].date <= stockRow.date
     ) {
-
-      const row =
-        source[
-          sourceIndex
-        ];
-
+      const row = source[sourceIndex];
 
       if (
-        row.publicShortRatio !==
-        undefined
-        &&
-        row.publicShortRatio !==
-        null
+        row.publicShortRatio !== undefined &&
+        row.publicShortRatio !== null
       ) {
-
         publicShortRatio =
-          toNumber(
-            row.publicShortRatio
-          );
-
+          toNumber(row.publicShortRatio);
 
         publicShortInstitutions =
-          Array.isArray(
-            row.publicShortInstitutions
-          )
-          ?
-            row.publicShortInstitutions
-          :
-            [];
+          Array.isArray(row.publicShortInstitutions)
+            ? row.publicShortInstitutions
+            : [];
       }
 
-
-      if (
-        row.loanRatio !==
-        undefined
-      ) {
-
-        loanRatio =
-          toNumber(
-            row.loanRatio
-          );
+      if (row.loanRatio !== undefined) {
+        loanRatio = toNumber(row.loanRatio);
       }
 
-
-      if (
-        row.loanBalance !==
-        undefined
-      ) {
-
-        loanBalance =
-          toNumber(
-            row.loanBalance
-          );
+      if (row.loanBalance !== undefined) {
+        loanBalance = toNumber(row.loanBalance);
       }
 
-
-      if (
-        row.stockLoanBalance !==
-        undefined
-      ) {
-
+      if (row.stockLoanBalance !== undefined) {
         stockLoanBalance =
-          toNumber(
-            row.stockLoanBalance
-          );
+          toNumber(row.stockLoanBalance);
       }
 
-
-      if (
-        row.marginRatio !==
-        undefined
-      ) {
-
-        marginRatio =
-          toNumber(
-            row.marginRatio
-          );
+      if (row.marginRatio !== undefined) {
+        marginRatio = toNumber(row.marginRatio);
       }
 
-
-      if (
-        row.marginBuy !==
-        undefined
-      ) {
-
-        marginBuy =
-          toNumber(
-            row.marginBuy
-          );
+      if (row.marginBuy !== undefined) {
+        marginBuy = toNumber(row.marginBuy);
       }
 
-
-      if (
-        row.marginSell !==
-        undefined
-      ) {
-
-        marginSell =
-          toNumber(
-            row.marginSell
-          );
+      if (row.marginSell !== undefined) {
+        marginSell = toNumber(row.marginSell);
       }
-
 
       sourceIndex++;
     }
 
-
     result.push({
-
-      date:
-        stockRow.date,
-
+      date: stockRow.date,
       publicShortRatio,
-
       publicShortInstitutions,
-
       loanRatio,
-
       loanBalance,
-
       stockLoanBalance,
-
       marginRatio,
-
       marginBuy,
-
       marginSell
     });
   }
 
-
   return result;
 }
 
-
-/*
-==============================================================
-空売りTooltip
-==============================================================
-*/
-
-function shortInstitutionText(
-  institutions
-) {
-
+function shortInstitutionText(institutions) {
   if (
-    !Array.isArray(
-      institutions
-    )
-    ||
+    !Array.isArray(institutions) ||
     !institutions.length
   ) {
+    return "公表対象機関なし";
+  }
+
+  return institutions.map(item => {
+    const ratio = toNumber(item.ratio);
 
     return (
-      "公表対象機関なし"
+      `${item.name ?? "Unknown"}` +
+      `${ratio !== null
+        ? ` ${ratio.toFixed(2)}%`
+        : ""
+      }`
     );
-  }
-
-
-  return institutions
-    .map(
-      item => {
-
-        const ratio =
-          toNumber(
-            item.ratio
-          );
-
-
-        return (
-          `${item.name ?? "Unknown"}`
-          +
-          (
-            ratio !==
-            null
-            ?
-              ` ${ratio.toFixed(2)}%`
-            :
-              ""
-          )
-        );
-      }
-    )
-    .join(
-      "<br>"
-    );
+  }).join("<br>");
 }
 
-
-/*
-==============================================================
-表示期間
-==============================================================
-*/
-
-function visibleStockRows(
-  start,
-  end
-) {
-
+function visibleStockRows(start, end) {
   return currentStock
-    ?
-      currentStock
-        .data
-        .filter(
-          r =>
-            r.date >=
-            start
-          &&
-            r.date <=
-            end
-        )
-    :
-      [];
+    ? currentStock.data.filter(
+        row => row.date >= start && row.date <= end
+      )
+    : [];
 }
 
-
-function visibleSupplyRows(
-  start,
-  end
-) {
-
-  return currentSupplyDaily
-    .filter(
-      r =>
-        r.date >=
-        start
-      &&
-        r.date <=
-        end
-    );
+function visibleSupplyRows(start, end) {
+  return currentSupplyDaily.filter(
+    row => row.date >= start && row.date <= end
+  );
 }
 
+function rangeIncludeZero(values, paddingRatio = 0.10) {
+  const valid = values.filter(isFiniteNumber);
 
-function rangeIncludeZero(
-  values,
-  paddingRatio =
-    .10
-) {
-
-  const valid =
-    values.filter(
-      isFiniteNumber
-    );
-
-
-  if (
-    !valid.length
-  ) {
-
-    return [
-      -.01,
-      .01
-    ];
+  if (!valid.length) {
+    return [-0.01, 0.01];
   }
 
+  let min = Math.min(0, ...valid);
+  let max = Math.max(0, ...valid);
+  let span = max - min;
 
-  let min =
-    Math.min(
-      0,
-      ...valid
-    );
-
-
-  let max =
-    Math.max(
-      0,
-      ...valid
-    );
-
-
-  let span =
-    max -
-    min;
-
-
-  if (
-    span ===
-    0
-  ) {
-
-    span =
-      Math.max(
-        Math.abs(
-          max
-        ),
-        .01
-      );
+  if (span === 0) {
+    span = Math.max(Math.abs(max), 0.01);
   }
-
 
   return [
-
-    min -
-      span *
-      paddingRatio,
-
-    max +
-      span *
-      paddingRatio
+    min - span * paddingRatio,
+    max + span * paddingRatio
   ];
 }
 
+function positiveRange(values, fallback = 1) {
+  const valid = values.filter(isFiniteNumber);
 
-function positiveRange(
-  values,
-  fallback =
-    1
-) {
-
-  const valid =
-    values.filter(
-      isFiniteNumber
-    );
-
-
-  if (
-    !valid.length
-  ) {
-
-    return [
-      0,
-      fallback
-    ];
+  if (!valid.length) {
+    return [0, fallback];
   }
 
-
   return [
-
     0,
-
     Math.max(
-      Math.max(
-        ...valid
-      )
-      *
-      1.15,
+      Math.max(...valid) * 1.15,
       fallback
     )
   ];
 }
-
-
-/*
-==============================================================
-ペイン配置
-==============================================================
-*/
 
 function getPaneLayout() {
-
-  if (
-    showVolumePane
-  ) {
-
+  if (showVolumePane) {
     return {
-
-      height:
-        1220,
-
-      priceDomain:
-        [
-          .67,
-          1
-        ],
-
-      volumeDomain:
-        [
-          .54,
-          .60
-        ],
-
-      vcpDomain:
-        [
-          .31,
-          .48
-        ],
-
-      supplyDomain:
-        [
-          0,
-          .24
-        ]
+      height: 1220,
+      priceDomain: [0.67, 1],
+      volumeDomain: [0.54, 0.60],
+      vcpDomain: [0.31, 0.48],
+      supplyDomain: [0, 0.24]
     };
   }
 
-
   return {
-
-    height:
-      1080,
-
-    priceDomain:
-      [
-        .59,
-        1
-      ],
-
-    volumeDomain:
-      [
-        .555,
-        .556
-      ],
-
-    vcpDomain:
-      [
-        .31,
-        .51
-      ],
-
-    supplyDomain:
-      [
-        0,
-        .24
-      ]
+    height: 1080,
+    priceDomain: [0.59, 1],
+    volumeDomain: [0.555, 0.556],
+    vcpDomain: [0.31, 0.51],
+    supplyDomain: [0, 0.24]
   };
 }
-
 
 function getInitialDisplayRange() {
-
-  if (
-    currentRangeStart
-    &&
-    currentRangeEnd
-  ) {
-
+  if (currentRangeStart && currentRangeEnd) {
     return {
-
-      start:
-        currentRangeStart,
-
-      end:
-        currentRangeEnd
+      start: currentRangeStart,
+      end: currentRangeEnd
     };
   }
 
+  const end = parseDate(currentStock.endDate);
+  const start = new Date(end);
 
-  const end =
-    parseDate(
-      currentStock.endDate
-    );
+  start.setFullYear(start.getFullYear() - 1);
 
+  let startText = dateString(start);
 
-  const start =
-    new Date(
-      end
-    );
-
-
-  start.setFullYear(
-    start.getFullYear() -
-    1
-  );
-
-
-  let startText =
-    dateString(
-      start
-    );
-
-
-  if (
-    startText <
-    currentStock.startDate
-  ) {
-
-    startText =
-      currentStock.startDate;
+  if (startText < currentStock.startDate) {
+    startText = currentStock.startDate;
   }
 
-
   return {
-
-    start:
-      startText,
-
-    end:
-      currentStock.endDate
+    start: startText,
+    end: currentStock.endDate
   };
 }
 
-
-/*
-==============================================================
-coverage表示
-==============================================================
-*/
-
-function coverageLabel(
-  item
-) {
-
-  if (
-    !item
-  ) {
-
-    return (
-      "未取得"
-    );
+function coverageLabel(item) {
+  if (!item) {
+    return "未取得";
   }
 
-
   const period =
-    item.startDate
-    ||
-    item.endDate
-    ?
-      `${item.startDate ?? "?"}〜${item.endDate ?? "?"}`
-    :
-      "期間不明";
+    item.startDate || item.endDate
+      ? `${item.startDate ?? "?"}〜${item.endDate ?? "?"}`
+      : "期間不明";
 
-
-  switch (
-    item.status
-  ) {
-
+  switch (item.status) {
     case "ok":
-
       return period;
 
-
     case "partial":
-
-      return (
-        `一部取得 ${period}`
-      );
-
+      return `一部取得 ${period}`;
 
     case "no_events_in_coverage":
-
-      return (
-        `公表イベントなし（0とは断定しない） ${period}`
-      );
-
+      return `公表イベントなし（0とは断定しない） ${period}`;
 
     case "unknown":
-
-      return (
-        `状態不明 ${period}`
-      );
-
+      return `状態不明 ${period}`;
 
     case "error":
-
-      return (
-        "取得失敗"
-      );
-
+      return "取得失敗";
 
     default:
-
-      return (
-        `${item.status ?? "不明"} ${period}`
-      );
+      return `${item.status ?? "不明"} ${period}`;
   }
 }
 
-
-/*
-==============================================================
-表示範囲更新
-==============================================================
-*/
-
-async function updateVisibleRange(
-  start,
-  end
-) {
-
-  if (
-    updatingRange
-    ||
-    !currentStock
-  ) {
-
+async function updateVisibleRange(start, end) {
+  if (updatingRange || !currentStock) {
     return;
   }
 
+  const rows = visibleStockRows(start, end);
 
-  const rows =
-    visibleStockRows(
-      start,
-      end
-    );
-
-
-  if (
-    !rows.length
-  ) {
-
+  if (!rows.length) {
     return;
   }
 
+  const profile = calculateVolumeProfile(rows);
 
-  const profile =
-    calculateVolumeProfile(
-      rows
-    );
-
-
-  if (
-    !profile
-  ) {
-
+  if (!profile) {
     return;
   }
-
 
   const maxProfile =
-    Math.max(
-      ...profile.totals,
-      1
-    );
-
+    Math.max(...profile.totals, 1);
 
   let priceLow =
-    Math.min(
-      ...rows.map(
-        r =>
-          r.low
-      )
-    );
-
+    Math.min(...rows.map(row => row.low));
 
   let priceHigh =
-    Math.max(
-      ...rows.map(
-        r =>
-          r.high
-      )
-    );
+    Math.max(...rows.map(row => row.high));
 
+  const high52 = rows
+    .map(row => row.high52)
+    .filter(isFiniteNumber);
 
-  const high52 =
-    rows
-      .map(
-        r =>
-          r.high52
-      )
-      .filter(
-        isFiniteNumber
-      );
-
-
-  if (
-    high52.length
-  ) {
-
+  if (high52.length) {
     priceHigh =
-      Math.max(
-        priceHigh,
-        ...high52
-      );
+      Math.max(priceHigh, ...high52);
   }
-
 
   const pricePadding =
     Math.max(
-      (
-        priceHigh -
-        priceLow
-      )
-      *
-      .045,
+      (priceHigh - priceLow) * 0.045,
       profile.step
     );
 
-
   const maxVolume =
-    Math.max(
-      ...rows.map(
-        r =>
-          r.volume
-      ),
-      1
-    );
-
+    Math.max(...rows.map(row => row.volume), 1);
 
   const nRange =
-    rangeIncludeZero(
-      rows.map(
-        r =>
-          r.vcp26
-      )
-    );
-
+    rangeIncludeZero(rows.map(row => row.vcp26));
 
   const supplyRows =
-    visibleSupplyRows(
-      start,
-      end
-    );
-
-
-  /*
-  重要：
-  公表空売り、貸借倍率、信用倍率を
-  それぞれ独立スケールにする。
-  */
+    visibleSupplyRows(start, end);
 
   const shortRange =
     positiveRange(
-      supplyRows.map(
-        r =>
-          r.publicShortRatio
-      ),
+      supplyRows.map(row => row.publicShortRatio),
       1
     );
-
 
   const loanRange =
     positiveRange(
-      supplyRows.map(
-        r =>
-          r.loanRatio
-      ),
+      supplyRows.map(row => row.loanRatio),
       1
     );
-
 
   const marginRange =
     positiveRange(
-      supplyRows.map(
-        r =>
-          r.marginRatio
-      ),
+      supplyRows.map(row => row.marginRatio),
       1
     );
 
-
-  updatingRange =
-    true;
-
+  updatingRange = true;
 
   try {
+    await Plotly.restyle(
+      chart,
+      {
+        x: [profile.up],
+        y: [profile.prices],
+        width: [profile.widths],
+        customdata: [profile.up]
+      },
+      [PROFILE_UP_INDEX]
+    );
 
     await Plotly.restyle(
       chart,
       {
-
-        x:
-          [
-            profile.up
-          ],
-
-        y:
-          [
-            profile.prices
-          ],
-
-        width:
-          [
-            profile.widths
-          ],
-
-        customdata:
-          [
-            profile.up
-          ]
+        x: [profile.down],
+        y: [profile.prices],
+        width: [profile.widths],
+        customdata: [profile.down]
       },
-      [
-        PROFILE_UP_INDEX
-      ]
+      [PROFILE_DOWN_INDEX]
     );
-
-
-    await Plotly.restyle(
-      chart,
-      {
-
-        x:
-          [
-            profile.down
-          ],
-
-        y:
-          [
-            profile.prices
-          ],
-
-        width:
-          [
-            profile.widths
-          ],
-
-        customdata:
-          [
-            profile.down
-          ]
-      },
-      [
-        PROFILE_DOWN_INDEX
-      ]
-    );
-
 
     const relayout = {
-
-      "xaxis2.range":
-        [
-          maxProfile *
-          3.5,
-          0
-        ],
-
-      "yaxis.range":
-        [
-          priceLow -
-          pricePadding,
-
-          priceHigh +
-          pricePadding
-        ],
-
-      "yaxis3.range":
-        nRange,
-
-      "yaxis4.range":
-        shortRange,
-
-      "yaxis5.range":
-        loanRange,
-
-      "yaxis6.range":
-        marginRange
+      "xaxis2.range": [maxProfile * 3.5, 0],
+      "yaxis.range": [
+        priceLow - pricePadding,
+        priceHigh + pricePadding
+      ],
+      "yaxis3.range": nRange,
+      "yaxis4.range": shortRange,
+      "yaxis5.range": loanRange,
+      "yaxis6.range": marginRange
     };
 
-
-    if (
-      showVolumePane
-    ) {
-
-      relayout[
-        "yaxis2.range"
-      ] =
-        [
-          0,
-          maxVolume *
-          1.10
-        ];
+    if (showVolumePane) {
+      relayout["yaxis2.range"] = [
+        0,
+        maxVolume * 1.10
+      ];
     }
 
+    await Plotly.relayout(chart, relayout);
 
-    await Plotly.relayout(
-      chart,
-      relayout
-    );
+    currentRangeStart = start;
+    currentRangeEnd = end;
 
-
-    currentRangeStart =
-      start;
-
-
-    currentRangeEnd =
-      end;
-
-
-    document
-      .getElementById(
-        "profileInfo"
-      )
-      .textContent =
-        `価格帯別出来高：${start} ～ ${end} ／ ` +
-        `${rows.length}営業日 ／ ` +
-        `${profile.bins}価格帯 ／ ` +
-        `終値方式 ／ ` +
-        `左＝下落（赤）、右＝上昇（青）`;
-
-  }
-  finally {
-
-    updatingRange =
-      false;
+    document.getElementById("profileInfo").textContent =
+      `価格帯別出来高：${start} ～ ${end}` +
+      ` ／ ${rows.length}営業日` +
+      ` ／ ${profile.bins}価格帯` +
+      ` ／ 終値方式` +
+      ` ／ 左＝下落（赤）、右＝上昇（青）`;
+  } finally {
+    updatingRange = false;
   }
 }
 
-
-/*
-==============================================================
-Summary
-==============================================================
-*/
-
 function updateSummary() {
-
-  if (
-    !currentStock
-  ) {
-
+  if (!currentStock) {
     return;
   }
 
-
-  const stockRows =
-    currentStock.data;
-
-
-  const latest =
-    stockRows[
-      stockRows.length -
-      1
-    ];
-
+  const stockRows = currentStock.data;
+  const latest = stockRows[stockRows.length - 1];
 
   const latestSupply =
     currentSupplyDaily.length
-    ?
-      currentSupplyDaily[
-        currentSupplyDaily.length -
-        1
-      ]
-    :
-      null;
-
+      ? currentSupplyDaily[currentSupplyDaily.length - 1]
+      : null;
 
   const buyCount =
-    stockRows
-      .filter(
-        r =>
-          r.buyCandidate
-      )
-      .length;
-
+    stockRows.filter(row => row.buyCandidate).length;
 
   const sellCount =
-    stockRows
-      .filter(
-        r =>
-          r.sellCandidate
-      )
-      .length;
+    stockRows.filter(row => row.sellCandidate).length;
 
+  let signal = "候補なし";
+  let signalClass = "";
 
-  let signal =
-    "候補なし";
-
-
-  let signalClass =
-    "";
-
-
-  if (
-    latest.buyCandidate
-  ) {
-
-    signal =
-      "▲ 買い候補";
-
-    signalClass =
-      "buy";
+  if (latest.buyCandidate) {
+    signal = "▲ 買い候補";
+    signalClass = "buy";
   }
 
-
-  if (
-    latest.sellCandidate
-  ) {
-
-    signal =
-      "▼ 売り候補";
-
-    signalClass =
-      "sell";
+  if (latest.sellCandidate) {
+    signal = "▼ 売り候補";
+    signalClass = "sell";
   }
 
+  document.getElementById("summary").innerHTML = `
+    <div>
+      <span class="summary-label">終値</span>
+      <strong>${formatNumber(latest.close, 2)}</strong>
+    </div>
 
-  document
-    .getElementById(
-      "summary"
-    )
-    .innerHTML = `
+    <div>
+      <span class="summary-label">52週高値</span>
+      ${formatNumber(latest.high52, 2)}
+    </div>
 
-      <div>
-        <span class="summary-label">
-          終値
-        </span>
-        <strong>
-          ${formatNumber(latest.close,2)}
-        </strong>
-      </div>
+    <div>
+      <span class="summary-label">VCP N</span>
+      <strong>${formatNumber(latest.vcp26, 6)}</strong>
+    </div>
 
-      <div>
-        <span class="summary-label">
-          52週高値
-        </span>
-        ${formatNumber(latest.high52,2)}
-      </div>
+    <div>
+      <span class="summary-label">VCP 5MA</span>
+      ${formatNumber(latest.vcp26Ma5, 6)}
+    </div>
 
-      <div>
-        <span class="summary-label">
-          VCP N
-        </span>
-        <strong>
-          ${formatNumber(latest.vcp26,6)}
-        </strong>
-      </div>
+    <div>
+      <span class="summary-label">VCP 25MA</span>
+      ${formatNumber(latest.vcp26Ma25, 6)}
+    </div>
 
-      <div>
-        <span class="summary-label">
-          VCP 5MA
-        </span>
-        ${formatNumber(latest.vcp26Ma5,6)}
-      </div>
+    <div class="${signalClass}">
+      ${signal}
+    </div>
 
-      <div>
-        <span class="summary-label">
-          VCP 25MA
-        </span>
-        ${formatNumber(latest.vcp26Ma25,6)}
-      </div>
-
-      <div class="${signalClass}">
-        ${signal}
-      </div>
-
-      <div>
-        <span class="summary-label">
-          公表空売り
-        </span>
-        ${
-          latestSupply?.publicShortRatio === null
-          ||
-          latestSupply?.publicShortRatio === undefined
-          ?
-            "-"
-          :
-            `${formatNumber(
+    <div>
+      <span class="summary-label">公表空売り</span>
+      ${
+        latestSupply?.publicShortRatio === null ||
+        latestSupply?.publicShortRatio === undefined
+          ? "-"
+          : `${formatNumber(
               latestSupply.publicShortRatio,
               2
             )}%`
-        }
-      </div>
+      }
+    </div>
 
-      <div>
-        <span class="summary-label">
-          貸借倍率
-        </span>
-        ${
-          latestSupply?.loanRatio === null
-          ||
-          latestSupply?.loanRatio === undefined
-          ?
-            "-"
-          :
-            `${formatNumber(
+    <div>
+      <span class="summary-label">貸借倍率</span>
+      ${
+        latestSupply?.loanRatio === null ||
+        latestSupply?.loanRatio === undefined
+          ? "-"
+          : `${formatNumber(
               latestSupply.loanRatio,
               2
             )}倍`
-        }
-      </div>
+      }
+    </div>
 
-      <div>
-        <span class="summary-label">
-          信用倍率
-        </span>
-        ${
-          latestSupply?.marginRatio === null
-          ||
-          latestSupply?.marginRatio === undefined
-          ?
-            "-"
-          :
-            `${formatNumber(
+    <div>
+      <span class="summary-label">信用倍率</span>
+      ${
+        latestSupply?.marginRatio === null ||
+        latestSupply?.marginRatio === undefined
+          ? "-"
+          : `${formatNumber(
               latestSupply.marginRatio,
               2
             )}倍`
-        }
-      </div>
+      }
+    </div>
 
-      <div>
-        <span class="summary-label">
-          買い候補
-        </span>
-        ${buyCount}
-      </div>
+    <div>
+      <span class="summary-label">買い候補</span>
+      ${buyCount}
+    </div>
 
-      <div>
-        <span class="summary-label">
-          売り候補
-        </span>
-        ${sellCount}
-      </div>
-    `;
+    <div>
+      <span class="summary-label">売り候補</span>
+      ${sellCount}
+    </div>
+  `;
 }
 
-
-/*
-==============================================================
-お気に入り
-==============================================================
-*/
-
 function getFavorites() {
-
   try {
-
     return JSON.parse(
-      localStorage.getItem(
-        "stockFavorites"
-      )
-      ||
+      localStorage.getItem("stockFavorites") ||
       "[]"
     );
-
-  }
-  catch {
-
+  } catch {
     return [];
   }
 }
 
-
 function updateFavoriteButton() {
-
-  document
-    .getElementById(
-      "favoriteButton"
-    )
-    .textContent =
-      getFavorites()
-        .includes(
-          currentCode
-        )
-      ?
-        "★ お気に入り"
-      :
-        "☆ お気に入り";
+  document.getElementById("favoriteButton").textContent =
+    getFavorites().includes(currentCode)
+      ? "★ お気に入り"
+      : "☆ お気に入り";
 }
 
-
 function toggleFavorite() {
+  let favorites = getFavorites();
 
-  let favorites =
-    getFavorites();
-
-
-  favorites =
-    favorites.includes(
-      currentCode
-    )
-    ?
-      favorites.filter(
-        c =>
-          c !==
-          currentCode
-      )
-    :
-      [
-        ...favorites,
-        currentCode
-      ];
-
+  favorites = favorites.includes(currentCode)
+    ? favorites.filter(code => code !== currentCode)
+    : [...favorites, currentCode];
 
   localStorage.setItem(
     "stockFavorites",
-    JSON.stringify(
-      favorites
-    )
+    JSON.stringify(favorites)
   );
-
 
   updateFavoriteButton();
 }
 
-
-/*
-==============================================================
-全ペイン共通縦線
-==============================================================
-*/
-
 function installHoverLine() {
+  chart.on("plotly_hover", event => {
+    const point = event?.points?.[0];
 
-  chart.on(
-    "plotly_hover",
-    event => {
-
-      const point =
-        event?.points?.[0];
-
-
-      if (
-        !point
-        ||
-        point.x ===
-        undefined
-      ) {
-
-        return;
-      }
-
-
-      Plotly.relayout(
-        chart,
-        {
-
-          "shapes[0].x0":
-            point.x,
-
-          "shapes[0].x1":
-            point.x,
-
-          "shapes[0].visible":
-            true
-        }
-      );
+    if (!point || point.x === undefined) {
+      return;
     }
-  );
 
+    Plotly.relayout(chart, {
+      "shapes[0].x0": point.x,
+      "shapes[0].x1": point.x,
+      "shapes[0].visible": true
+    });
+  });
 
-  chart.on(
-    "plotly_unhover",
-    () =>
-
-      Plotly.relayout(
-        chart,
-        {
-
-          "shapes[0].visible":
-            false
-        }
-      )
-  );
+  chart.on("plotly_unhover", () => {
+    Plotly.relayout(chart, {
+      "shapes[0].visible": false
+    });
+  });
 }
 
-
-/*
-==============================================================
-Chart
-==============================================================
-*/
-
 async function drawChart() {
-
-  if (
-    !currentStock
-  ) {
-
+  if (!currentStock) {
     return;
   }
 
-
-  const rows =
-    currentStock.data;
-
-
-  const dates =
-    rows.map(
-      r =>
-        r.date
-    );
-
+  const rows = currentStock.data;
+  const dates = rows.map(row => row.date);
 
   const {
-    start:
-      initialStart,
-
-    end:
-      latestDate
-  } =
-    getInitialDisplayRange();
-
+    start: initialStart,
+    end: latestDate
+  } = getInitialDisplayRange();
 
   const initialRows =
-    visibleStockRows(
-      initialStart,
-      latestDate
-    );
-
+    visibleStockRows(initialStart, latestDate);
 
   const profile =
-    calculateVolumeProfile(
-      initialRows
-    );
-
+    calculateVolumeProfile(initialRows);
 
   const maxProfile =
-    Math.max(
-      ...profile.totals,
-      1
-    );
+    Math.max(...profile.totals, 1);
 
-
-  const dailyColors =
-    rows.map(
-      r =>
-        r.close >=
-        r.open
-        ?
-          BLUE
-        :
-          RED
-    );
-
+  const dailyColors = rows.map(row =>
+    row.close >= row.open
+      ? BLUE
+      : RED
+  );
 
   const buyRows =
-    rows.filter(
-      r =>
-        r.buyCandidate
-    );
-
+    rows.filter(row => row.buyCandidate);
 
   const sellRows =
-    rows.filter(
-      r =>
-        r.sellCandidate
-    );
-
+    rows.filter(row => row.sellCandidate);
 
   const supplyDates =
-    currentSupplyDaily
-      .map(
-        r =>
-          r.date
-      );
-
+    currentSupplyDaily.map(row => row.date);
 
   const shortHover =
-    currentSupplyDaily
-      .map(
-        r =>
-          shortInstitutionText(
-            r.publicShortInstitutions
-          )
-      );
+    currentSupplyDaily.map(row =>
+      shortInstitutionText(
+        row.publicShortInstitutions
+      )
+    );
 
+  const pane = getPaneLayout();
 
-  const pane =
-    getPaneLayout();
-
-
-  chart.style.height =
-    `${pane.height}px`;
-
+  chart.style.height = `${pane.height}px`;
 
   const traces = [
-
     /*
-    ----------------------------------------------------------
-    0 株価
-    ----------------------------------------------------------
-    */
-
+     * ローソク足本体
+     *
+     * Plotlyのx unifiedとcandlestickを組み合わせると、
+     * 選択した日ではなく最新日のOHLCが残る場合があるため、
+     * ローソク足自体のhover表示は無効化する。
+     */
     {
-
-      type:
-        "candlestick",
-
-      name:
-        "株価",
-
-      x:
-        dates,
-
-      open:
-        rows.map(
-          r =>
-            r.open
-        ),
-
-      high:
-        rows.map(
-          r =>
-            r.high
-        ),
-
-      low:
-        rows.map(
-          r =>
-            r.low
-        ),
-
-      close:
-        rows.map(
-          r =>
-            r.close
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
+      type: "candlestick",
+      name: "株価",
+      x: dates,
+      open: rows.map(row => row.open),
+      high: rows.map(row => row.high),
+      low: rows.map(row => row.low),
+      close: rows.map(row => row.close),
+      xaxis: "x",
+      yaxis: "y",
 
       increasing: {
-
         line: {
-          color:
-            BLUE
+          color: BLUE
         },
-
-        fillcolor:
-          BLUE
+        fillcolor: BLUE
       },
 
       decreasing: {
-
         line: {
-          color:
-            RED
+          color: RED
         },
+        fillcolor: RED
+      },
 
-        fillcolor:
-          RED
+      hoverinfo: "skip"
+    },
+
+    /*
+     * OHLC表示専用の透明なscatterトレース
+     *
+     * 各日付とOHLCを1対1で保持する。
+     * カーソル位置の日付に対応した値が、
+     * unified hoverへ表示される。
+     */
+    {
+      type: "scatter",
+      mode: "markers",
+      name: "OHLC",
+      x: dates,
+      y: rows.map(row => row.close),
+
+      customdata: rows.map(row => [
+        row.open,
+        row.high,
+        row.low,
+        row.close
+      ]),
+
+      xaxis: "x",
+      yaxis: "y",
+      showlegend: false,
+
+      marker: {
+        size: 12,
+        color: "rgba(0,0,0,0)"
       },
 
       hovertemplate:
-        "%{x}" +
-        "<br>始 %{open:,.0f}" +
-        "<br>高 %{high:,.0f}" +
-        "<br>安 %{low:,.0f}" +
-        "<br>終 %{close:,.0f}" +
+        "日付 %{x|%Y-%m-%d}" +
+        "<br>始 %{customdata[0]:,.0f}" +
+        "<br>高 %{customdata[1]:,.0f}" +
+        "<br>安 %{customdata[2]:,.0f}" +
+        "<br>終 %{customdata[3]:,.0f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    1 株価5MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "5MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.ma5
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "5MA",
+      x: dates,
+      y: rows.map(row => row.ma5),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1.4,
-
-        color:
-          ORANGE
+        width: 1.4,
+        color: ORANGE
       }
     },
 
-
-    /*
-    2 株価25MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "25MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.ma25
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "25MA",
+      x: dates,
+      y: rows.map(row => row.ma25),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1.4,
-
-        color:
-          PURPLE
+        width: 1.4,
+        color: PURPLE
       }
     },
 
-
-    /*
-    3 株価50MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "50MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.ma50
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "50MA",
+      x: dates,
+      y: rows.map(row => row.ma50),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1.4,
-
-        color:
-          GREEN
+        width: 1.4,
+        color: GREEN
       }
     },
 
-
-    /*
-    4 高値5MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "高値5MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.highMa5
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "高値5MA",
+      x: dates,
+      y: rows.map(row => row.highMa5),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1,
-
-        dash:
-          "dot",
-
-        color:
-          "#777"
+        width: 1,
+        dash: "dot",
+        color: "#777"
       },
-
-      visible:
-        "legendonly"
+      visible: "legendonly"
     },
 
-
-    /*
-    5 安値5MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "安値5MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.lowMa5
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "安値5MA",
+      x: dates,
+      y: rows.map(row => row.lowMa5),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1,
-
-        dash:
-          "dot",
-
-        color:
-          "#999"
+        width: 1,
+        dash: "dot",
+        color: "#999"
       },
-
-      visible:
-        "legendonly"
+      visible: "legendonly"
     },
 
-
-    /*
-    6 52週高値
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "52週高値",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.high52
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "lines",
+      name: "52週高値",
+      x: dates,
+      y: rows.map(row => row.high52),
+      xaxis: "x",
+      yaxis: "y",
       line: {
-
-        width:
-          1.5,
-
-        dash:
-          "dash",
-
-        color:
-          BLACK
+        width: 1.5,
+        dash: "dash",
+        color: BLACK
       },
-
       hovertemplate:
         "52週高値 %{y:,.0f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    7 価格帯別出来高 UP
-    */
-
     {
-
-      type:
-        "bar",
-
-      orientation:
-        "h",
-
-      name:
-        "価格帯出来高 上昇",
-
-      x:
-        profile.up,
-
-      y:
-        profile.prices,
-
-      width:
-        profile.widths,
-
-      customdata:
-        profile.up,
-
-      xaxis:
-        "x2",
-
-      yaxis:
-        "y",
-
+      type: "bar",
+      orientation: "h",
+      name: "価格帯出来高 上昇",
+      x: profile.up,
+      y: profile.prices,
+      width: profile.widths,
+      customdata: profile.up,
+      xaxis: "x2",
+      yaxis: "y",
       marker: {
-
-        color:
-          "rgba(25,118,210,0.50)"
+        color: "rgba(25,118,210,0.50)"
       },
-
       hovertemplate:
         "価格 %{y:,.0f}円" +
         "<br>上昇出来高 %{customdata:,.0f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    8 価格帯別出来高 DOWN
-    */
-
     {
-
-      type:
-        "bar",
-
-      orientation:
-        "h",
-
-      name:
-        "価格帯出来高 下落",
-
-      x:
-        profile.down,
-
-      y:
-        profile.prices,
-
-      width:
-        profile.widths,
-
-      customdata:
-        profile.down,
-
-      xaxis:
-        "x2",
-
-      yaxis:
-        "y",
-
+      type: "bar",
+      orientation: "h",
+      name: "価格帯出来高 下落",
+      x: profile.down,
+      y: profile.prices,
+      width: profile.widths,
+      customdata: profile.down,
+      xaxis: "x2",
+      yaxis: "y",
       marker: {
-
-        color:
-          "rgba(211,47,47,0.50)"
+        color: "rgba(211,47,47,0.50)"
       },
-
       hovertemplate:
         "価格 %{y:,.0f}円" +
         "<br>下落出来高 %{customdata:,.0f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    9 通常出来高
-    デフォルトOFF
-    */
-
     {
-
-      type:
-        "bar",
-
-      name:
-        "出来高",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.volume
-        ),
-
-      xaxis:
-        "x3",
-
-      yaxis:
-        "y2",
-
-      visible:
-        showVolumePane,
-
+      type: "bar",
+      name: "出来高",
+      x: dates,
+      y: rows.map(row => row.volume),
+      xaxis: "x3",
+      yaxis: "y2",
+      visible: showVolumePane,
       marker: {
-
-        color:
-          dailyColors
+        color: dailyColors
       },
-
       hovertemplate:
         "%{x}" +
         "<br>出来高 %{y:,.0f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    10 VCP N
-    */
-
     {
-
-      type:
-        "bar",
-
-      name:
-        "VCP N",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.vcp26
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y3",
-
+      type: "bar",
+      name: "VCP N",
+      x: dates,
+      y: rows.map(row => row.vcp26),
+      xaxis: "x4",
+      yaxis: "y3",
       marker: {
-
-        color:
-          BLUE
+        color: BLUE
       },
-
       hovertemplate:
         "%{x}" +
         "<br>VCP N %{y:.6f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    11 VCP 5MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "VCP 5MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.vcp26Ma5
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y3",
-
+      type: "scatter",
+      mode: "lines",
+      name: "VCP 5MA",
+      x: dates,
+      y: rows.map(row => row.vcp26Ma5),
+      xaxis: "x4",
+      yaxis: "y3",
       line: {
-
-        width:
-          2,
-
-        color:
-          ORANGE
+        width: 2,
+        color: ORANGE
       },
-
       hovertemplate:
         "%{x}" +
         "<br>VCP 5MA %{y:.6f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    12 VCP 25MA
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "VCP 25MA",
-
-      x:
-        dates,
-
-      y:
-        rows.map(
-          r =>
-            r.vcp26Ma25
-        ),
-
-      xaxis:
-        "x4",
-
-      yaxis:
-        "y3",
-
+      type: "scatter",
+      mode: "lines",
+      name: "VCP 25MA",
+      x: dates,
+      y: rows.map(row => row.vcp26Ma25),
+      xaxis: "x4",
+      yaxis: "y3",
       line: {
-
-        width:
-          2,
-
-        color:
-          PURPLE
+        width: 2,
+        color: PURPLE
       },
-
       hovertemplate:
         "%{x}" +
         "<br>VCP 25MA %{y:.6f}" +
         "<extra></extra>"
     },
 
-
-    /*
-    13 公表機関空売り
-    */
-
     {
-
-      type:
-        "bar",
-
-      name:
-        "公表機関空売り",
-
-      x:
-        supplyDates,
-
-      y:
-        currentSupplyDaily.map(
-          r =>
-            r.publicShortRatio
-        ),
-
-      customdata:
-        shortHover,
-
-      xaxis:
-        "x5",
-
-      yaxis:
-        "y4",
-
+      type: "bar",
+      name: "公表機関空売り",
+      x: supplyDates,
+      y: currentSupplyDaily.map(
+        row => row.publicShortRatio
+      ),
+      customdata: shortHover,
+      xaxis: "x5",
+      yaxis: "y4",
       marker: {
-
-        color:
-          "rgba(90,90,90,0.38)"
+        color: "rgba(90,90,90,0.38)"
       },
-
       hovertemplate:
         "%{x}" +
         "<br>公表空売り %{y:.2f}%" +
@@ -3347,1445 +1346,613 @@ async function drawChart() {
         "<extra></extra>"
     },
 
-
-    /*
-    14 貸借倍率
-    専用Y軸
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "貸借倍率",
-
-      x:
-        supplyDates,
-
-      y:
-        currentSupplyDaily.map(
-          r =>
-            r.loanRatio
-        ),
-
-      xaxis:
-        "x5",
-
-      yaxis:
-        "y5",
-
+      type: "scatter",
+      mode: "lines",
+      name: "貸借倍率",
+      x: supplyDates,
+      y: currentSupplyDaily.map(
+        row => row.loanRatio
+      ),
+      xaxis: "x5",
+      yaxis: "y5",
       line: {
-
-        width:
-          2,
-
-        color:
-          BLUE,
-
-        shape:
-          "hv"
+        width: 2,
+        color: BLUE,
+        shape: "hv"
       },
-
       hovertemplate:
         "%{x}" +
         "<br>貸借倍率 %{y:.2f}倍" +
         "<extra></extra>"
     },
 
-
-    /*
-    15 信用倍率
-    独立Y軸
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "lines",
-
-      name:
-        "信用倍率",
-
-      x:
-        supplyDates,
-
-      y:
-        currentSupplyDaily.map(
-          r =>
-            r.marginRatio
-        ),
-
-      xaxis:
-        "x5",
-
-      yaxis:
-        "y6",
-
+      type: "scatter",
+      mode: "lines",
+      name: "信用倍率",
+      x: supplyDates,
+      y: currentSupplyDaily.map(
+        row => row.marginRatio
+      ),
+      xaxis: "x5",
+      yaxis: "y6",
       line: {
-
-        width:
-          2,
-
-        dash:
-          "dash",
-
-        color:
-          RED,
-
-        shape:
-          "hv"
+        width: 2,
+        dash: "dash",
+        color: RED,
+        shape: "hv"
       },
-
       hovertemplate:
         "%{x}" +
         "<br>信用倍率 %{y:.2f}倍" +
         "<extra></extra>"
     },
 
-
-    /*
-    16 買い候補
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "markers",
-
-      name:
-        "買い候補 ▲",
-
-      x:
-        buyRows.map(
-          r =>
-            r.date
-        ),
-
-      y:
-        buyRows.map(
-          r =>
-            r.low *
-            .985
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "markers",
+      name: "買い候補 ▲",
+      x: buyRows.map(row => row.date),
+      y: buyRows.map(row => row.low * 0.985),
+      xaxis: "x",
+      yaxis: "y",
       marker: {
-
-        symbol:
-          "triangle-up",
-
-        size:
-          13,
-
-        color:
-          BLUE,
-
+        symbol: "triangle-up",
+        size: 13,
+        color: BLUE,
         line: {
-
-          color:
-            "#fff",
-
-          width:
-            1
+          color: "#fff",
+          width: 1
         }
       },
-
-      cliponaxis:
-        false,
-
+      cliponaxis: false,
       hovertemplate:
         "%{x}" +
         "<br>買い候補 ▲" +
         "<extra></extra>"
     },
 
-
-    /*
-    17 売り候補
-    */
-
     {
-
-      type:
-        "scatter",
-
-      mode:
-        "markers",
-
-      name:
-        "売り候補 ▼",
-
-      x:
-        sellRows.map(
-          r =>
-            r.date
-        ),
-
-      y:
-        sellRows.map(
-          r =>
-            r.high *
-            1.015
-        ),
-
-      xaxis:
-        "x",
-
-      yaxis:
-        "y",
-
+      type: "scatter",
+      mode: "markers",
+      name: "売り候補 ▼",
+      x: sellRows.map(row => row.date),
+      y: sellRows.map(row => row.high * 1.015),
+      xaxis: "x",
+      yaxis: "y",
       marker: {
-
-        symbol:
-          "triangle-down",
-
-        size:
-          13,
-
-        color:
-          RED,
-
+        symbol: "triangle-down",
+        size: 13,
+        color: RED,
         line: {
-
-          color:
-            "#fff",
-
-          width:
-            1
+          color: "#fff",
+          width: 1
         }
       },
-
-      cliponaxis:
-        false,
-
+      cliponaxis: false,
       hovertemplate:
         "%{x}" +
         "<br>売り候補 ▼" +
         "<extra></extra>"
     }
-
   ];
 
-
   const initialSupply =
-    visibleSupplyRows(
-      initialStart,
-      latestDate
-    );
-
+    visibleSupplyRows(initialStart, latestDate);
 
   const nRange =
     rangeIncludeZero(
-      initialRows.map(
-        r =>
-          r.vcp26
-      )
+      initialRows.map(row => row.vcp26)
     );
-
 
   const shortRange =
     positiveRange(
-      initialSupply.map(
-        r =>
-          r.publicShortRatio
-      ),
+      initialSupply.map(row => row.publicShortRatio),
       1
     );
-
 
   const loanRange =
     positiveRange(
-      initialSupply.map(
-        r =>
-          r.loanRatio
-      ),
+      initialSupply.map(row => row.loanRatio),
       1
     );
-
 
   const marginRange =
     positiveRange(
-      initialSupply.map(
-        r =>
-          r.marginRatio
-      ),
+      initialSupply.map(row => row.marginRatio),
       1
     );
 
-
   const layout = {
-
-    height:
-      pane.height,
-
-    autosize:
-      true,
-
-    paper_bgcolor:
-      "#fff",
-
-    plot_bgcolor:
-      "#fff",
+    height: pane.height,
+    autosize: true,
+    paper_bgcolor: "#fff",
+    plot_bgcolor: "#fff",
 
     margin: {
-
-      l:
-        72,
-
-      r:
-        105,
-
-      t:
-        48,
-
-      b:
-        48
+      l: 72,
+      r: 105,
+      t: 48,
+      b: 48
     },
 
-    hovermode:
-      "x unified",
-
-    hoverdistance:
-      -1,
-
-    dragmode:
-      "pan",
-
-    barmode:
-      "stack",
+    hovermode: "x unified",
+    hoverdistance: -1,
+    dragmode: "pan",
+    barmode: "stack",
 
     legend: {
-
-      orientation:
-        "h",
-
-      x:
-        0,
-
-      y:
-        1.045,
-
+      orientation: "h",
+      x: 0,
+      y: 1.045,
       font: {
-
-        size:
-          11
+        size: 11
       }
     },
 
-
-    /*
-    全ペインを貫く縦破線
-    */
-
     shapes: [
-
       {
-
-        type:
-          "line",
-
-        xref:
-          "x",
-
-        yref:
-          "paper",
-
-        x0:
-          latestDate,
-
-        x1:
-          latestDate,
-
-        y0:
-          0,
-
-        y1:
-          1,
-
-        visible:
-          false,
-
-        layer:
-          "above",
-
+        type: "line",
+        xref: "x",
+        yref: "paper",
+        x0: latestDate,
+        x1: latestDate,
+        y0: 0,
+        y1: 1,
+        visible: false,
+        layer: "above",
         line: {
-
-          color:
-            "rgba(60,60,60,0.65)",
-
-          width:
-            1,
-
-          dash:
-            "dot"
+          color: "rgba(60,60,60,0.65)",
+          width: 1,
+          dash: "dot"
         }
       }
-
     ],
 
-
-    /*
-    株価X
-    Sliderもここ
-    */
-
     xaxis: {
-
-      type:
-        "date",
-
-      domain:
-        [
-          0,
-          1
-        ],
-
-      anchor:
-        "y",
-
-      range:
-        [
-          initialStart,
-          latestDate
-        ],
-
-      showticklabels:
-        false,
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#eee",
-
-      showspikes:
-        false,
+      type: "date",
+      domain: [0, 1],
+      anchor: "y",
+      range: [initialStart, latestDate],
+      showticklabels: false,
+      showgrid: true,
+      gridcolor: "#eee",
+      showspikes: false,
 
       rangeslider: {
-
-        visible:
-          true,
-
-        thickness:
-          .055,
-
-        bgcolor:
-          "#fafafa",
-
-        bordercolor:
-          "#ccc",
-
-        borderwidth:
-          1
+        visible: true,
+        thickness: 0.055,
+        bgcolor: "#fafafa",
+        bordercolor: "#ccc",
+        borderwidth: 1
       },
 
       rangebreaks: [
-
         {
-
-          bounds:
-            [
-              "sat",
-              "mon"
-            ]
+          bounds: ["sat", "mon"]
         }
-
       ]
     },
 
-
-    /*
-    価格帯別出来高
-    */
-
     xaxis2: {
-
-      type:
-        "linear",
-
-      overlaying:
-        "x",
-
-      anchor:
-        "y",
-
-      side:
-        "top",
-
-      range:
-        [
-          maxProfile *
-          3.5,
-          0
-        ],
-
-      fixedrange:
-        true,
-
-      showgrid:
-        false,
-
-      showticklabels:
-        false,
-
-      showline:
-        false,
-
-      zeroline:
-        false
+      type: "linear",
+      overlaying: "x",
+      anchor: "y",
+      side: "top",
+      range: [maxProfile * 3.5, 0],
+      fixedrange: true,
+      showgrid: false,
+      showticklabels: false,
+      showline: false,
+      zeroline: false
     },
-
-
-    /*
-    通常出来高X
-    */
 
     xaxis3: {
-
-      type:
-        "date",
-
-      domain:
-        [
-          0,
-          1
-        ],
-
-      anchor:
-        "y2",
-
-      matches:
-        "x",
-
-      visible:
-        showVolumePane,
-
-      showticklabels:
-        false,
-
-      showgrid:
-        showVolumePane,
-
-      gridcolor:
-        "#eee",
-
-      showspikes:
-        false,
-
+      type: "date",
+      domain: [0, 1],
+      anchor: "y2",
+      matches: "x",
+      visible: showVolumePane,
+      showticklabels: false,
+      showgrid: showVolumePane,
+      gridcolor: "#eee",
+      showspikes: false,
       rangeslider: {
-
-        visible:
-          false
+        visible: false
       }
     },
-
-
-    /*
-    VCP X
-    */
 
     xaxis4: {
-
-      type:
-        "date",
-
-      domain:
-        [
-          0,
-          1
-        ],
-
-      anchor:
-        "y3",
-
-      matches:
-        "x",
-
-      showticklabels:
-        false,
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#eee",
-
-      showspikes:
-        false,
-
+      type: "date",
+      domain: [0, 1],
+      anchor: "y3",
+      matches: "x",
+      showticklabels: false,
+      showgrid: true,
+      gridcolor: "#eee",
+      showspikes: false,
       rangeslider: {
-
-        visible:
-          false
+        visible: false
       }
     },
-
-
-    /*
-    需給X
-    */
 
     xaxis5: {
-
-      type:
-        "date",
-
-      domain:
-        [
-          0,
-          1
-        ],
-
-      anchor:
-        "y4",
-
-      matches:
-        "x",
-
-      showticklabels:
-        true,
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#eee",
-
-      showspikes:
-        false,
-
+      type: "date",
+      domain: [0, 1],
+      anchor: "y4",
+      matches: "x",
+      showticklabels: true,
+      showgrid: true,
+      gridcolor: "#eee",
+      showspikes: false,
       rangeslider: {
-
-        visible:
-          false
+        visible: false
       }
     },
-
-
-    /*
-    株価Y
-    */
 
     yaxis: {
-
-      domain:
-        pane.priceDomain,
-
-      side:
-        "right",
-
+      domain: pane.priceDomain,
+      side: "right",
       title: {
-
-        text:
-          "株価"
+        text: "株価"
       },
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#e3e3e3",
-
-      zeroline:
-        false,
-
-      showspikes:
-        false
+      showgrid: true,
+      gridcolor: "#e3e3e3",
+      zeroline: false,
+      showspikes: false
     },
-
-
-    /*
-    出来高Y
-    */
 
     yaxis2: {
-
-      domain:
-        pane.volumeDomain,
-
-      side:
-        "right",
-
-      visible:
-        showVolumePane,
-
+      domain: pane.volumeDomain,
+      side: "right",
+      visible: showVolumePane,
       title: {
-
-        text:
-          "出来高"
+        text: "出来高"
       },
-
-      rangemode:
-        "tozero",
-
-      showgrid:
-        showVolumePane,
-
-      gridcolor:
-        "#eee",
-
-      zeroline:
-        false,
-
-      showspikes:
-        false
+      rangemode: "tozero",
+      showgrid: showVolumePane,
+      gridcolor: "#eee",
+      zeroline: false,
+      showspikes: false
     },
-
-
-    /*
-    VCP N Y
-    */
 
     yaxis3: {
-
-      domain:
-        pane.vcpDomain,
-
-      side:
-        "right",
-
+      domain: pane.vcpDomain,
+      side: "right",
       title: {
-
-        text:
-          "VCP N"
+        text: "VCP N"
       },
-
-      range:
-        nRange,
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#e1e1e1",
-
-      zeroline:
-        true,
-
-      zerolinecolor:
-        "#000",
-
-      zerolinewidth:
-        3,
-
-      showspikes:
-        false
+      range: nRange,
+      showgrid: true,
+      gridcolor: "#e1e1e1",
+      zeroline: true,
+      zerolinecolor: "#000",
+      zerolinewidth: 3,
+      showspikes: false
     },
 
-
     /*
-    ==========================================================
-    需給
-
-    同じペインだが、
-    3指標を独立スケールにする
-    ==========================================================
-    */
-
-
-    /*
-    公表空売り
-    左軸
-    */
-
+     * 同じ需給ペイン上に3本の独立した軸を表示する。
+     */
     yaxis4: {
-
-      domain:
-        pane.supplyDomain,
-
-      side:
-        "left",
-
+      domain: pane.supplyDomain,
+      side: "left",
       title: {
-
-        text:
-          "公表空売り %",
-
+        text: "公表空売り %",
         font: {
-
-          color:
-            GRAY
+          color: GRAY
         }
       },
-
-      range:
-        shortRange,
-
-      rangemode:
-        "tozero",
-
-      showgrid:
-        true,
-
-      gridcolor:
-        "#eee",
-
-      zeroline:
-        true,
-
-      zerolinecolor:
-        "#999",
-
-      showspikes:
-        false,
-
+      range: shortRange,
+      rangemode: "tozero",
+      showgrid: true,
+      gridcolor: "#eee",
+      zeroline: true,
+      zerolinecolor: "#999",
+      showspikes: false,
       tickfont: {
-
-        color:
-          GRAY
+        color: GRAY
       }
     },
-
-
-    /*
-    貸借倍率
-    右端
-    */
 
     yaxis5: {
-
-      domain:
-        pane.supplyDomain,
-
-      overlaying:
-        "y4",
-
-      anchor:
-        "x5",
-
-      side:
-        "right",
-
+      domain: pane.supplyDomain,
+      overlaying: "y4",
+      anchor: "x5",
+      side: "right",
       title: {
-
-        text:
-          "貸借倍率",
-
+        text: "貸借倍率",
         font: {
-
-          color:
-            BLUE
+          color: BLUE
         }
       },
-
-      range:
-        loanRange,
-
-      rangemode:
-        "tozero",
-
-      showgrid:
-        false,
-
-      zeroline:
-        false,
-
-      showspikes:
-        false,
-
+      range: loanRange,
+      rangemode: "tozero",
+      showgrid: false,
+      zeroline: false,
+      showspikes: false,
       tickfont: {
-
-        color:
-          BLUE
+        color: BLUE
       }
     },
 
-
-    /*
-    信用倍率
-    独立右軸
-    */
-
     yaxis6: {
-
-      domain:
-        pane.supplyDomain,
-
-      overlaying:
-        "y4",
-
-      anchor:
-        "free",
-
-      side:
-        "right",
-
-      position:
-        .94,
-
+      domain: pane.supplyDomain,
+      overlaying: "y4",
+      anchor: "free",
+      side: "right",
+      position: 0.94,
       title: {
-
-        text:
-          "信用倍率",
-
+        text: "信用倍率",
         font: {
-
-          color:
-            RED
+          color: RED
         }
       },
-
-      range:
-        marginRange,
-
-      rangemode:
-        "tozero",
-
-      showgrid:
-        false,
-
-      zeroline:
-        false,
-
-      showspikes:
-        false,
-
+      range: marginRange,
+      rangemode: "tozero",
+      showgrid: false,
+      zeroline: false,
+      showspikes: false,
       tickfont: {
-
-        color:
-          RED
+        color: RED
       }
     }
   };
 
-
-  Plotly.purge(
-    chart
-  );
-
+  Plotly.purge(chart);
 
   await Plotly.newPlot(
     chart,
     traces,
     layout,
     {
-
-      responsive:
-        true,
-
-      scrollZoom:
-        true,
-
-      displaylogo:
-        false,
-
-      doubleClick:
-        "reset"
+      responsive: true,
+      scrollZoom: true,
+      displaylogo: false,
+      doubleClick: "reset"
     }
   );
 
-
   installHoverLine();
-
 
   await updateVisibleRange(
     initialStart,
     latestDate
   );
 
-
-  chart.on(
-    "plotly_relayout",
-    event => {
-
-      if (
-        updatingRange
-        ||
-        !currentStock
-      ) {
-
-        return;
-      }
-
-
-      const start =
-        event[
-          "xaxis.range[0]"
-        ];
-
-
-      const end =
-        event[
-          "xaxis.range[1]"
-        ];
-
-
-      if (
-        start
-        &&
-        end
-      ) {
-
-        updateVisibleRange(
-
-          String(
-            start
-          )
-          .slice(
-            0,
-            10
-          ),
-
-          String(
-            end
-          )
-          .slice(
-            0,
-            10
-          )
-        );
-      }
-
-
-      if (
-        event[
-          "xaxis.autorange"
-        ] ===
-        true
-      ) {
-
-        updateVisibleRange(
-          currentStock.startDate,
-          currentStock.endDate
-        );
-      }
+  chart.on("plotly_relayout", event => {
+    if (updatingRange || !currentStock) {
+      return;
     }
-  );
+
+    const start =
+      event["xaxis.range[0]"];
+
+    const end =
+      event["xaxis.range[1]"];
+
+    if (start && end) {
+      updateVisibleRange(
+        String(start).slice(0, 10),
+        String(end).slice(0, 10)
+      );
+    }
+
+    if (event["xaxis.autorange"] === true) {
+      updateVisibleRange(
+        currentStock.startDate,
+        currentStock.endDate
+      );
+    }
+  });
 }
 
-
-/*
-==============================================================
-需給API
-==============================================================
-*/
-
-async function fetchSupply(
-  code
-) {
-
+async function fetchSupply(code) {
   try {
+    const response = await fetch(
+      `/api/supply/${code}`,
+      {
+        cache: "no-store"
+      }
+    );
 
-    const response =
-      await fetch(
-        `/api/supply/${code}`,
-        {
-          cache:
-            "no-store"
-        }
-      );
-
-
-    if (
-      response.status ===
-      404
-    ) {
-
+    if (response.status === 404) {
       return null;
     }
 
-
-    if (
-      !response.ok
-    ) {
-
+    if (!response.ok) {
       throw new Error(
         `HTTP ${response.status}`
       );
     }
 
-
     return response.json();
-
-  }
-  catch (
-    error
-  ) {
-
+  } catch (error) {
     console.warn(
       "Supply fetch failed:",
       error
     );
 
-
     return null;
   }
 }
 
+async function loadStock(code) {
+  code = code.trim().toUpperCase();
 
-/*
-==============================================================
-銘柄ロード
-==============================================================
-*/
-
-async function loadStock(
-  code
-) {
-
-  code =
-    code
-      .trim()
-      .toUpperCase();
-
-
-  if (
-    !/^[0-9A-Z]{4}$/
-      .test(
-        code
-      )
-  ) {
-
+  if (!/^[0-9A-Z]{4}$/.test(code)) {
     throw new Error(
       "東証銘柄コードを4文字で入力してください"
     );
   }
 
-
   const status =
-    document
-      .getElementById(
-        "status"
-      );
+    document.getElementById("status");
 
-
-  status
-    .classList
-    .remove(
-      "error"
-    );
-
-
+  status.classList.remove("error");
   status.textContent =
     `${code} を読み込み中...`;
 
-
-  currentRangeStart =
-    null;
-
-
-  currentRangeEnd =
-    null;
-
+  currentRangeStart = null;
+  currentRangeEnd = null;
 
   const [
     stockResponse,
     supplyData
-  ] =
-    await Promise.all(
-      [
+  ] = await Promise.all([
+    fetch(
+      `/api/stock/${code}`,
+      {
+        cache: "no-store"
+      }
+    ),
+    fetchSupply(code)
+  ]);
 
-        fetch(
-          `/api/stock/${code}`,
-          {
-            cache:
-              "no-store"
-          }
-        ),
-
-        fetchSupply(
-          code
-        )
-      ]
-    );
-
-
-  if (
-    !stockResponse.ok
-  ) {
-
-    if (
-      stockResponse.status ===
-      404
-    ) {
-
+  if (!stockResponse.ok) {
+    if (stockResponse.status === 404) {
       throw new Error(
         `${code} の株価データはR2にありません`
       );
     }
-
 
     throw new Error(
       `株価API HTTP ${stockResponse.status}`
     );
   }
 
-
   const stockData =
     await stockResponse.json();
 
-
   if (
-    !Array.isArray(
-      stockData.data
-    )
-    ||
+    !Array.isArray(stockData.data) ||
     !stockData.data.length
   ) {
-
     throw new Error(
       "株価データがありません"
     );
   }
 
+  currentStock = stockData;
+  currentSupply = supplyData;
+  currentCode = code;
 
-  currentStock =
-    stockData;
+  prepareIndicators(currentStock.data);
 
-
-  currentSupply =
-    supplyData;
-
-
-  currentCode =
-    code;
-
-
-  prepareIndicators(
-    currentStock.data
+  currentSupplyDaily = buildSupplyDaily(
+    currentStock.data,
+    Array.isArray(currentSupply?.rows)
+      ? currentSupply.rows
+      : []
   );
 
+  document.getElementById("stockCode").value =
+    code;
 
-  currentSupplyDaily =
-    buildSupplyDaily(
+  document.getElementById("stockTitle").textContent =
+    `${code} ${currentStock.name ?? ""}`;
 
-      currentStock.data,
-
-      Array.isArray(
-        currentSupply?.rows
-      )
-      ?
-        currentSupply.rows
-      :
-        []
-    );
-
-
-  document
-    .getElementById(
-      "stockCode"
-    )
-    .value =
-      code;
-
-
-  document
-    .getElementById(
-      "stockTitle"
-    )
-    .textContent =
-      `${code} ${currentStock.name ?? ""}`;
-
-
-  if (
-    currentSupply?.rows?.length
-  ) {
-
+  if (currentSupply?.rows?.length) {
     const cov =
-      currentSupply.coverage
-      ||
-      {};
+      currentSupply.coverage || {};
 
-
-    document
-      .getElementById(
-        "supplyInfo"
-      )
-      .textContent =
-        `需給：` +
-        `公表空売り［${coverageLabel(cov.publicShort)}］ ／ ` +
-        `貸借倍率［${coverageLabel(cov.loanRatio)}］ ／ ` +
-        `信用倍率［${coverageLabel(cov.marginRatio)}］ ／ ` +
-        `最終更新 ${currentSupply.updatedAt ?? "-"}`;
-
+    document.getElementById("supplyInfo").textContent =
+      `需給：公表空売り［${coverageLabel(cov.publicShort)}］` +
+      ` ／ 貸借倍率［${coverageLabel(cov.loanRatio)}］` +
+      ` ／ 信用倍率［${coverageLabel(cov.marginRatio)}］` +
+      ` ／ 最終更新 ${currentSupply.updatedAt ?? "-"}`;
+  } else {
+    document.getElementById("supplyInfo").textContent =
+      "需給データはまだR2にありません。株価・VCPは通常表示します。";
   }
-  else {
-
-    document
-      .getElementById(
-        "supplyInfo"
-      )
-      .textContent =
-        "需給データはまだR2にありません。株価・VCPは通常表示します。";
-  }
-
 
   updateFavoriteButton();
 
-
   await drawChart();
-
 
   updateSummary();
 
-
   status.textContent =
-    `株価：${currentStock.startDate} ～ ${currentStock.endDate} ／ ` +
-    `${formatNumber(currentStock.rowCount)}営業日`;
+    `株価：${currentStock.startDate}` +
+    ` ～ ${currentStock.endDate}` +
+    ` ／ ${formatNumber(currentStock.rowCount)}営業日`;
 }
 
-
-/*
-==============================================================
-期間変更
-==============================================================
-*/
-
-async function setPeriod(
-  period
-) {
-
-  if (
-    !currentStock
-  ) {
-
+async function setPeriod(period) {
+  if (!currentStock) {
     return;
   }
 
-
   const end =
-    parseDate(
-      currentStock.endDate
-    );
-
+    parseDate(currentStock.endDate);
 
   let start =
-    new Date(
-      end
-    );
+    new Date(end);
 
-
-  switch (
-    period
-  ) {
-
+  switch (period) {
     case "3m":
-
       start.setMonth(
-        start.getMonth() -
-        3
+        start.getMonth() - 3
       );
-
       break;
-
 
     case "6m":
-
       start.setMonth(
-        start.getMonth() -
-        6
+        start.getMonth() - 6
       );
-
       break;
-
 
     case "1y":
-
       start.setFullYear(
-        start.getFullYear() -
-        1
+        start.getFullYear() - 1
       );
-
       break;
-
 
     case "3y":
-
       start.setFullYear(
-        start.getFullYear() -
-        3
+        start.getFullYear() - 3
       );
-
       break;
-
 
     case "5y":
-
       start.setFullYear(
-        start.getFullYear() -
-        5
+        start.getFullYear() - 5
       );
-
       break;
-
 
     case "10y":
-
       start.setFullYear(
-        start.getFullYear() -
-        10
+        start.getFullYear() - 10
       );
-
       break;
 
-
     case "all":
-
       start =
-        parseDate(
-          currentStock.startDate
-        );
-
+        parseDate(currentStock.startDate);
       break;
   }
 
-
   let startText =
-    dateString(
-      start
-    );
+    dateString(start);
 
-
-  if (
-    startText <
-    currentStock.startDate
-  ) {
-
+  if (startText < currentStock.startDate) {
     startText =
       currentStock.startDate;
   }
 
-
   const endText =
     currentStock.endDate;
 
+  currentRangeStart = startText;
+  currentRangeEnd = endText;
 
-  currentRangeStart =
-    startText;
-
-
-  currentRangeEnd =
-    endText;
-
-
-  await Plotly.relayout(
-    chart,
-    {
-
-      "xaxis.range":
-        [
-          startText,
-          endText
-        ]
-    }
-  );
-
+  await Plotly.relayout(chart, {
+    "xaxis.range": [
+      startText,
+      endText
+    ]
+  });
 
   await updateVisibleRange(
     startText,
@@ -4793,292 +1960,129 @@ async function setPeriod(
   );
 }
 
-
 /*
-==============================================================
-Events
-==============================================================
-*/
-
+ * イベント
+ */
 document
-  .getElementById(
-    "loadButton"
-  )
-  .addEventListener(
-    "click",
-    async () => {
-
-      try {
-
-        await loadStock(
-          document
-            .getElementById(
-              "stockCode"
-            )
-            .value
-        );
-
-      }
-      catch (
-        error
-      ) {
-
-        const status =
-          document
-            .getElementById(
-              "status"
-            );
-
-
-        status
-          .classList
-          .add(
-            "error"
-          );
-
-
-        status.textContent =
-          error.message
-          ??
-          String(
-            error
-          );
-      }
-    }
-  );
-
-
-document
-  .getElementById(
-    "stockCode"
-  )
-  .addEventListener(
-    "keydown",
-    e => {
-
-      if (
-        e.key ===
-        "Enter"
-      ) {
-
-        document
-          .getElementById(
-            "loadButton"
-          )
-          .click();
-      }
-    }
-  );
-
-
-document
-  .querySelectorAll(
-    "[data-period]"
-  )
-  .forEach(
-    button =>
-      button
-        .addEventListener(
-          "click",
-          async () => {
-
-            document
-              .querySelectorAll(
-                "[data-period]"
-              )
-              .forEach(
-                x =>
-                  x.classList
-                    .remove(
-                      "active"
-                    )
-              );
-
-
-            button
-              .classList
-              .add(
-                "active"
-              );
-
-
-            await setPeriod(
-              button
-                .dataset
-                .period
-            );
-          }
-        )
-  );
-
-
-document
-  .getElementById(
-    "profileBins"
-  )
-  .addEventListener(
-    "change",
-    async () => {
-
-      if (
-        !currentStock
-      ) {
-
-        return;
-      }
-
-
-      await updateVisibleRange(
-
-        currentRangeStart
-        ??
-        currentStock.startDate,
-
-        currentRangeEnd
-        ??
-        currentStock.endDate
+  .getElementById("loadButton")
+  .addEventListener("click", async () => {
+    try {
+      await loadStock(
+        document.getElementById("stockCode").value
       );
+    } catch (error) {
+      const status =
+        document.getElementById("status");
+
+      status.classList.add("error");
+      status.textContent =
+        error.message ?? String(error);
     }
-  );
-
-
-/*
-出来高ペイン
-
-初期OFF。
-ON/OFFで再描画し、
-その分だけペイン配置と高さを変更。
-*/
+  });
 
 document
-  .getElementById(
-    "showVolumePane"
-  )
-  .addEventListener(
-    "change",
-    async e => {
+  .getElementById("stockCode")
+  .addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      document
+        .getElementById("loadButton")
+        .click();
+    }
+  });
 
-      showVolumePane =
-        e.target.checked;
+document
+  .querySelectorAll("[data-period]")
+  .forEach(button => {
+    button.addEventListener(
+      "click",
+      async () => {
+        document
+          .querySelectorAll("[data-period]")
+          .forEach(item => {
+            item.classList.remove("active");
+          });
 
+        button.classList.add("active");
 
-      if (
-        currentStock
-      ) {
-
-        await drawChart();
-
-
-        updateSummary();
+        await setPeriod(
+          button.dataset.period
+        );
       }
-    }
-  );
-
+    );
+  });
 
 document
-  .getElementById(
-    "favoriteButton"
-  )
+  .getElementById("profileBins")
+  .addEventListener("change", async () => {
+    if (!currentStock) {
+      return;
+    }
+
+    await updateVisibleRange(
+      currentRangeStart ??
+        currentStock.startDate,
+      currentRangeEnd ??
+        currentStock.endDate
+    );
+  });
+
+document
+  .getElementById("showVolumePane")
+  .addEventListener("change", async event => {
+    showVolumePane =
+      event.target.checked;
+
+    if (currentStock) {
+      await drawChart();
+      updateSummary();
+    }
+  });
+
+document
+  .getElementById("favoriteButton")
   .addEventListener(
     "click",
     toggleFavorite
   );
 
-
 document
-  .getElementById(
-    "saveImage"
-  )
-  .addEventListener(
-    "click",
-    async () => {
-
-      if (
-        !currentStock
-      ) {
-
-        return;
-      }
-
-
-      const pane =
-        getPaneLayout();
-
-
-      await Plotly.downloadImage(
-        chart,
-        {
-
-          format:
-            "png",
-
-          filename:
-            `${currentCode}_${currentStock.endDate}_VCP`,
-
-          width:
-            1800,
-
-          height:
-            pane.height +
-            80,
-
-          scale:
-            1
-        }
-      );
+  .getElementById("saveImage")
+  .addEventListener("click", async () => {
+    if (!currentStock) {
+      return;
     }
-  );
 
+    const pane =
+      getPaneLayout();
 
-/*
-==============================================================
-起動
-==============================================================
-*/
+    await Plotly.downloadImage(
+      chart,
+      {
+        format: "png",
+        filename:
+          `${currentCode}_` +
+          `${currentStock.endDate}_VCP`,
+        width: 1800,
+        height: pane.height + 80,
+        scale: 1
+      }
+    );
+  });
 
-document
-  .getElementById(
-    "showVolumePane"
-  )
-  .checked =
-    false;
+document.getElementById(
+  "showVolumePane"
+).checked = false;
 
+showVolumePane = false;
 
-showVolumePane =
-  false;
+loadStock("9984").catch(error => {
+  const status =
+    document.getElementById("status");
 
-
-loadStock(
-  "9984"
-)
-.catch(
-  error => {
-
-    const status =
-      document
-        .getElementById(
-          "status"
-        );
-
-
-    status
-      .classList
-      .add(
-        "error"
-      );
-
-
-    status.textContent =
-      error.message
-      ??
-      String(
-        error
-      );
-  }
-);
-
+  status.classList.add("error");
+  status.textContent =
+    error.message ?? String(error);
+});
 </script>
-
 </body>
-
 </html>
