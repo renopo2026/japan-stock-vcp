@@ -11,7 +11,7 @@
   <title>Japan Stock VCP</title>
 
   <script
-    src="https://cdn.plot.ly/plotly-4.0.0.min.js"
+    src="https://cdn.plot.ly/plotly-3.7.0.min.js"
     charset="utf-8"
   ></script>
 
@@ -32,13 +32,13 @@
     }
 
     .app {
-      max-width: 1750px;
+      max-width: 1800px;
       margin: 0 auto;
       padding: 14px;
     }
 
     .header {
-      background: white;
+      background: #fff;
       border-radius: 10px;
       padding: 15px 18px;
       margin-bottom: 10px;
@@ -67,18 +67,18 @@
     .controls {
       margin-top: 13px;
       display: flex;
+      align-items: center;
       gap: 7px;
       flex-wrap: wrap;
-      align-items: center;
     }
 
     input,
     select {
       padding: 7px 9px;
-      font-size: 15px;
       border: 1px solid #bbb;
       border-radius: 5px;
-      background: white;
+      background: #fff;
+      font-size: 15px;
     }
 
     #stockCode {
@@ -90,7 +90,7 @@
       padding: 7px 12px;
       border: 1px solid #bbb;
       border-radius: 5px;
-      background: white;
+      background: #fff;
       cursor: pointer;
     }
 
@@ -99,8 +99,8 @@
     }
 
     button.active {
+      color: #fff;
       background: #222;
-      color: white;
       border-color: #222;
     }
 
@@ -112,8 +112,8 @@
 
     .status {
       margin-top: 9px;
-      color: #666;
       font-size: 13px;
+      color: #666;
     }
 
     .error {
@@ -144,7 +144,7 @@
     }
 
     .chart-card {
-      background: white;
+      background: #fff;
       border-radius: 10px;
       padding: 5px;
       box-shadow: 0 1px 4px rgba(0,0,0,.08);
@@ -152,11 +152,10 @@
 
     #chart {
       width: 100%;
-      height: 1000px;
+      height: 1180px;
     }
 
-    #profileInfo,
-    #signalInfo {
+    .info {
       padding: 3px 12px 8px;
       color: #666;
       font-size: 12px;
@@ -164,7 +163,7 @@
 
     @media (max-width: 800px) {
       #chart {
-        height: 820px;
+        height: 950px;
       }
     }
   </style>
@@ -235,24 +234,29 @@
     </div>
 
     <div id="status" class="status">
-      R2から取得しています...
+      読み込み中...
     </div>
 
     <div id="summary" class="summary"></div>
 
   </div>
 
+
   <div class="chart-card">
 
     <div id="chart"></div>
 
-    <div id="profileInfo">
+    <div id="profileInfo" class="info">
       価格帯別出来高を計算中...
     </div>
 
-    <div id="signalInfo">
-      VCP下段：N＝26日間の上昇VCP合計 − 下落VCP合計。
-      青▲＝買い候補、赤▼＝売り候補。
+    <div id="vcpInfo" class="info">
+      VCP：N＝26日上昇VCP合計 − 26日下落VCP合計。
+      青棒＝N、線＝Nの5日移動平均。K/L/Mは非表示。
+    </div>
+
+    <div id="supplyInfo" class="info">
+      需給データを確認中...
     </div>
 
   </div>
@@ -264,36 +268,53 @@
 
 const BLUE = "#1976d2";
 const RED = "#d32f2f";
-
-let currentStock = null;
-let currentCode = "9984";
-
-let currentRangeStart = null;
-let currentRangeEnd = null;
-
-let profileUpdating = false;
+const ORANGE = "#ef6c00";
+const PURPLE = "#7b1fa2";
+const GREEN = "#388e3c";
+const BLACK = "#111111";
 
 const chart =
   document.getElementById("chart");
 
 
+let currentStock = null;
+let currentSupply = null;
+let currentSupplyDaily = [];
+
+let currentCode = "9984";
+
+let currentRangeStart = null;
+let currentRangeEnd = null;
+
+let updatingRange = false;
+
+
 /*
- * Trace
- *
- * 0  ローソク
- * 1  5MA
- * 2  25MA
- * 3  50MA
- * 4  高値5MA
- * 5  安値5MA
- * 6  52週高値
- * 7  価格帯出来高 UP
- * 8  価格帯出来高 DOWN
- * 9  通常出来高
- * 10 N = 26日累積差
- * 11 買い候補
- * 12 売り候補
- */
+Trace index
+
+ 0  Candlestick
+ 1  MA5
+ 2  MA25
+ 3  MA50
+ 4  High MA5
+ 5  Low MA5
+ 6  52-week high
+
+ 7  Volume Profile UP
+ 8  Volume Profile DOWN
+
+ 9  Daily Volume
+
+10  N bar
+11  N MA5
+
+12  Public Short Ratio
+13  Loan Ratio
+14  Margin Ratio
+
+15  Buy Candidate
+16  Sell Candidate
+*/
 
 const PROFILE_UP_INDEX = 7;
 const PROFILE_DOWN_INDEX = 8;
@@ -303,11 +324,30 @@ const PROFILE_DOWN_INDEX = 8;
 // Utility
 // ============================================================
 
-function finite(value) {
+function isFiniteNumber(value) {
   return (
     typeof value === "number" &&
     Number.isFinite(value)
   );
+}
+
+
+function toNumber(value) {
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const n =
+    Number(value);
+
+  return Number.isFinite(n)
+    ? n
+    : null;
 }
 
 
@@ -316,22 +356,20 @@ function formatNumber(
   digits = 0
 ) {
 
-  if (
-    !finite(
-      Number(value)
-    )
-  ) {
+  const n =
+    toNumber(value);
+
+  if (n === null) {
     return "-";
   }
 
-  return Number(value)
-    .toLocaleString(
-      "ja-JP",
-      {
-        maximumFractionDigits:
-          digits
-      }
-    );
+  return n.toLocaleString(
+    "ja-JP",
+    {
+      maximumFractionDigits:
+        digits
+    }
+  );
 }
 
 
@@ -379,7 +417,9 @@ function percentileInc(
 
   if (
     !values.length ||
-    !values.every(finite)
+    !values.every(
+      isFiniteNumber
+    )
   ) {
     return null;
   }
@@ -398,7 +438,10 @@ function percentileInc(
 
   const rank =
     p *
-    (sorted.length - 1);
+    (
+      sorted.length -
+      1
+    );
 
   const lower =
     Math.floor(rank);
@@ -417,7 +460,8 @@ function percentileInc(
 
   return (
     sorted[lower] *
-      (1 - weight) +
+      (1 - weight)
+    +
     sorted[upper] *
       weight
   );
@@ -425,13 +469,72 @@ function percentileInc(
 
 
 // ============================================================
-// 追加指標
-//
-// K/L/Mは内部計算用。
-// 表示はしない。
+// SMA
 // ============================================================
 
-function prepareIndicators(rows) {
+function calculateSma(
+  rows,
+  key,
+  period
+) {
+
+  const result =
+    new Array(
+      rows.length
+    ).fill(null);
+
+
+  for (
+    let i =
+      period - 1;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    const values =
+      rows
+        .slice(
+          i - period + 1,
+          i + 1
+        )
+        .map(
+          row =>
+            row[key]
+        );
+
+
+    if (
+      values.every(
+        isFiniteNumber
+      )
+    ) {
+
+      result[i] =
+        values.reduce(
+          (sum, value) =>
+            sum + value,
+          0
+        )
+        /
+        period;
+    }
+  }
+
+
+  return result;
+}
+
+
+// ============================================================
+// 追加指標
+// ============================================================
+
+function prepareIndicators(
+  rows
+) {
 
   for (
     let i = 0;
@@ -452,8 +555,11 @@ function prepareIndicators(rows) {
         -Infinity;
 
       for (
-        let j = i - 251;
+        let j =
+          i - 251;
+
         j <= i;
+
         j++
       ) {
 
@@ -477,9 +583,33 @@ function prepareIndicators(rows) {
 
     // --------------------------------------------------------
     // Nの5日変化
-    // vcp26Delta5
-    //
-    // 120日P10 / P90
+    // バックエンドに無い場合も計算可能にする
+    // --------------------------------------------------------
+
+    if (
+      !isFiniteNumber(
+        rows[i].vcp26Delta5
+      )
+      &&
+      i >= 5
+      &&
+      isFiniteNumber(
+        rows[i].vcp26
+      )
+      &&
+      isFiniteNumber(
+        rows[i - 5].vcp26
+      )
+    ) {
+
+      rows[i].vcp26Delta5 =
+        rows[i].vcp26 -
+        rows[i - 5].vcp26;
+    }
+
+
+    // --------------------------------------------------------
+    // Delta5 120日 P10 / P90
     // --------------------------------------------------------
 
     if (
@@ -522,59 +652,83 @@ function prepareIndicators(rows) {
     }
 
 
-    /*
-     * K = dailyVcp
-     *
-     * Kは表示しないが、
-     * 候補判定には内部的に使用。
-     */
+    // --------------------------------------------------------
+    // 候補判定
+    //
+    // K/L/Mは表示しないが
+    // dailyVcpは内部判定には使う
+    // --------------------------------------------------------
 
     const contraction =
-      finite(
+      isFiniteNumber(
         rows[i].dailyVcp
-      ) &&
-      finite(
+      )
+      &&
+      isFiniteNumber(
         rows[i].dailyVcpP10
-      ) &&
+      )
+      &&
       rows[i].dailyVcp <=
         rows[i].dailyVcpP10;
 
 
-    // 買い候補
     rows[i].buyCandidate =
-      contraction &&
-      finite(
+      contraction
+      &&
+      isFiniteNumber(
         rows[i].vcp26Delta5
-      ) &&
-      finite(
+      )
+      &&
+      isFiniteNumber(
         rows[i].deltaP90
-      ) &&
+      )
+      &&
       rows[i].vcp26Delta5 >=
         rows[i].deltaP90;
 
 
-    // 売り候補
     rows[i].sellCandidate =
-      contraction &&
-      finite(
+      contraction
+      &&
+      isFiniteNumber(
         rows[i].vcp26Delta5
-      ) &&
-      finite(
+      )
+      &&
+      isFiniteNumber(
         rows[i].deltaP10
-      ) &&
+      )
+      &&
       rows[i].vcp26Delta5 <=
         rows[i].deltaP10;
+  }
+
+
+  const nMa5 =
+    calculateSma(
+      rows,
+      "vcp26",
+      5
+    );
+
+
+  for (
+    let i = 0;
+    i < rows.length;
+    i++
+  ) {
+
+    rows[i].vcp26Ma5 =
+      nMa5[i];
   }
 }
 
 
 // ============================================================
-// 価格帯別出来高
+// Volume Profile
 //
-// 【終値方式】
-//
-// その日の出来高全量を
-// 終値が属する価格帯へ割り当てる。
+// 終値方式。
+// その日の全出来高を
+// 終値の価格帯へ100%割当。
 // ============================================================
 
 function calculateVolumeProfile(
@@ -617,7 +771,8 @@ function calculateVolumeProfile(
 
 
   if (
-    maxPrice <= minPrice
+    maxPrice <=
+    minPrice
   ) {
     return null;
   }
@@ -627,18 +782,21 @@ function calculateVolumeProfile(
     (
       maxPrice -
       minPrice
-    ) /
+    )
+    /
     bins;
 
 
   const up =
-    new Array(bins)
-      .fill(0);
+    new Array(
+      bins
+    ).fill(0);
 
 
   const down =
-    new Array(bins)
-      .fill(0);
+    new Array(
+      bins
+    ).fill(0);
 
 
   for (
@@ -651,7 +809,8 @@ function calculateVolumeProfile(
         (
           row.close -
           minPrice
-        ) /
+        )
+        /
         step
       );
 
@@ -659,6 +818,7 @@ function calculateVolumeProfile(
     if (
       index === bins
     ) {
+
       index =
         bins - 1;
     }
@@ -673,11 +833,6 @@ function calculateVolumeProfile(
         )
       );
 
-
-    /*
-     * 上昇日 = 青
-     * 下落日 = 赤
-     */
 
     if (
       row.close >=
@@ -697,14 +852,18 @@ function calculateVolumeProfile(
 
 
   const prices =
-    new Array(bins)
+    new Array(
+      bins
+    )
       .fill(0)
       .map(
         (_, i) =>
-          minPrice +
+          minPrice
+          +
           (
             i + 0.5
-          ) *
+          )
+          *
           step
       );
 
@@ -725,22 +884,269 @@ function calculateVolumeProfile(
 
 
   return {
+    bins,
     prices,
+    widths,
     up,
     down,
     totals,
-    widths,
-    step,
-    bins
+    step
   };
 }
 
 
 // ============================================================
-// 表示中のRows
+// 需給を株価営業日へForward Fill
+//
+// 公表空売り：状態値として前回値を継続
+// 貸借倍率：原則日次
+// 信用倍率：週次値を次回更新まで継続
 // ============================================================
 
-function visibleRows(
+function buildSupplyDaily(
+  stockRows,
+  supplyRows
+) {
+
+  const source =
+    [...(
+      supplyRows ?? []
+    )]
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(
+            b.date
+          )
+      );
+
+
+  const result = [];
+
+  let sourceIndex = 0;
+
+  let shortRatio = null;
+  let shortInstitutions = [];
+
+  let loanRatio = null;
+  let marginRatio = null;
+
+  let loanBalance = null;
+  let stockLoanBalance = null;
+
+  let marginBuy = null;
+  let marginSell = null;
+
+
+  for (
+    const stockRow
+    of stockRows
+  ) {
+
+    while (
+      sourceIndex <
+        source.length
+      &&
+      source[
+        sourceIndex
+      ].date <=
+        stockRow.date
+    ) {
+
+      const row =
+        source[
+          sourceIndex
+        ];
+
+
+      if (
+        row.publicShortRatio !==
+        undefined
+        &&
+        row.publicShortRatio !==
+        null
+      ) {
+
+        shortRatio =
+          toNumber(
+            row.publicShortRatio
+          );
+
+        shortInstitutions =
+          Array.isArray(
+            row.publicShortInstitutions
+          )
+            ? row.publicShortInstitutions
+            : [];
+      }
+
+
+      if (
+        row.loanRatio !==
+        undefined
+        &&
+        row.loanRatio !==
+        null
+      ) {
+
+        loanRatio =
+          toNumber(
+            row.loanRatio
+          );
+      }
+
+
+      if (
+        row.loanBalance !==
+        undefined
+      ) {
+
+        loanBalance =
+          toNumber(
+            row.loanBalance
+          );
+      }
+
+
+      if (
+        row.stockLoanBalance !==
+        undefined
+      ) {
+
+        stockLoanBalance =
+          toNumber(
+            row.stockLoanBalance
+          );
+      }
+
+
+      if (
+        row.marginRatio !==
+        undefined
+        &&
+        row.marginRatio !==
+        null
+      ) {
+
+        marginRatio =
+          toNumber(
+            row.marginRatio
+          );
+      }
+
+
+      if (
+        row.marginBuy !==
+        undefined
+      ) {
+
+        marginBuy =
+          toNumber(
+            row.marginBuy
+          );
+      }
+
+
+      if (
+        row.marginSell !==
+        undefined
+      ) {
+
+        marginSell =
+          toNumber(
+            row.marginSell
+          );
+      }
+
+
+      sourceIndex++;
+    }
+
+
+    result.push({
+
+      date:
+        stockRow.date,
+
+      publicShortRatio:
+        shortRatio,
+
+      publicShortInstitutions:
+        shortInstitutions,
+
+      loanRatio:
+        loanRatio,
+
+      loanBalance:
+        loanBalance,
+
+      stockLoanBalance:
+        stockLoanBalance,
+
+      marginRatio:
+        marginRatio,
+
+      marginBuy:
+        marginBuy,
+
+      marginSell:
+        marginSell
+    });
+  }
+
+
+  return result;
+}
+
+
+// ============================================================
+// Short hover text
+// ============================================================
+
+function shortInstitutionText(
+  institutions
+) {
+
+  if (
+    !Array.isArray(
+      institutions
+    )
+    ||
+    !institutions.length
+  ) {
+
+    return "公表対象機関なし";
+  }
+
+
+  return institutions
+    .map(
+      item => {
+
+        const ratio =
+          toNumber(
+            item.ratio
+          );
+
+        return (
+          `${item.name ?? "Unknown"}`
+          +
+          (
+            ratio !== null
+              ? ` ${ratio.toFixed(2)}%`
+              : ""
+          )
+        );
+      }
+    )
+    .join("<br>");
+}
+
+
+// ============================================================
+// Visible rows
+// ============================================================
+
+function visibleStockRows(
   start,
   end
 ) {
@@ -751,37 +1157,50 @@ function visibleRows(
     return [];
   }
 
+
   return currentStock
     .data
     .filter(
       row =>
-        row.date >= start &&
+        row.date >= start
+        &&
+        row.date <= end
+    );
+}
+
+
+function visibleSupplyRows(
+  start,
+  end
+) {
+
+  return currentSupplyDaily
+    .filter(
+      row =>
+        row.date >= start
+        &&
         row.date <= end
     );
 }
 
 
 // ============================================================
-// N軸レンジ
-//
-// 必ず0を含める。
+// Axis ranges
 // ============================================================
 
-function calculateNRange(
-  rows
+function rangeIncludeZero(
+  values,
+  paddingRatio = 0.10
 ) {
 
-  const values =
-    rows
-      .map(
-        row =>
-          row.vcp26
-      )
-      .filter(finite);
+  const valid =
+    values.filter(
+      isFiniteNumber
+    );
 
 
   if (
-    !values.length
+    !valid.length
   ) {
 
     return [
@@ -794,14 +1213,14 @@ function calculateNRange(
   let min =
     Math.min(
       0,
-      ...values
+      ...valid
     );
 
 
   let max =
     Math.max(
       0,
-      ...values
+      ...valid
     );
 
 
@@ -822,7 +1241,8 @@ function calculateNRange(
 
 
   const padding =
-    span * 0.10;
+    span *
+    paddingRatio;
 
 
   return [
@@ -832,8 +1252,53 @@ function calculateNRange(
 }
 
 
+function positiveRange(
+  values,
+  fallback = 1
+) {
+
+  const valid =
+    values.filter(
+      isFiniteNumber
+    );
+
+
+  if (
+    !valid.length
+  ) {
+
+    return [
+      0,
+      fallback
+    ];
+  }
+
+
+  const max =
+    Math.max(
+      ...valid
+    );
+
+
+  return [
+    0,
+    Math.max(
+      max * 1.15,
+      fallback
+    )
+  ];
+}
+
+
 // ============================================================
-// 価格帯出来高＋表示中Y軸更新
+// 表示範囲更新
+//
+// 価格帯出来高
+// 株価Y
+// 出来高Y
+// N Y
+// 需給Y
+// を表示中期間に合わせる
 // ============================================================
 
 async function updateVisibleRange(
@@ -842,15 +1307,17 @@ async function updateVisibleRange(
 ) {
 
   if (
-    profileUpdating ||
+    updatingRange
+    ||
     !currentStock
   ) {
+
     return;
   }
 
 
   const rows =
-    visibleRows(
+    visibleStockRows(
       start,
       end
     );
@@ -876,18 +1343,14 @@ async function updateVisibleRange(
   }
 
 
-  const maxTotal =
+  const maxProfile =
     Math.max(
       ...profile.totals,
       1
     );
 
 
-  // ----------------------------------------------------------
-  // 株価表示範囲
-  // ----------------------------------------------------------
-
-  let low =
+  let priceLow =
     Math.min(
       ...rows.map(
         row =>
@@ -896,7 +1359,7 @@ async function updateVisibleRange(
     );
 
 
-  let high =
+  let priceHigh =
     Math.max(
       ...rows.map(
         row =>
@@ -911,16 +1374,18 @@ async function updateVisibleRange(
         row =>
           row.high52
       )
-      .filter(finite);
+      .filter(
+        isFiniteNumber
+      );
 
 
   if (
     high52Values.length
   ) {
 
-    high =
+    priceHigh =
       Math.max(
-        high,
+        priceHigh,
         ...high52Values
       );
   }
@@ -929,16 +1394,12 @@ async function updateVisibleRange(
   const pricePadding =
     Math.max(
       (
-        high - low
-      ) *
-      0.045,
+        priceHigh -
+        priceLow
+      ) * 0.045,
       profile.step
     );
 
-
-  // ----------------------------------------------------------
-  // 通常出来高表示範囲
-  // ----------------------------------------------------------
 
   const maxVolume =
     Math.max(
@@ -950,28 +1411,64 @@ async function updateVisibleRange(
     );
 
 
-  // ----------------------------------------------------------
-  // N表示範囲
-  // ----------------------------------------------------------
-
   const nRange =
-    calculateNRange(
-      rows
+    rangeIncludeZero(
+      rows.map(
+        row =>
+          row.vcp26
+      )
     );
 
 
-  profileUpdating =
+  const supplyRows =
+    visibleSupplyRows(
+      start,
+      end
+    );
+
+
+  const shortRange =
+    positiveRange(
+      supplyRows.map(
+        row =>
+          row.publicShortRatio
+      ),
+      1
+    );
+
+
+  const ratioRange =
+    positiveRange(
+      [
+        ...supplyRows.map(
+          row =>
+            row.loanRatio
+        ),
+
+        ...supplyRows.map(
+          row =>
+            row.marginRatio
+        )
+      ],
+      1
+    );
+
+
+  updatingRange =
     true;
 
 
   try {
 
     // --------------------------------------------------------
-    // 価格帯出来高
+    // Volume Profile
     //
-    // 青を先にstack。
-    // xaxis2が逆向きなので青が右、
-    // 赤が左側へ積み上がる。
+    // xaxis2は逆向き。
+    //
+    // 青を先にstack
+    // 赤を後にstack
+    //
+    // [赤][青] | 右端
     // --------------------------------------------------------
 
     await Plotly.restyle(
@@ -993,7 +1490,6 @@ async function updateVisibleRange(
         customdata: [
           profile.up
         ]
-
       },
       [
         PROFILE_UP_INDEX
@@ -1020,7 +1516,6 @@ async function updateVisibleRange(
         customdata: [
           profile.down
         ]
-
       },
       [
         PROFILE_DOWN_INDEX
@@ -1032,34 +1527,32 @@ async function updateVisibleRange(
       chart,
       {
 
-        /*
-         * 価格帯出来高
-         * 最大バー ≒ 画面横幅28%
-         */
-
         "xaxis2.range": [
-          maxTotal * 3.5,
+          maxProfile * 3.5,
           0
         ],
 
-
-        // 株価Y軸
         "yaxis.range": [
-          low - pricePadding,
-          high + pricePadding
+          priceLow -
+            pricePadding,
+
+          priceHigh +
+            pricePadding
         ],
 
-
-        // 通常出来高Y軸
         "yaxis2.range": [
           0,
           maxVolume * 1.10
         ],
 
-
-        // N専用Y軸
         "yaxis3.range":
-          nRange
+          nRange,
+
+        "yaxis4.range":
+          shortRange,
+
+        "yaxis5.range":
+          ratioRange
       }
     );
 
@@ -1076,16 +1569,20 @@ async function updateVisibleRange(
         "profileInfo"
       )
       .textContent =
-        `価格帯別出来高：${start} ～ ${end} ／ ` +
-        `${rows.length}営業日 ／ ` +
-        `${profile.bins}価格帯 ／ ` +
-        `終値方式 ／ ` +
-        `左＝下落出来高（赤）、右＝上昇出来高（青）`;
+        `価格帯別出来高：${start} ～ ${end} ／ `
+        +
+        `${rows.length}営業日 ／ `
+        +
+        `${profile.bins}価格帯 ／ `
+        +
+        `終値方式 ／ `
+        +
+        `左＝下落（赤）、右＝上昇（青）`;
 
   }
   finally {
 
-    profileUpdating =
+    updatingRange =
       false;
   }
 }
@@ -1095,29 +1592,44 @@ async function updateVisibleRange(
 // Summary
 // ============================================================
 
-function updateSummary(
-  data
-) {
+function updateSummary() {
 
-  const rows =
-    data.data;
+  if (
+    !currentStock
+  ) {
+    return;
+  }
+
+
+  const stockRows =
+    currentStock.data;
 
 
   const latest =
-    rows[
-      rows.length - 1
+    stockRows[
+      stockRows.length -
+      1
     ];
 
 
+  const latestSupply =
+    currentSupplyDaily.length
+      ? currentSupplyDaily[
+          currentSupplyDaily.length -
+          1
+        ]
+      : null;
+
+
   const buyCount =
-    rows.filter(
+    stockRows.filter(
       row =>
         row.buyCandidate
     ).length;
 
 
   const sellCount =
-    rows.filter(
+    stockRows.filter(
       row =>
         row.sellCandidate
     ).length;
@@ -1179,27 +1691,6 @@ function updateSummary(
 
       <div>
         <span class="summary-label">
-          5MA
-        </span>
-        ${formatNumber(latest.ma5, 2)}
-      </div>
-
-      <div>
-        <span class="summary-label">
-          25MA
-        </span>
-        ${formatNumber(latest.ma25, 2)}
-      </div>
-
-      <div>
-        <span class="summary-label">
-          50MA
-        </span>
-        ${formatNumber(latest.ma50, 2)}
-      </div>
-
-      <div>
-        <span class="summary-label">
           52週高値
         </span>
         ${formatNumber(latest.high52, 2)}
@@ -1214,20 +1705,69 @@ function updateSummary(
         </strong>
       </div>
 
+      <div>
+        <span class="summary-label">
+          N-MA5
+        </span>
+        ${formatNumber(latest.vcp26Ma5, 6)}
+      </div>
+
       <div class="${signalClass}">
         ${signal}
       </div>
 
       <div>
         <span class="summary-label">
-          買い候補
+          公表空売り
+        </span>
+        ${
+          latestSupply
+            ? `${formatNumber(
+                latestSupply.publicShortRatio,
+                2
+              )}%`
+            : "-"
+        }
+      </div>
+
+      <div>
+        <span class="summary-label">
+          貸借倍率
+        </span>
+        ${
+          latestSupply
+            ? `${formatNumber(
+                latestSupply.loanRatio,
+                2
+              )}倍`
+            : "-"
+        }
+      </div>
+
+      <div>
+        <span class="summary-label">
+          信用倍率
+        </span>
+        ${
+          latestSupply
+            ? `${formatNumber(
+                latestSupply.marginRatio,
+                2
+              )}倍`
+            : "-"
+        }
+      </div>
+
+      <div>
+        <span class="summary-label">
+          買い候補数
         </span>
         ${buyCount}
       </div>
 
       <div>
         <span class="summary-label">
-          売り候補
+          売り候補数
         </span>
         ${sellCount}
       </div>
@@ -1236,7 +1776,7 @@ function updateSummary(
 
 
 // ============================================================
-// お気に入り
+// Favorite
 // ============================================================
 
 function getFavorites() {
@@ -1246,7 +1786,8 @@ function getFavorites() {
     return JSON.parse(
       localStorage.getItem(
         "stockFavorites"
-      ) ||
+      )
+      ||
       "[]"
     );
 
@@ -1322,15 +1863,75 @@ function toggleFavorite() {
 
 
 // ============================================================
+// Hover vertical line
+//
+// 株価・出来高・VCP・需給を
+// 1本の破線で貫く。
+// ============================================================
+
+function installHoverLine() {
+
+  chart.on(
+    "plotly_hover",
+    event => {
+
+      const point =
+        event?.points?.[0];
+
+
+      if (
+        !point
+        ||
+        point.x ===
+          undefined
+      ) {
+
+        return;
+      }
+
+
+      Plotly.relayout(
+        chart,
+        {
+
+          "shapes[0].x0":
+            point.x,
+
+          "shapes[0].x1":
+            point.x,
+
+          "shapes[0].visible":
+            true
+        }
+      );
+    }
+  );
+
+
+  chart.on(
+    "plotly_unhover",
+    () => {
+
+      Plotly.relayout(
+        chart,
+        {
+          "shapes[0].visible":
+            false
+        }
+      );
+    }
+  );
+}
+
+
+// ============================================================
 // Chart
 // ============================================================
 
-async function drawChart(
-  data
-) {
+async function drawChart() {
 
   const rows =
-    data.data;
+    currentStock.data;
 
 
   const dates =
@@ -1341,7 +1942,7 @@ async function drawChart(
 
 
   const latestDate =
-    data.endDate;
+    currentStock.endDate;
 
 
   const startObject =
@@ -1364,16 +1965,16 @@ async function drawChart(
 
   if (
     initialStart <
-    data.startDate
+    currentStock.startDate
   ) {
 
     initialStart =
-      data.startDate;
+      currentStock.startDate;
   }
 
 
   const initialRows =
-    visibleRows(
+    visibleStockRows(
       initialStart,
       latestDate
     );
@@ -1416,20 +2017,29 @@ async function drawChart(
     );
 
 
-  const nRange =
-    calculateNRange(
-      initialRows
+  const supplyDates =
+    currentSupplyDaily.map(
+      row =>
+        row.date
     );
 
 
-  // ==========================================================
-  // Traces
-  // ==========================================================
+  const shortHover =
+    currentSupplyDaily.map(
+      row =>
+        shortInstitutionText(
+          row.publicShortInstitutions
+        )
+    );
+
 
   const traces = [
 
 
-    // 0 ローソク
+    // ========================================================
+    // 0 Price
+    // ========================================================
+
     {
       type:
         "candlestick",
@@ -1484,94 +2094,156 @@ async function drawChart(
 
         fillcolor:
           RED
-      }
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "始 %{open:,.0f}<br>"
+        +
+        "高 %{high:,.0f}<br>"
+        +
+        "安 %{low:,.0f}<br>"
+        +
+        "終 %{close:,.0f}"
+        +
+        "<extra></extra>"
     },
 
 
-    // 1 5MA
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "5MA",
+    // ========================================================
+    // 1 MA5
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "5MA",
+
+      x:
+        dates,
 
       y:
         rows.map(
           row => row.ma5
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
         width: 1.4,
-        color: "#f57c00"
+        color: ORANGE
       }
     },
 
 
-    // 2 25MA
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "25MA",
+    // ========================================================
+    // 2 MA25
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "25MA",
+
+      x:
+        dates,
 
       y:
         rows.map(
           row => row.ma25
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
         width: 1.4,
-        color: "#7b1fa2"
+        color: PURPLE
       }
     },
 
 
-    // 3 50MA
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "50MA",
+    // ========================================================
+    // 3 MA50
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "50MA",
+
+      x:
+        dates,
 
       y:
         rows.map(
           row => row.ma50
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
         width: 1.4,
-        color: "#388e3c"
+        color: GREEN
       }
     },
 
 
-    // 4 高値5MA
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "高値5MA",
+    // ========================================================
+    // 4 High MA5
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "高値5MA",
+
+      x:
+        dates,
 
       y:
         rows.map(
-          row => row.highMa5
+          row =>
+            row.highMa5
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
         width: 1,
@@ -1584,21 +2256,34 @@ async function drawChart(
     },
 
 
-    // 5 安値5MA
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "安値5MA",
+    // ========================================================
+    // 5 Low MA5
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "安値5MA",
+
+      x:
+        dates,
 
       y:
         rows.map(
-          row => row.lowMa5
+          row =>
+            row.lowMa5
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
         width: 1,
@@ -1611,34 +2296,53 @@ async function drawChart(
     },
 
 
-    // 6 52週高値
-    {
-      type: "scatter",
-      mode: "lines",
-      name: "52週高値",
+    // ========================================================
+    // 6 52-week high
+    // ========================================================
 
-      x: dates,
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "52週高値",
+
+      x:
+        dates,
 
       y:
         rows.map(
-          row => row.high52
+          row =>
+            row.high52
         ),
 
-      xaxis: "x",
-      yaxis: "y",
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
 
       line: {
-        width: 1.4,
+        width: 1.5,
         dash: "dash",
-        color: "#111"
+        color: BLACK
       },
 
       hovertemplate:
-        "52週高値 %{y:.2f}<extra></extra>"
+        "52週高値 %{y:,.0f}"
+        +
+        "<extra></extra>"
     },
 
 
-    // 7 価格帯別出来高 上昇
+    // ========================================================
+    // 7 Volume Profile UP
+    // 青を右
+    // ========================================================
+
     {
       type:
         "bar",
@@ -1673,13 +2377,19 @@ async function drawChart(
       },
 
       hovertemplate:
-        "価格 %{y:.2f}円" +
-        "<br>上昇出来高 %{customdata:,.0f}" +
+        "価格 %{y:,.0f}円"
+        +
+        "<br>上昇出来高 %{customdata:,.0f}"
+        +
         "<extra></extra>"
     },
 
 
-    // 8 価格帯別出来高 下落
+    // ========================================================
+    // 8 Volume Profile DOWN
+    // 赤を左
+    // ========================================================
+
     {
       type:
         "bar",
@@ -1714,13 +2424,18 @@ async function drawChart(
       },
 
       hovertemplate:
-        "価格 %{y:.2f}円" +
-        "<br>下落出来高 %{customdata:,.0f}" +
+        "価格 %{y:,.0f}円"
+        +
+        "<br>下落出来高 %{customdata:,.0f}"
+        +
         "<extra></extra>"
     },
 
 
-    // 9 通常出来高
+    // ========================================================
+    // 9 Daily Volume
+    // ========================================================
+
     {
       type:
         "bar",
@@ -1733,7 +2448,8 @@ async function drawChart(
 
       y:
         rows.map(
-          row => row.volume
+          row =>
+            row.volume
         ),
 
       xaxis:
@@ -1748,23 +2464,23 @@ async function drawChart(
       },
 
       hovertemplate:
-        "%{x}" +
-        "<br>出来高 %{y:,.0f}" +
+        "%{x}"
+        +
+        "<br>出来高 %{y:,.0f}"
+        +
         "<extra></extra>"
     },
 
 
-    // 10 N = 26日累積差
+    // ========================================================
+    // 10 N BAR
     //
-    // K/L/Mは表示しない。
-    // ---------------------------------------------------------
+    // K/L/Mは表示しない
+    // ========================================================
 
     {
       type:
-        "scatter",
-
-      mode:
-        "lines",
+        "bar",
 
       name:
         "N：26日累積差",
@@ -1784,19 +2500,201 @@ async function drawChart(
       yaxis:
         "y3",
 
-      line: {
-        width: 2,
-        color: "#111"
+      marker: {
+        color:
+          BLUE
       },
 
       hovertemplate:
-        "%{x}" +
-        "<br>N %{y:.6f}" +
+        "%{x}"
+        +
+        "<br>N %{y:.6f}"
+        +
         "<extra></extra>"
     },
 
 
-    // 11 買い候補
+    // ========================================================
+    // 11 N MA5
+    // ========================================================
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "N 5MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.vcp26Ma5
+        ),
+
+      xaxis:
+        "x4",
+
+      yaxis:
+        "y3",
+
+      line: {
+        width: 2,
+        color: ORANGE
+      },
+
+      hovertemplate:
+        "%{x}"
+        +
+        "<br>N 5MA %{y:.6f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    // ========================================================
+    // 12 Public institutional short ratio
+    // ========================================================
+
+    {
+      type:
+        "bar",
+
+      name:
+        "公表機関空売り",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.publicShortRatio
+        ),
+
+      customdata:
+        shortHover,
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y4",
+
+      marker: {
+        color:
+          "rgba(90,90,90,0.38)"
+      },
+
+      hovertemplate:
+        "%{x}"
+        +
+        "<br>公表空売り %{y:.2f}%"
+        +
+        "<br>%{customdata}"
+        +
+        "<extra></extra>"
+    },
+
+
+    // ========================================================
+    // 13 Loan ratio
+    // ========================================================
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "貸借倍率",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.loanRatio
+        ),
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y5",
+
+      line: {
+        width: 2,
+        color: BLUE,
+        shape: "hv"
+      },
+
+      hovertemplate:
+        "%{x}"
+        +
+        "<br>貸借倍率 %{y:.2f}倍"
+        +
+        "<extra></extra>"
+    },
+
+
+    // ========================================================
+    // 14 Margin ratio
+    // ========================================================
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "信用倍率",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.marginRatio
+        ),
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y5",
+
+      line: {
+        width: 2,
+        dash: "dash",
+        color: RED,
+        shape: "hv"
+      },
+
+      hovertemplate:
+        "%{x}"
+        +
+        "<br>信用倍率 %{y:.2f}倍"
+        +
+        "<extra></extra>"
+    },
+
+
+    // ========================================================
+    // 15 BUY
+    // ========================================================
+
     {
       type:
         "scatter",
@@ -1816,8 +2714,7 @@ async function drawChart(
       y:
         buyRows.map(
           row =>
-            row.low *
-            0.985
+            row.low * 0.985
         ),
 
       xaxis:
@@ -1847,11 +2744,18 @@ async function drawChart(
         false,
 
       hovertemplate:
-        "%{x}<br>買い候補 ▲<extra></extra>"
+        "%{x}"
+        +
+        "<br>買い候補 ▲"
+        +
+        "<extra></extra>"
     },
 
 
-    // 12 売り候補
+    // ========================================================
+    // 16 SELL
+    // ========================================================
+
     {
       type:
         "scatter",
@@ -1871,8 +2775,7 @@ async function drawChart(
       y:
         sellRows.map(
           row =>
-            row.high *
-            1.015
+            row.high * 1.015
         ),
 
       xaxis:
@@ -1902,10 +2805,61 @@ async function drawChart(
         false,
 
       hovertemplate:
-        "%{x}<br>売り候補 ▼<extra></extra>"
+        "%{x}"
+        +
+        "<br>売り候補 ▼"
+        +
+        "<extra></extra>"
     }
 
   ];
+
+
+  // ==========================================================
+  // Initial ranges
+  // ==========================================================
+
+  const nRange =
+    rangeIncludeZero(
+      initialRows.map(
+        row =>
+          row.vcp26
+      )
+    );
+
+
+  const initialSupply =
+    visibleSupplyRows(
+      initialStart,
+      latestDate
+    );
+
+
+  const shortRange =
+    positiveRange(
+      initialSupply.map(
+        row =>
+          row.publicShortRatio
+      ),
+      1
+    );
+
+
+  const ratioRange =
+    positiveRange(
+      [
+        ...initialSupply.map(
+          row =>
+            row.loanRatio
+        ),
+
+        ...initialSupply.map(
+          row =>
+            row.marginRatio
+        )
+      ],
+      1
+    );
 
 
   // ==========================================================
@@ -1915,26 +2869,29 @@ async function drawChart(
   const layout = {
 
     height:
-      1000,
+      1180,
 
     autosize:
       true,
 
-    margin: {
-      l: 70,
-      r: 75,
-      t: 42,
-      b: 45
-    },
-
     paper_bgcolor:
-      "#fff",
+      "#ffffff",
 
     plot_bgcolor:
-      "#fff",
+      "#ffffff",
+
+    margin: {
+      l: 72,
+      r: 85,
+      t: 48,
+      b: 48
+    },
 
     hovermode:
       "x unified",
+
+    hoverdistance:
+      -1,
 
     dragmode:
       "pan",
@@ -1951,7 +2908,7 @@ async function drawChart(
         0,
 
       y:
-        1.06,
+        1.045,
 
       font: {
         size: 11
@@ -1960,7 +2917,57 @@ async function drawChart(
 
 
     // ========================================================
-    // 株価X軸
+    // 1本だけの縦破線
+    // ========================================================
+
+    shapes: [
+      {
+        type:
+          "line",
+
+        xref:
+          "x",
+
+        yref:
+          "paper",
+
+        x0:
+          latestDate,
+
+        x1:
+          latestDate,
+
+        y0:
+          0,
+
+        y1:
+          1,
+
+        visible:
+          false,
+
+        layer:
+          "above",
+
+        line: {
+          color:
+            "rgba(60,60,60,0.65)",
+
+          width:
+            1,
+
+          dash:
+            "dot"
+        }
+      }
+    ],
+
+
+    // ========================================================
+    // PRICE X
+    //
+    // Range Sliderをここへ移動。
+    // Slider内は株価系trace。
     // ========================================================
 
     xaxis: {
@@ -1989,8 +2996,21 @@ async function drawChart(
         "#eeeeee",
 
       rangeslider: {
+
         visible:
-          false
+          true,
+
+        thickness:
+          0.055,
+
+        bgcolor:
+          "#fafafa",
+
+        bordercolor:
+          "#cccccc",
+
+        borderwidth:
+          1
       },
 
       rangebreaks: [
@@ -2005,9 +3025,7 @@ async function drawChart(
 
 
     // ========================================================
-    // 価格帯別出来高X軸
-    //
-    // 右端から左へ伸ばす
+    // Volume Profile X
     // ========================================================
 
     xaxis2: {
@@ -2047,7 +3065,7 @@ async function drawChart(
 
 
     // ========================================================
-    // 通常出来高X軸
+    // VOLUME X
     // ========================================================
 
     xaxis3: {
@@ -2073,19 +3091,15 @@ async function drawChart(
       gridcolor:
         "#eeeeee",
 
-      rangebreaks: [
-        {
-          bounds: [
-            "sat",
-            "mon"
-          ]
-        }
-      ]
+      rangeslider: {
+        visible:
+          false
+      }
     },
 
 
     // ========================================================
-    // NペインX軸
+    // VCP X
     // ========================================================
 
     xaxis4: {
@@ -2102,6 +3116,9 @@ async function drawChart(
       matches:
         "x",
 
+      showticklabels:
+        false,
+
       showgrid:
         true,
 
@@ -2109,33 +3126,54 @@ async function drawChart(
         "#eeeeee",
 
       rangeslider: {
-
         visible:
-          true,
-
-        thickness:
-          0.05
-      },
-
-      rangebreaks: [
-        {
-          bounds: [
-            "sat",
-            "mon"
-          ]
-        }
-      ]
+          false
+      }
     },
 
 
     // ========================================================
-    // 株価Y軸
+    // SUPPLY X
+    // ========================================================
+
+    xaxis5: {
+
+      type:
+        "date",
+
+      domain:
+        [0, 1],
+
+      anchor:
+        "y4",
+
+      matches:
+        "x",
+
+      showticklabels:
+        true,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eeeeee",
+
+      rangeslider: {
+        visible:
+          false
+      }
+    },
+
+
+    // ========================================================
+    // PRICE Y
     // ========================================================
 
     yaxis: {
 
       domain:
-        [0.45, 1],
+        [0.66, 1],
 
       side:
         "right",
@@ -2149,7 +3187,7 @@ async function drawChart(
         true,
 
       gridcolor:
-        "#e5e5e5",
+        "#e3e3e3",
 
       zeroline:
         false
@@ -2157,13 +3195,13 @@ async function drawChart(
 
 
     // ========================================================
-    // 通常出来高Y軸
+    // VOLUME Y
     // ========================================================
 
     yaxis2: {
 
       domain:
-        [0.29, 0.41],
+        [0.51, 0.59],
 
       side:
         "right",
@@ -2188,15 +3226,16 @@ async function drawChart(
 
 
     // ========================================================
-    // N専用ペイン
+    // N Y
     //
+    // 青Bar + MA5
     // 0ラインを強調
     // ========================================================
 
     yaxis3: {
 
       domain:
-        [0, 0.24],
+        [0.29, 0.46],
 
       side:
         "right",
@@ -2223,9 +3262,90 @@ async function drawChart(
 
       zerolinewidth:
         3
+    },
+
+
+    // ========================================================
+    // SUPPLY LEFT Y
+    // 公表空売り %
+    // ========================================================
+
+    yaxis4: {
+
+      domain:
+        [0, 0.22],
+
+      side:
+        "left",
+
+      title: {
+        text:
+          "公表空売り %"
+      },
+
+      range:
+        shortRange,
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eeeeee",
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#999"
+    },
+
+
+    // ========================================================
+    // SUPPLY RIGHT Y
+    //
+    // 貸借倍率 + 信用倍率
+    // ========================================================
+
+    yaxis5: {
+
+      domain:
+        [0, 0.22],
+
+      overlaying:
+        "y4",
+
+      anchor:
+        "x5",
+
+      side:
+        "right",
+
+      title: {
+        text:
+          "倍率"
+      },
+
+      range:
+        ratioRange,
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        false,
+
+      zeroline:
+        false
     }
   };
 
+
+  // ==========================================================
+  // Draw
+  // ==========================================================
 
   Plotly.purge(
     chart
@@ -2237,6 +3357,7 @@ async function drawChart(
     traces,
     layout,
     {
+
       responsive:
         true,
 
@@ -2252,6 +3373,9 @@ async function drawChart(
   );
 
 
+  installHoverLine();
+
+
   await updateVisibleRange(
     initialStart,
     latestDate
@@ -2259,7 +3383,7 @@ async function drawChart(
 
 
   // ==========================================================
-  // ズーム / ドラッグ
+  // Zoom / pan / slider
   // ==========================================================
 
   chart.on(
@@ -2267,79 +3391,45 @@ async function drawChart(
     event => {
 
       if (
-        profileUpdating ||
+        updatingRange
+        ||
         !currentStock
       ) {
+
         return;
       }
 
 
-      const axes = [
-        "xaxis",
-        "xaxis3",
-        "xaxis4"
-      ];
+      const start =
+        event[
+          "xaxis.range[0]"
+        ];
 
 
-      for (
-        const axis
-        of axes
-      ) {
+      const end =
+        event[
+          "xaxis.range[1]"
+        ];
 
-        const start =
-          event[
-            `${axis}.range[0]`
-          ];
-
-
-        const end =
-          event[
-            `${axis}.range[1]`
-          ];
-
-
-        if (
-          start &&
-          end
-        ) {
-
-          updateVisibleRange(
-
-            String(start)
-              .slice(
-                0,
-                10
-              ),
-
-            String(end)
-              .slice(
-                0,
-                10
-              )
-
-          );
-
-          return;
-        }
-      }
-
-
-      /*
-       * ダブルクリックで全期間へ戻った場合
-       */
 
       if (
-        event[
-          "xaxis.autorange"
-        ] === true ||
-        event[
-          "xaxis4.autorange"
-        ] === true
+        start &&
+        end
       ) {
 
         updateVisibleRange(
-          currentStock.startDate,
-          currentStock.endDate
+
+          String(start)
+            .slice(
+              0,
+              10
+            ),
+
+          String(end)
+            .slice(
+              0,
+              10
+            )
         );
       }
     }
@@ -2348,7 +3438,63 @@ async function drawChart(
 
 
 // ============================================================
-// 銘柄ロード
+// Supply fetch
+// ============================================================
+
+async function fetchSupply(
+  code
+) {
+
+  try {
+
+    const response =
+      await fetch(
+        `/api/supply/${code}`,
+        {
+          cache:
+            "no-store"
+        }
+      );
+
+
+    if (
+      response.status ===
+      404
+    ) {
+
+      return null;
+    }
+
+
+    if (
+      !response.ok
+    ) {
+
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+
+    return await response.json();
+
+  }
+  catch (
+    error
+  ) {
+
+    console.warn(
+      "Supply fetch failed:",
+      error
+    );
+
+    return null;
+  }
+}
+
+
+// ============================================================
+// Stock load
 // ============================================================
 
 async function loadStock(
@@ -2373,13 +3519,13 @@ async function loadStock(
 
 
   const status =
-    document.getElementById(
-      "status"
-    );
+    document
+      .getElementById(
+        "status"
+      );
 
 
-  status
-    .classList
+  status.classList
     .remove(
       "error"
     );
@@ -2389,45 +3535,57 @@ async function loadStock(
     `${code} を読み込み中...`;
 
 
-  const response =
-    await fetch(
-      `/api/stock/${code}`,
-      {
-        cache:
-          "no-store"
-      }
-    );
+  const [
+    stockResponse,
+    supplyData
+  ] =
+    await Promise.all([
+
+      fetch(
+        `/api/stock/${code}`,
+        {
+          cache:
+            "no-store"
+        }
+      ),
+
+      fetchSupply(
+        code
+      )
+    ]);
 
 
   if (
-    !response.ok
+    !stockResponse.ok
   ) {
 
     if (
-      response.status === 404
+      stockResponse.status ===
+      404
     ) {
 
       throw new Error(
-        `${code} のデータはR2に保存されていません`
+        `${code} の株価データはR2にありません`
       );
     }
 
 
     throw new Error(
-      `HTTP ${response.status}`
+      `株価API HTTP ${stockResponse.status}`
     );
   }
 
 
-  const data =
-    await response.json();
+  const stockData =
+    await stockResponse.json();
 
 
   if (
     !Array.isArray(
-      data.data
-    ) ||
-    !data.data.length
+      stockData.data
+    )
+    ||
+    !stockData.data.length
   ) {
 
     throw new Error(
@@ -2437,15 +3595,31 @@ async function loadStock(
 
 
   currentStock =
-    data;
+    stockData;
+
+  currentSupply =
+    supplyData;
 
   currentCode =
     code;
 
 
   prepareIndicators(
-    data.data
+    currentStock.data
   );
+
+
+  currentSupplyDaily =
+    buildSupplyDaily(
+
+      currentStock.data,
+
+      Array.isArray(
+        currentSupply?.rows
+      )
+        ? currentSupply.rows
+        : []
+    );
 
 
   document
@@ -2461,31 +3635,60 @@ async function loadStock(
       "stockTitle"
     )
     .textContent =
-      `${code} ${data.name ?? ""}`;
+      `${code} ${currentStock.name ?? ""}`;
 
 
-  updateSummary(
-    data
-  );
+  if (
+    currentSupply
+    &&
+    Array.isArray(
+      currentSupply.rows
+    )
+    &&
+    currentSupply.rows.length
+  ) {
+
+    document
+      .getElementById(
+        "supplyInfo"
+      )
+      .textContent =
+        `需給：公表機関空売り残高＋貸借倍率＋信用倍率 ／ `
+        +
+        `最終更新 ${currentSupply.updatedAt ?? "-"}`;
+
+  }
+  else {
+
+    document
+      .getElementById(
+        "supplyInfo"
+      )
+      .textContent =
+        "需給データはまだR2に保存されていません。"
+        +
+        "株価・出来高・VCPのみ表示しています。";
+  }
 
 
   updateFavoriteButton();
 
 
-  await drawChart(
-    data
-  );
+  await drawChart();
+
+
+  updateSummary();
 
 
   status.textContent =
-    `表示データ：${data.startDate} ～ ${data.endDate} ／ ` +
-    `${formatNumber(data.rowCount)}営業日 ／ ` +
-    `最終取得 ${data.fetchedAt ?? "-"}`;
+    `株価：${currentStock.startDate} ～ ${currentStock.endDate} ／ `
+    +
+    `${formatNumber(currentStock.rowCount)}営業日`;
 }
 
 
 // ============================================================
-// 期間ボタン
+// Period
 // ============================================================
 
 async function setPeriod(
@@ -2506,9 +3709,7 @@ async function setPeriod(
 
 
   let start =
-    new Date(
-      end
-    );
+    new Date(end);
 
 
   switch (
@@ -2518,7 +3719,8 @@ async function setPeriod(
     case "3m":
 
       start.setMonth(
-        start.getMonth() - 3
+        start.getMonth() -
+        3
       );
 
       break;
@@ -2527,7 +3729,8 @@ async function setPeriod(
     case "6m":
 
       start.setMonth(
-        start.getMonth() - 6
+        start.getMonth() -
+        6
       );
 
       break;
@@ -2536,7 +3739,8 @@ async function setPeriod(
     case "1y":
 
       start.setFullYear(
-        start.getFullYear() - 1
+        start.getFullYear() -
+        1
       );
 
       break;
@@ -2545,7 +3749,8 @@ async function setPeriod(
     case "3y":
 
       start.setFullYear(
-        start.getFullYear() - 3
+        start.getFullYear() -
+        3
       );
 
       break;
@@ -2554,7 +3759,8 @@ async function setPeriod(
     case "5y":
 
       start.setFullYear(
-        start.getFullYear() - 5
+        start.getFullYear() -
+        5
       );
 
       break;
@@ -2563,7 +3769,8 @@ async function setPeriod(
     case "10y":
 
       start.setFullYear(
-        start.getFullYear() - 10
+        start.getFullYear() -
+        10
       );
 
       break;
@@ -2605,16 +3812,6 @@ async function setPeriod(
     {
 
       "xaxis.range": [
-        startText,
-        endText
-      ],
-
-      "xaxis3.range": [
-        startText,
-        endText
-      ],
-
-      "xaxis4.range": [
         startText,
         endText
       ]
@@ -2663,15 +3860,15 @@ document
             );
 
 
-        status
-          .classList
+        status.classList
           .add(
             "error"
           );
 
 
         status.textContent =
-          error.message ??
+          error.message
+          ??
           String(error);
       }
     }
@@ -2687,7 +3884,8 @@ document
     event => {
 
       if (
-        event.key === "Enter"
+        event.key ===
+        "Enter"
       ) {
 
         document
@@ -2717,16 +3915,14 @@ document
             )
             .forEach(
               item =>
-                item
-                  .classList
+                item.classList
                   .remove(
                     "active"
                   )
             );
 
 
-          button
-            .classList
+          button.classList
             .add(
               "active"
             );
@@ -2758,12 +3954,13 @@ document
 
       await updateVisibleRange(
 
-        currentRangeStart ??
-          currentStock.startDate,
+        currentRangeStart
+        ??
+        currentStock.startDate,
 
-        currentRangeEnd ??
-          currentStock.endDate
-
+        currentRangeEnd
+        ??
+        currentStock.endDate
       );
     }
   );
@@ -2778,10 +3975,6 @@ document
     toggleFavorite
   );
 
-
-// ============================================================
-// PNG保存
-// ============================================================
 
 document
   .getElementById(
@@ -2809,10 +4002,10 @@ document
             `${currentCode}_${currentStock.endDate}_VCP`,
 
           width:
-            1750,
+            1800,
 
           height:
-            1100,
+            1250,
 
           scale:
             1
@@ -2823,7 +4016,7 @@ document
 
 
 // ============================================================
-// 起動
+// Start
 // ============================================================
 
 loadStock(
@@ -2839,15 +4032,15 @@ loadStock(
         );
 
 
-    status
-      .classList
+    status.classList
       .add(
         "error"
       );
 
 
     status.textContent =
-      error.message ??
+      error.message
+      ??
       String(error);
   }
 );
