@@ -11,40 +11,31 @@ on:
 
 jobs:
   fetch-supply:
-
     runs-on: ubuntu-latest
-
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-
       - name: Install dependencies
         run: npm install
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Fetch supply data and upload to R2
         env:
-
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-
           STOCK_CODE: ${{ inputs.stock_code }}
-
+          JSF_BACKFILL_YEARS: "10"
         run: node src/fetch-supply.js
