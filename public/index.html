@@ -1419,29 +1419,30 @@ async function loadStock(code) {
   code = code.trim().toUpperCase();
 
   if (!/^[0-9A-Z]{4}$/.test(code)) {
-    throw new Error(
-      "東証銘柄コードを4文字で入力してください"
-    );
+    throw new Error("東証銘柄コードを4文字で入力してください");
   }
 
-  const status =
-    document.getElementById("status");
+  const status = document.getElementById("status");
 
   status.classList.remove("error");
-  status.textContent =
-    `${code} を読み込み中...`;
+  status.textContent = `${code} の株価を読み込み中...`;
 
   currentRangeStart = null;
   currentRangeEnd = null;
 
-  const [stockResponse,supplyData] =
-    await Promise.all([
-      fetch(
-        `/api/stock/${code}`,
-        {cache:"no-store"}
-      ),
-      fetchSupply(code)
-    ]);
+  /*
+   * 需給データの取得は開始するが、
+   * 株価チャートの表示を待たせない。
+   */
+  const supplyPromise = fetchSupply(code);
+
+  /*
+   * 株価データを先に取得する。
+   */
+  const stockResponse = await fetch(
+    `/api/stock/${code}`,
+    {cache:"no-store"}
+  );
 
   if (!stockResponse.ok) {
     if (stockResponse.status === 404) {
@@ -1455,8 +1456,7 @@ async function loadStock(code) {
     );
   }
 
-  const stockData =
-    await stockResponse.json();
+  const stockData = await stockResponse.json();
 
   if (
     !Array.isArray(stockData.data) ||
@@ -1465,17 +1465,21 @@ async function loadStock(code) {
     throw new Error("株価データがありません");
   }
 
+  /*
+   * まず株価データだけを設定する。
+   */
   currentStock = stockData;
-  currentSupply = supplyData;
+  currentSupply = null;
   currentCode = code;
 
   prepareIndicators(currentStock.data);
 
+  /*
+   * 需給データが届くまではnullでチャートを作る。
+   */
   currentSupplyDaily = buildSupplyDaily(
     currentStock.data,
-    Array.isArray(currentSupply?.rows)
-      ? currentSupply.rows
-      : []
+    []
   );
 
   document.getElementById("stockCode").value =
@@ -1484,11 +1488,53 @@ async function loadStock(code) {
   document.getElementById("stockTitle").textContent =
     `${code} ${currentStock.name ?? ""}`;
 
+  document.getElementById("supplyInfo").textContent =
+    "需給データを読み込み中...";
+
+  updateFavoriteButton();
+
+  /*
+   * 株価・移動平均・VCPを先に表示する。
+   */
+  await drawChart();
+
+  updateSummary();
+
+  status.textContent =
+    `株価：${currentStock.startDate} ～ ` +
+    `${currentStock.endDate} ／ ` +
+    `${formatNumber(currentStock.rowCount)}営業日 ／ ` +
+    `需給を読み込み中...`;
+
+  /*
+   * 需給データの応答を待つ。
+   * この時点で株価チャートはすでに表示されている。
+   */
+  const supplyData = await supplyPromise;
+
+  /*
+   * 需給取得中に別銘柄へ変更された場合は、
+   * 古い銘柄の需給データを反映しない。
+   */
+  if (currentCode !== code) {
+    return;
+  }
+
+  currentSupply = supplyData;
+
+  currentSupplyDaily = buildSupplyDaily(
+    currentStock.data,
+    Array.isArray(currentSupply?.rows)
+      ? currentSupply.rows
+      : []
+  );
+
   if (currentSupply?.rows?.length) {
     const cov = currentSupply.coverage || {};
 
     document.getElementById("supplyInfo").textContent =
-      `需給：公表空売り［${coverageLabel(cov.publicShort)}］ ／ ` +
+      `需給：` +
+      `公表空売り［${coverageLabel(cov.publicShort)}］ ／ ` +
       `貸借倍率［${coverageLabel(cov.loanRatio)}］ ／ ` +
       `信用倍率［${coverageLabel(cov.marginRatio)}］ ／ ` +
       `最終更新 ${currentSupply.updatedAt ?? "-"}`;
@@ -1498,8 +1544,9 @@ async function loadStock(code) {
       "株価・VCPは通常表示します。";
   }
 
-  updateFavoriteButton();
-
+  /*
+   * 需給データを加えてチャートを再描画する。
+   */
   await drawChart();
 
   updateSummary();
