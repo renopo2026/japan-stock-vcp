@@ -6,6 +6,7 @@ import {
 
 import * as cheerio from "cheerio";
 import iconv from "iconv-lite";
+import { chromium } from "playwright";
 import * as XLSX from "xlsx";
 
 import {
@@ -13,12 +14,6 @@ import {
   gunzipSync
 } from "node:zlib";
 
-
-/*
-==============================================================
-設定
-==============================================================
-*/
 
 const CODE =
   String(
@@ -40,6 +35,20 @@ const ACCOUNT_ID =
 const ENDPOINT =
   process.env.R2_ENDPOINT ||
   `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`;
+
+
+const JSF_BACKFILL_YEARS =
+  Math.max(
+    1,
+    Number(
+      process.env.JSF_BACKFILL_YEARS ||
+      10
+    )
+  );
+
+
+const R2_KEY =
+  `supply/${CODE}.json.gz`;
 
 
 if (
@@ -67,12 +76,6 @@ if (
 }
 
 
-/*
-==============================================================
-R2
-==============================================================
-*/
-
 const s3 =
   new S3Client({
 
@@ -85,12 +88,10 @@ const s3 =
     credentials: {
 
       accessKeyId:
-        process.env
-          .R2_ACCESS_KEY_ID,
+        process.env.R2_ACCESS_KEY_ID,
 
       secretAccessKey:
-        process.env
-          .R2_SECRET_ACCESS_KEY
+        process.env.R2_SECRET_ACCESS_KEY
     },
 
     requestChecksumCalculation:
@@ -100,16 +101,6 @@ const s3 =
       "WHEN_REQUIRED"
   });
 
-
-const R2_KEY =
-  `supply/${CODE}.json.gz`;
-
-
-/*
-==============================================================
-HTTP
-==============================================================
-*/
 
 const DEFAULT_HEADERS = {
 
@@ -122,134 +113,16 @@ const DEFAULT_HEADERS = {
 };
 
 
-function sleep(
-  ms
-) {
-
-  return new Promise(
-    resolve =>
-      setTimeout(
-        resolve,
-        ms
-      )
-  );
-}
-
-
-async function fetchResponse(
-  url,
-  attempts = 4
-) {
-
-  let lastError;
-
-
-  for (
-    let attempt = 1;
-    attempt <= attempts;
-    attempt++
-  ) {
-
-    try {
-
-      console.log(
-        `[HTTP] ${url}`
-      );
-
-
-      const response =
-        await fetch(
-          url,
-          {
-            headers:
-              DEFAULT_HEADERS,
-
-            redirect:
-              "follow"
-          }
-        );
-
-
-      if (
-        response.ok
-      ) {
-
-        return response;
-      }
-
-
-      throw new Error(
-        `HTTP ${response.status} ${response.statusText}`
-      );
-
-    }
-    catch (
-      error
-    ) {
-
-      lastError =
-        error;
-
-
-      console.warn(
-        `[HTTP] attempt ${attempt}/${attempts} failed:`,
-        error.message
-      );
-
-
-      if (
-        attempt <
-        attempts
-      ) {
-
-        await sleep(
-          attempt *
-          3000
-        );
-      }
-    }
-  }
-
-
-  throw lastError;
-}
-
-
-async function fetchText(
-  url
-) {
-
-  const response =
-    await fetchResponse(
-      url
+const sleep =
+  ms =>
+    new Promise(
+      resolve =>
+        setTimeout(
+          resolve,
+          ms
+        )
     );
 
-
-  return await response.text();
-}
-
-
-async function fetchBuffer(
-  url
-) {
-
-  const response =
-    await fetchResponse(
-      url
-    );
-
-
-  return Buffer.from(
-    await response.arrayBuffer()
-  );
-}
-
-
-/*
-==============================================================
-Utility
-==============================================================
-*/
 
 function cleanText(
   value
@@ -285,12 +158,6 @@ function normalizeCode(
       ""
     );
 
-
-  /*
-    JPX資料によっては
-    旧来コードを5桁表示する場合がある。
-    例：99840 → 9984
-  */
 
   if (
     /^[0-9]{5}$/.test(
@@ -410,7 +277,7 @@ function normalizeDate(
 
   if (
     typeof value ===
-      "number"
+    "number"
   ) {
 
     const parsed =
@@ -439,38 +306,36 @@ function normalizeDate(
     );
 
 
-  let match =
+  let m =
     text.match(
       /(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/
     );
 
 
   if (
-    match
+    m
   ) {
 
     return (
-      `${match[1]}-` +
-      `${String(match[2]).padStart(2, "0")}-` +
-      `${String(match[3]).padStart(2, "0")}`
+      `${m[1]}-` +
+      `${String(m[2]).padStart(2, "0")}-` +
+      `${String(m[3]).padStart(2, "0")}`
     );
   }
 
 
-  match =
+  m =
     text.match(
       /^(\d{4})(\d{2})(\d{2})$/
     );
 
 
   if (
-    match
+    m
   ) {
 
     return (
-      `${match[1]}-` +
-      `${match[2]}-` +
-      `${match[3]}`
+      `${m[1]}-${m[2]}-${m[3]}`
     );
   }
 
@@ -479,23 +344,101 @@ function normalizeDate(
 }
 
 
-function absoluteUrl(
-  base,
-  href
+function todayJstString() {
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "Asia/Tokyo",
+
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit"
+      }
+    )
+    .formatToParts(
+      new Date()
+    );
+
+
+  const map =
+    Object.fromEntries(
+      parts.map(
+        p => [
+          p.type,
+          p.value
+        ]
+      )
+    );
+
+
+  return (
+    `${map.year}-` +
+    `${map.month}-` +
+    `${map.day}`
+  );
+}
+
+
+function yearsAgoDateString(
+  years
 ) {
 
-  try {
+  const today =
+    todayJstString();
 
-    return new URL(
-      href,
-      base
-    ).href;
 
-  }
-  catch {
+  const [
+    y,
+    m,
+    d
+  ] =
+    today
+      .split("-")
+      .map(Number);
 
-    return null;
-  }
+
+  const dt =
+    new Date(
+      Date.UTC(
+        y - years,
+        m - 1,
+        d
+      )
+    );
+
+
+  return dt
+    .toISOString()
+    .slice(
+      0,
+      10
+    );
+}
+
+
+function formatJsfDate(
+  iso
+) {
+
+  const [
+    y,
+    m,
+    d
+  ] =
+    iso.split("-");
+
+
+  return (
+    `${y} / ${m} / ${d}`
+  );
 }
 
 
@@ -529,11 +472,162 @@ function round(
 }
 
 
-/*
-==============================================================
-R2既存データ読込
-==============================================================
-*/
+function absoluteUrl(
+  base,
+  href
+) {
+
+  try {
+
+    return new URL(
+      href,
+      base
+    ).href;
+
+  }
+  catch {
+
+    return null;
+  }
+}
+
+
+function minMaxDates(
+  rows,
+  key = "date"
+) {
+
+  const dates =
+    rows
+      .map(
+        r =>
+          r?.[key]
+      )
+      .filter(
+        Boolean
+      )
+      .sort();
+
+
+  return {
+
+    startDate:
+      dates[0] ??
+      null,
+
+    endDate:
+      dates[
+        dates.length - 1
+      ]
+      ??
+      null
+  };
+}
+
+
+async function fetchResponse(
+  url,
+  attempts = 4
+) {
+
+  let lastError;
+
+
+  for (
+    let attempt = 1;
+    attempt <= attempts;
+    attempt++
+  ) {
+
+    try {
+
+      console.log(
+        `[HTTP] ${url}`
+      );
+
+
+      const response =
+        await fetch(
+          url,
+          {
+            headers:
+              DEFAULT_HEADERS,
+
+            redirect:
+              "follow"
+          }
+        );
+
+
+      if (
+        response.ok
+      ) {
+
+        return response;
+      }
+
+
+      throw new Error(
+        `HTTP ${response.status} ${response.statusText}`
+      );
+
+    }
+    catch (
+      error
+    ) {
+
+      lastError =
+        error;
+
+
+      console.warn(
+        `[HTTP] attempt ${attempt}/${attempts} failed: ${error.message}`
+      );
+
+
+      if (
+        attempt <
+        attempts
+      ) {
+
+        await sleep(
+          attempt *
+          3000
+        );
+      }
+    }
+  }
+
+
+  throw lastError;
+}
+
+
+async function fetchText(
+  url
+) {
+
+  return (
+    await fetchResponse(
+      url
+    )
+  ).text();
+}
+
+
+async function fetchBuffer(
+  url
+) {
+
+  return Buffer.from(
+    await (
+      await fetchResponse(
+        url
+      )
+    ).arrayBuffer()
+  );
+}
+
 
 async function loadExistingSupply() {
 
@@ -559,24 +653,19 @@ async function loadExistingSupply() {
       );
 
 
-    const json =
-      gunzipSync(
-        bytes
-      )
-      .toString(
-        "utf8"
-      );
-
-
     const parsed =
       JSON.parse(
-        json
+        gunzipSync(
+          bytes
+        )
+        .toString(
+          "utf8"
+        )
       );
 
 
     console.log(
-      `[R2] existing ${R2_KEY}: ` +
-      `${parsed.rows?.length ?? 0} rows`
+      `[R2] existing ${R2_KEY}: ${parsed.rows?.length ?? 0} rows`
     );
 
 
@@ -606,8 +695,7 @@ async function loadExistingSupply() {
 
 
     console.warn(
-      "[R2] existing data could not be loaded:",
-      error.message
+      `[R2] existing data could not be loaded: ${error.message}`
     );
 
 
@@ -615,12 +703,6 @@ async function loadExistingSupply() {
   }
 }
 
-
-/*
-==============================================================
-簡易CSV parser
-==============================================================
-*/
 
 function parseCsvLine(
   line
@@ -651,7 +733,8 @@ function parseCsvLine(
     ) {
 
       if (
-        quoted &&
+        quoted
+        &&
         line[i + 1] === '"'
       ) {
 
@@ -725,45 +808,65 @@ function parseCsv(
 }
 
 
+function decodeJapaneseCsv(
+  buffer
+) {
+
+  const utf8 =
+    buffer
+      .toString(
+        "utf8"
+      )
+      .replace(
+        /^\uFEFF/,
+        ""
+      );
+
+
+  if (
+    /申込日|融資|貸株|銘柄コード/.test(
+      utf8
+    )
+    &&
+    !utf8.includes(
+      "�"
+    )
+  ) {
+
+    return utf8;
+  }
+
+
+  return iconv
+    .decode(
+      buffer,
+      "cp932"
+    )
+    .replace(
+      /^\uFEFF/,
+      ""
+    );
+}
+
+
 /*
 ==============================================================
-日証金：
-銘柄別残高一覧 zandaka.csv
-
-A 申込日
-C コード
-E 市場
-G 速報/確報
-
-J 融資残高（株）
-M 貸株残高（株）
-
-貸借倍率 = J / M
+JSF 現在残高
 ==============================================================
 */
 
 async function fetchJsfCurrentCsv() {
 
   console.log(
-    "\n=== JSF zandaka.csv ==="
+    "\n=== JSF current zandaka.csv ==="
   );
 
 
-  const buffer =
-    await fetchBuffer(
-      "https://www.taisyaku.jp/data/zandaka.csv"
-    );
-
-
-  /*
-    日証金CSVは日本語Windows系文字コードを
-    考慮してCP932でdecode
-  */
-
   const text =
-    iconv.decode(
-      buffer,
-      "cp932"
+    decodeJapaneseCsv(
+      await fetchBuffer(
+        "https://www.taisyaku.jp/data/zandaka.csv"
+      )
     );
 
 
@@ -791,14 +894,10 @@ async function fetchJsfCurrentCsv() {
     }
 
 
-    const code =
+    if (
       normalizeCode(
         row[2]
-      );
-
-
-    if (
-      code !==
+      ) !==
       CODE
     ) {
 
@@ -806,14 +905,11 @@ async function fetchJsfCurrentCsv() {
     }
 
 
-    const market =
-      cleanText(
-        row[4]
-      );
-
-
     if (
-      !market.includes(
+      !cleanText(
+        row[4]
+      )
+      .includes(
         "東証"
       )
     ) {
@@ -826,6 +922,14 @@ async function fetchJsfCurrentCsv() {
       normalizeDate(
         row[0]
       );
+
+
+    if (
+      !date
+    ) {
+
+      continue;
+    }
 
 
     const status =
@@ -846,12 +950,20 @@ async function fetchJsfCurrentCsv() {
       );
 
 
-    if (
-      !date
-    ) {
-
-      continue;
-    }
+    const loanRatio =
+      stockLoanBalance >
+        0
+      &&
+      loanBalance !==
+        null
+      ?
+        round(
+          loanBalance /
+          stockLoanBalance,
+          6
+        )
+      :
+        null;
 
 
     candidates.push({
@@ -864,36 +976,16 @@ async function fetchJsfCurrentCsv() {
 
       stockLoanBalance,
 
-      loanRatio:
-        (
-          stockLoanBalance !==
-            null
-          &&
-          stockLoanBalance >
-            0
-          &&
-          loanBalance !==
-            null
-        )
-        ?
-          round(
-            loanBalance /
-            stockLoanBalance,
-            6
-          )
-        :
-          null
+      loanRatio
     });
   }
 
 
-  /*
-    同一銘柄について速報と確報があれば
-    確報を優先
-  */
-
   candidates.sort(
-    (a, b) => {
+    (
+      a,
+      b
+    ) => {
 
       if (
         a.date !==
@@ -909,14 +1001,29 @@ async function fetchJsfCurrentCsv() {
 
       if (
         a.status ===
-        "確報"
+          "確報"
+        &&
+        b.status !==
+          "確報"
       ) {
 
         return -1;
       }
 
 
-      return 1;
+      if (
+        b.status ===
+          "確報"
+        &&
+        a.status !==
+          "確報"
+      ) {
+
+        return 1;
+      }
+
+
+      return 0;
     }
   );
 
@@ -926,7 +1033,7 @@ async function fetchJsfCurrentCsv() {
   ) {
 
     console.warn(
-      `[JSF] ${CODE} not found`
+      `[JSF] ${CODE} not found in zandaka.csv`
     );
 
 
@@ -935,7 +1042,7 @@ async function fetchJsfCurrentCsv() {
 
 
   console.log(
-    "[JSF] latest:",
+    "[JSF] current:",
     candidates[0]
   );
 
@@ -948,7 +1055,7 @@ async function fetchJsfCurrentCsv() {
 
 /*
 ==============================================================
-HTML Tableのrowspan / colspan展開
+HTML table展開
 ==============================================================
 */
 
@@ -965,13 +1072,17 @@ function htmlTableToGrid(
 
 
   $(table)
-    .find("tr")
+    .find(
+      "tr"
+    )
     .each(
-      (_, tr) => {
+      (
+        _,
+        tr
+      ) => {
 
         const row =
           [];
-
 
         let col =
           0;
@@ -982,10 +1093,8 @@ function htmlTableToGrid(
 
             while (
               spans[col]
-              &&
-              spans[col]
-                .remaining >
-                0
+              ?.remaining >
+              0
             ) {
 
               row[col] =
@@ -1000,7 +1109,7 @@ function htmlTableToGrid(
               if (
                 spans[col]
                   .remaining <=
-                  0
+                0
               ) {
 
                 spans[col] =
@@ -1021,7 +1130,10 @@ function htmlTableToGrid(
             "th,td"
           )
           .each(
-            (_, cell) => {
+            (
+              _,
+              cell
+            ) => {
 
               placePending();
 
@@ -1113,18 +1225,14 @@ function htmlTableToGrid(
 
 /*
 ==============================================================
-日証金：
-銘柄詳細ページから直近7営業日前後を取得
-
-初回のチャートが1点だけにならないよう
-直近データをseedする。
+JSF 直近表示分
 ==============================================================
 */
 
 async function fetchJsfRecentDetail() {
 
   console.log(
-    "\n=== JSF detail page ==="
+    "\n=== JSF recent detail ==="
   );
 
 
@@ -1132,15 +1240,11 @@ async function fetchJsfRecentDetail() {
     `https://www.taisyaku.jp/app/stock/detail/${CODE}-01`;
 
 
-  const html =
-    await fetchText(
-      url
-    );
-
-
   const $ =
     cheerio.load(
-      html
+      await fetchText(
+        url
+      )
     );
 
 
@@ -1150,7 +1254,10 @@ async function fetchJsfRecentDetail() {
 
   $("table")
     .each(
-      (_, table) => {
+      (
+        _,
+        table
+      ) => {
 
         const text =
           cleanText(
@@ -1186,11 +1293,6 @@ async function fetchJsfRecentDetail() {
   if (
     !bestGrid
   ) {
-
-    console.warn(
-      "[JSF] detail table not found"
-    );
-
 
     return [];
   }
@@ -1236,8 +1338,8 @@ async function fetchJsfRecentDetail() {
           })
         )
         .filter(
-          item =>
-            item.date
+          x =>
+            x.date
         );
 
 
@@ -1248,11 +1350,6 @@ async function fetchJsfRecentDetail() {
   if (
     !dateColumns.length
   ) {
-
-    console.warn(
-      "[JSF] dates not found"
-    );
-
 
     return [];
   }
@@ -1273,9 +1370,9 @@ async function fetchJsfRecentDetail() {
 
     if (
       row.some(
-        value =>
+        v =>
           cleanText(
-            value
+            v
           ) ===
           "融資"
       )
@@ -1288,9 +1385,9 @@ async function fetchJsfRecentDetail() {
 
     if (
       row.some(
-        value =>
+        v =>
           cleanText(
-            value
+            v
           ) ===
           "貸株"
       )
@@ -1301,18 +1398,14 @@ async function fetchJsfRecentDetail() {
     }
 
 
-    const isBalanceRow =
-      row.some(
-        value =>
+    if (
+      !row.some(
+        v =>
           cleanText(
-            value
+            v
           ) ===
           "残高"
-      );
-
-
-    if (
-      !isBalanceRow
+      )
       ||
       !section
     ) {
@@ -1372,6 +1465,7 @@ async function fetchJsfRecentDetail() {
 
         target.loanBalance =
           value;
+
       }
       else {
 
@@ -1385,25 +1479,25 @@ async function fetchJsfRecentDetail() {
   const result =
     [...data.values()]
       .filter(
-        row =>
-          row.loanBalance !==
-            undefined
-          &&
-          row.stockLoanBalance !==
-            undefined
+        r =>
+          r.loanBalance !==
+          undefined
+        &&
+        r.stockLoanBalance !==
+          undefined
       )
       .map(
-        row => ({
+        r => ({
 
-          ...row,
+          ...r,
 
           loanRatio:
-            row.stockLoanBalance >
+            r.stockLoanBalance >
             0
             ?
               round(
-                row.loanBalance /
-                row.stockLoanBalance,
+                r.loanBalance /
+                r.stockLoanBalance,
                 6
               )
             :
@@ -1411,7 +1505,10 @@ async function fetchJsfRecentDetail() {
         })
       )
       .sort(
-        (a, b) =>
+        (
+          a,
+          b
+        ) =>
           a.date
             .localeCompare(
               b.date
@@ -1420,7 +1517,7 @@ async function fetchJsfRecentDetail() {
 
 
   console.log(
-    `[JSF] detail history: ${result.length} rows`
+    `[JSF] recent detail: ${result.length} rows`
   );
 
 
@@ -1430,15 +1527,841 @@ async function fetchJsfRecentDetail() {
 
 /*
 ==============================================================
-Yahoo!ファイナンス：
-信用倍率
+JSF 過去CSV
+==============================================================
+*/
 
-週次信用残
+async function downloadToBuffer(
+  download
+) {
 
-売残・買残・信用倍率を取得する。
+  const stream =
+    await download
+      .createReadStream();
 
-このアプリは個人利用前提。
-データ自体はR2を公開しない。
+
+  const chunks =
+    [];
+
+
+  for await (
+    const chunk
+    of stream
+  ) {
+
+    chunks.push(
+      Buffer.from(
+        chunk
+      )
+    );
+  }
+
+
+  return Buffer.concat(
+    chunks
+  );
+}
+
+
+async function requestJsfCsv(
+  page,
+  startIso,
+  endIso
+) {
+
+  const detailUrl =
+    `https://www.taisyaku.jp/app/stock/detail/${CODE}-01`;
+
+
+  await page.goto(
+    detailUrl,
+    {
+      waitUntil:
+        "domcontentloaded",
+
+      timeout:
+        60000
+    }
+  );
+
+
+  const periodInputs =
+    page.locator(
+      'input[placeholder*="YYYY"]'
+    );
+
+
+  if (
+    await periodInputs.count()
+    <
+    2
+  ) {
+
+    throw new Error(
+      "JSF period inputs not found"
+    );
+  }
+
+
+  await periodInputs
+    .nth(0)
+    .fill(
+      formatJsfDate(
+        startIso
+      )
+    );
+
+
+  await periodInputs
+    .nth(1)
+    .fill(
+      formatJsfDate(
+        endIso
+      )
+    );
+
+
+  try {
+
+    await page
+      .getByText(
+        "選択なし",
+        {
+          exact:
+            true
+        }
+      )
+      .click(
+        {
+          timeout:
+            2000
+        }
+      );
+
+  }
+  catch {}
+
+
+  let downloaded =
+    null;
+
+
+  const firstDownload =
+    page
+      .waitForEvent(
+        "download",
+        {
+          timeout:
+            15000
+        }
+      )
+      .catch(
+        () =>
+          null
+      );
+
+
+  await page
+    .getByRole(
+      "button",
+      {
+        name:
+          "この条件で表示する"
+      }
+    )
+    .click(
+      {
+        timeout:
+          10000
+      }
+    );
+
+
+  downloaded =
+    await firstDownload;
+
+
+  if (
+    !downloaded
+  ) {
+
+    await page
+      .waitForLoadState(
+        "domcontentloaded",
+        {
+          timeout:
+            10000
+        }
+      )
+      .catch(
+        () => {}
+      );
+
+
+    const csvLink =
+      page
+        .getByRole(
+          "link",
+          {
+            name:
+              "CSV",
+
+            exact:
+              true
+          }
+        )
+        .first();
+
+
+    if (
+      await csvLink.count()
+      ===
+      0
+    ) {
+
+      throw new Error(
+        "JSF CSV link not found after period selection"
+      );
+    }
+
+
+    const secondDownload =
+      page.waitForEvent(
+        "download",
+        {
+          timeout:
+            20000
+        }
+      );
+
+
+    await csvLink.click();
+
+
+    downloaded =
+      await secondDownload;
+  }
+
+
+  return downloadToBuffer(
+    downloaded
+  );
+}
+
+
+function parseJsfHistoricalCsv(
+  buffer
+) {
+
+  const rows =
+    parseCsv(
+      decodeJapaneseCsv(
+        buffer
+      )
+    );
+
+
+  if (
+    !rows.length
+  ) {
+
+    return [];
+  }
+
+
+  /*
+  ------------------------------------------------------------
+  Pattern A
+  日付が縦方向の普通のCSV
+  ------------------------------------------------------------
+  */
+
+  for (
+    let h = 0;
+    h < Math.min(
+      rows.length,
+      20
+    );
+    h++
+  ) {
+
+    const header =
+      rows[h]
+        .map(
+          cleanText
+        );
+
+
+    const dateCol =
+      header.findIndex(
+        v =>
+          v.includes(
+            "申込日"
+          )
+        ||
+          v.includes(
+            "基準日"
+          )
+      );
+
+
+    const loanCol =
+      header.findIndex(
+        v =>
+          v.includes(
+            "融資残高"
+          )
+      );
+
+
+    const stockLoanCol =
+      header.findIndex(
+        v =>
+          v.includes(
+            "貸株残高"
+          )
+      );
+
+
+    if (
+      dateCol >= 0
+      &&
+      loanCol >= 0
+      &&
+      stockLoanCol >= 0
+    ) {
+
+      const out =
+        [];
+
+
+      for (
+        let r =
+          h + 1;
+
+        r <
+          rows.length;
+
+        r++
+      ) {
+
+        const date =
+          normalizeDate(
+            rows[r][dateCol]
+          );
+
+
+        if (
+          !date
+        ) {
+
+          continue;
+        }
+
+
+        const loanBalance =
+          parseNumber(
+            rows[r][loanCol]
+          );
+
+
+        const stockLoanBalance =
+          parseNumber(
+            rows[r][stockLoanCol]
+          );
+
+
+        if (
+          loanBalance ===
+            null
+          ||
+          stockLoanBalance ===
+            null
+        ) {
+
+          continue;
+        }
+
+
+        out.push({
+
+          date,
+
+          loanBalance,
+
+          stockLoanBalance,
+
+          loanRatio:
+            stockLoanBalance >
+            0
+            ?
+              round(
+                loanBalance /
+                stockLoanBalance,
+                6
+              )
+            :
+              null
+        });
+      }
+
+
+      if (
+        out.length
+      ) {
+
+        return out;
+      }
+    }
+  }
+
+
+  /*
+  ------------------------------------------------------------
+  Pattern B
+  横方向の表
+  ------------------------------------------------------------
+  */
+
+  let dates =
+    [];
+
+
+  for (
+    const row
+    of rows
+  ) {
+
+    if (
+      !row.some(
+        v =>
+          cleanText(
+            v
+          ) ===
+          "申込日"
+      )
+    ) {
+
+      continue;
+    }
+
+
+    dates =
+      row
+        .map(
+          normalizeDate
+        )
+        .filter(
+          Boolean
+        );
+
+
+    if (
+      dates.length
+    ) {
+
+      break;
+    }
+  }
+
+
+  if (
+    !dates.length
+  ) {
+
+    throw new Error(
+      "JSF historical CSV: date row not found"
+    );
+  }
+
+
+  let section =
+    null;
+
+  let loanValues =
+    null;
+
+  let stockValues =
+    null;
+
+
+  for (
+    const row
+    of rows
+  ) {
+
+    const labels =
+      row.map(
+        cleanText
+      );
+
+
+    if (
+      labels.some(
+        v =>
+          v ===
+          "融資"
+      )
+    ) {
+
+      section =
+        "fund";
+    }
+
+
+    if (
+      labels.some(
+        v =>
+          v ===
+          "貸株"
+      )
+    ) {
+
+      section =
+        "stock";
+    }
+
+
+    if (
+      !labels.some(
+        v =>
+          v ===
+          "残高"
+      )
+      ||
+      !section
+    ) {
+
+      continue;
+    }
+
+
+    const tail =
+      row
+        .slice(
+          -dates.length
+        )
+        .map(
+          parseNumber
+        );
+
+
+    if (
+      section ===
+        "fund"
+      &&
+      !loanValues
+    ) {
+
+      loanValues =
+        tail;
+    }
+
+
+    if (
+      section ===
+        "stock"
+      &&
+      !stockValues
+    ) {
+
+      stockValues =
+        tail;
+    }
+  }
+
+
+  if (
+    !loanValues
+    ||
+    !stockValues
+  ) {
+
+    throw new Error(
+      "JSF historical CSV: balance rows not found"
+    );
+  }
+
+
+  const out =
+    [];
+
+
+  for (
+    let i = 0;
+    i < dates.length;
+    i++
+  ) {
+
+    const loanBalance =
+      loanValues[i];
+
+
+    const stockLoanBalance =
+      stockValues[i];
+
+
+    if (
+      loanBalance ===
+        null
+      ||
+      stockLoanBalance ===
+        null
+    ) {
+
+      continue;
+    }
+
+
+    out.push({
+
+      date:
+        dates[i],
+
+      loanBalance,
+
+      stockLoanBalance,
+
+      loanRatio:
+        stockLoanBalance >
+        0
+        ?
+          round(
+            loanBalance /
+              stockLoanBalance,
+            6
+          )
+        :
+          null
+    });
+  }
+
+
+  return out;
+}
+
+
+async function fetchJsfHistoricalCsv(
+  years = 10
+) {
+
+  console.log(
+    `\n=== JSF historical CSV backfill (${years}y) ===`
+  );
+
+
+  const start =
+    yearsAgoDateString(
+      years
+    );
+
+
+  const end =
+    todayJstString();
+
+
+  const browser =
+    await chromium.launch(
+      {
+        headless:
+          true
+      }
+    );
+
+
+  const page =
+    await browser.newPage(
+      {
+        acceptDownloads:
+          true
+      }
+    );
+
+
+  page.on(
+    "dialog",
+    async dialog => {
+
+      console.log(
+        `[JSF dialog] ${dialog.message()}`
+      );
+
+
+      await dialog
+        .accept()
+        .catch(
+          () => {}
+        );
+    }
+  );
+
+
+  try {
+
+    /*
+    ----------------------------------------------------------
+    まず10年を一括取得
+    ----------------------------------------------------------
+    */
+
+    try {
+
+      const buffer =
+        await requestJsfCsv(
+          page,
+          start,
+          end
+        );
+
+
+      const parsed =
+        parseJsfHistoricalCsv(
+          buffer
+        );
+
+
+      console.log(
+        `[JSF] full-range CSV: ${parsed.length} rows`
+      );
+
+
+      if (
+        parsed.length >=
+        100
+      ) {
+
+        return dedupeRows(
+          parsed
+        );
+      }
+
+    }
+    catch (
+      error
+    ) {
+
+      console.warn(
+        `[JSF] full-range CSV failed: ${error.message}`
+      );
+    }
+
+
+    /*
+    ----------------------------------------------------------
+    一括が駄目なら年単位
+    ----------------------------------------------------------
+    */
+
+    console.log(
+      "[JSF] falling back to yearly CSV chunks"
+    );
+
+
+    const all =
+      [];
+
+
+    const [
+      startYear
+    ] =
+      start
+        .split("-")
+        .map(Number);
+
+
+    const [
+      endYear
+    ] =
+      end
+        .split("-")
+        .map(Number);
+
+
+    for (
+      let year =
+        startYear;
+
+      year <=
+        endYear;
+
+      year++
+    ) {
+
+      const chunkStart =
+        year ===
+        startYear
+        ?
+          start
+        :
+          `${year}-01-01`;
+
+
+      const chunkEnd =
+        year ===
+        endYear
+        ?
+          end
+        :
+          `${year}-12-31`;
+
+
+      try {
+
+        const buffer =
+          await requestJsfCsv(
+            page,
+            chunkStart,
+            chunkEnd
+          );
+
+
+        const parsed =
+          parseJsfHistoricalCsv(
+            buffer
+          );
+
+
+        console.log(
+          `[JSF] ${chunkStart}..${chunkEnd}: ${parsed.length} rows`
+        );
+
+
+        all.push(
+          ...parsed
+        );
+
+      }
+      catch (
+        error
+      ) {
+
+        console.warn(
+          `[JSF] chunk ${year} failed: ${error.message}`
+        );
+      }
+
+
+      await sleep(
+        400
+      );
+    }
+
+
+    return dedupeRows(
+      all
+    );
+
+  }
+  finally {
+
+    await browser.close();
+  }
+}
+
+
+/*
+==============================================================
+Yahoo 信用倍率
 ==============================================================
 */
 
@@ -1451,21 +2374,9 @@ async function fetchYahooMarginHistory(
   );
 
 
-  const cutoffDate =
-    new Date();
-
-
-  cutoffDate.setFullYear(
-    cutoffDate.getFullYear() -
-    years
-  );
-
-
   const cutoff =
-    (
-      `${cutoffDate.getFullYear()}-` +
-      `${String(cutoffDate.getMonth() + 1).padStart(2, "0")}-` +
-      `${String(cutoffDate.getDate()).padStart(2, "0")}`
+    yearsAgoDateString(
+      years
     );
 
 
@@ -1503,8 +2414,7 @@ async function fetchYahooMarginHistory(
     ) {
 
       console.warn(
-        "[Yahoo margin] stopped:",
-        error.message
+        `[Yahoo margin] stopped: ${error.message}`
       );
 
 
@@ -1530,11 +2440,16 @@ async function fetchYahooMarginHistory(
 
     $("table")
       .each(
-        (_, table) => {
+        (
+          _,
+          table
+        ) => {
 
           const headers =
             $(table)
-              .find("th")
+              .find(
+                "th"
+              )
               .map(
                 (
                   _,
@@ -1566,9 +2481,14 @@ async function fetchYahooMarginHistory(
 
 
           $(table)
-            .find("tbody tr")
+            .find(
+              "tbody tr"
+            )
             .each(
-              (_, tr) => {
+              (
+                _,
+                tr
+              ) => {
 
                 const cells =
                   $(tr)
@@ -1651,16 +2571,8 @@ async function fetchYahooMarginHistory(
                   );
 
 
-                /*
-                  表示倍率が無い場合は
-                  買残 / 売残から計算
-                */
-
                 if (
                   marginRatio ===
-                    null
-                  &&
-                  marginSell !==
                     null
                   &&
                   marginSell >
@@ -1702,10 +2614,17 @@ async function fetchYahooMarginHistory(
       !tableFound
     ) {
 
-      console.warn(
-        `[Yahoo margin] table not found on page ${page}`
-      );
+      break;
+    }
 
+
+    if (
+      firstDate
+      &&
+      seenPages.has(
+        firstDate
+      )
+    ) {
 
       break;
     }
@@ -1715,21 +2634,6 @@ async function fetchYahooMarginHistory(
       firstDate
     ) {
 
-      if (
-        seenPages.has(
-          firstDate
-        )
-      ) {
-
-        /*
-          page parameterが無視された場合の
-          infinite loop防止
-        */
-
-        break;
-      }
-
-
       seenPages.add(
         firstDate
       );
@@ -1737,8 +2641,7 @@ async function fetchYahooMarginHistory(
 
 
     console.log(
-      `[Yahoo margin] page ${page}, ` +
-      `${firstDate ?? "?"} -> ${oldestDate ?? "?"}`
+      `[Yahoo margin] page ${page}: ${firstDate ?? "?"} -> ${oldestDate ?? "?"}`
     );
 
 
@@ -1753,11 +2656,6 @@ async function fetchYahooMarginHistory(
     }
 
 
-    /*
-      次へリンクがHTMLにある場合は
-      それを優先。
-    */
-
     let nextHref =
       null;
 
@@ -1769,16 +2667,12 @@ async function fetchYahooMarginHistory(
           anchor
         ) => {
 
-          const text =
+          if (
             cleanText(
               $(anchor)
                 .text()
-            );
-
-
-          if (
-            text ===
-              "次へ"
+            ) ===
+            "次へ"
           ) {
 
             nextHref =
@@ -1803,10 +2697,6 @@ async function fetchYahooMarginHistory(
 
     }
     else {
-
-      /*
-        fallback
-      */
 
       const fallback =
         new URL(
@@ -1846,7 +2736,10 @@ async function fetchYahooMarginHistory(
   const rows =
     [...results.values()]
       .sort(
-        (a, b) =>
+        (
+          a,
+          b
+        ) =>
           a.date
             .localeCompare(
               b.date
@@ -1865,8 +2758,7 @@ async function fetchYahooMarginHistory(
 
 /*
 ==============================================================
-JPX空売り：
-ページからExcel URL取得
+JPX 公表機関空売り
 ==============================================================
 */
 
@@ -1874,23 +2766,19 @@ function datesFromPageText(
   text
 ) {
 
-  const matches =
-    [
-      ...text.matchAll(
-        /(\d{4})\/(\d{1,2})\/(\d{1,2})/g
+  return [
+    ...text.matchAll(
+      /(\d{4})\/(\d{1,2})\/(\d{1,2})/g
+    )
+  ]
+  .map(
+    m =>
+      (
+        `${m[1]}-` +
+        `${String(m[2]).padStart(2, "0")}-` +
+        `${String(m[3]).padStart(2, "0")}`
       )
-    ];
-
-
-  return matches
-    .map(
-      match =>
-        (
-          `${match[1]}-` +
-          `${String(match[2]).padStart(2, "0")}-` +
-          `${String(match[3]).padStart(2, "0")}`
-        )
-    );
+  );
 }
 
 
@@ -1916,7 +2804,10 @@ async function parseJpxShortPage(
 
   $("tr")
     .each(
-      (_, tr) => {
+      (
+        _,
+        tr
+      ) => {
 
         const rowText =
           cleanText(
@@ -1925,7 +2816,7 @@ async function parseJpxShortPage(
           );
 
 
-        const date =
+        const publicationDate =
           datesFromPageText(
             rowText
           )[0]
@@ -1978,8 +2869,7 @@ async function parseJpxShortPage(
 
                   url,
 
-                  publicationDate:
-                    date
+                  publicationDate
                 });
               }
             }
@@ -1987,10 +2877,6 @@ async function parseJpxShortPage(
       }
     );
 
-
-  /*
-    archiveページ候補
-  */
 
   const archives =
     new Set();
@@ -2058,12 +2944,6 @@ async function parseJpxShortPage(
 }
 
 
-/*
-==============================================================
-JPX空売りExcelセル
-==============================================================
-*/
-
 function sheetCell(
   sheet,
   row,
@@ -2072,14 +2952,15 @@ function sheetCell(
 
   return sheet[
     XLSX.utils
-      .encode_cell({
+      .encode_cell(
+        {
+          r:
+            row,
 
-        r:
-          row,
-
-        c:
-          column
-      })
+          c:
+            column
+        }
+      )
   ];
 }
 
@@ -2098,19 +2979,15 @@ function sheetCellText(
     );
 
 
-  if (
-    !cell
-  ) {
-
-    return "";
-  }
-
-
-  return cleanText(
-    cell.w ??
-    cell.v ??
-    ""
-  );
+  return cell
+    ?
+      cleanText(
+        cell.w ??
+        cell.v ??
+        ""
+      )
+    :
+      "";
 }
 
 
@@ -2128,7 +3005,7 @@ function parsePercentCell(
 
   if (
     typeof cell.v ===
-      "number"
+    "number"
   ) {
 
     const format =
@@ -2145,67 +3022,25 @@ function parsePercentCell(
       );
 
 
-    /*
-      Excel percent
-      0.0051 -> 0.51%
-    */
-
-    if (
-      format.includes(
-        "%"
-      )
-      ||
-      display.includes(
-        "%"
-      )
-    ) {
-
-      return round(
-        cell.v *
-        100,
-        6
-      );
-    }
-
-
     return round(
-      cell.v,
+      format.includes("%")
+      ||
+      display.includes("%")
+        ?
+          cell.v *
+          100
+        :
+          cell.v,
       6
     );
   }
 
 
-  const text =
-    cleanText(
-      cell.v
-    );
-
-
-  const n =
-    parseNumber(
-      text
-    );
-
-
-  if (
-    n === null
-  ) {
-
-    return null;
-  }
-
-
-  return n;
+  return parseNumber(
+    cell.v
+  );
 }
 
-
-/*
-==============================================================
-JPX空売りExcel解析
-
-必要な列をヘッダー文字から自動判定する。
-==============================================================
-*/
 
 function parseJpxShortWorkbook(
   buffer,
@@ -2266,7 +3101,8 @@ function parseJpxShortWorkbook(
     const headerMaxRow =
       Math.min(
         range.e.r,
-        range.s.r + 20
+        range.s.r +
+        20
       );
 
 
@@ -2299,12 +3135,11 @@ function parseJpxShortWorkbook(
       ) {
 
         text +=
-          " " +
-          sheetCellText(
+          ` ${sheetCellText(
             sheet,
             r,
             c
-          );
+          )}`;
       }
 
 
@@ -2342,7 +3177,8 @@ function parseJpxShortWorkbook(
     ) {
 
       const text =
-        columnText[c] ||
+        columnText[c]
+        ||
         "";
 
 
@@ -2505,18 +3341,15 @@ function parseJpxShortWorkbook(
       r++
     ) {
 
-      const code =
+      if (
         normalizeCode(
           sheetCellText(
             sheet,
             r,
             codeCol
           )
-        );
-
-
-      if (
-        code !==
+        )
+        !==
         CODE
       ) {
 
@@ -2532,7 +3365,7 @@ function parseJpxShortWorkbook(
         );
 
 
-      const calcDate =
+      const calculationDate =
         normalizeDate(
           calcCell?.v ??
           calcCell?.w
@@ -2550,56 +3383,51 @@ function parseJpxShortWorkbook(
 
 
       if (
-        !calcDate
+        !calculationDate
         ||
         ratio ===
-          null
+        null
       ) {
 
         continue;
       }
 
 
-      const institution =
-        holderCol !==
-          null
-        ?
-          sheetCellText(
-            sheet,
-            r,
-            holderCol
-          )
-        :
-          "Unknown";
-
-
-      const address =
-        addressCol !==
-          null
-        ?
-          sheetCellText(
-            sheet,
-            r,
-            addressCol
-          )
-        :
-          "";
-
-
       events.push({
 
-        calculationDate:
-          calcDate,
+        calculationDate,
 
         publicationDate:
           publicationDate ||
-          calcDate,
+          calculationDate,
 
         institution:
-          institution ||
-          "Unknown",
+          holderCol !==
+          null
+          ?
+            (
+              sheetCellText(
+                sheet,
+                r,
+                holderCol
+              )
+              ||
+              "Unknown"
+            )
+          :
+            "Unknown",
 
-        address,
+        address:
+          addressCol !==
+          null
+          ?
+            sheetCellText(
+              sheet,
+              r,
+              addressCol
+            )
+          :
+            "",
 
         ratio,
 
@@ -2614,24 +3442,12 @@ function parseJpxShortWorkbook(
 }
 
 
-/*
-==============================================================
-JPX公表空売りを取得
-
-初回：
-過去約13か月をbackfill
-
-2回目以降：
-現在ページのみ
-==============================================================
-*/
-
 async function fetchJpxShortHistory(
-  needBackfill
+  fullBackfill
 ) {
 
   console.log(
-    "\n=== JPX public short positions ==="
+    `\n=== JPX public short positions (${fullBackfill ? "full archive scan" : "current page"}) ===`
   );
 
 
@@ -2651,26 +3467,17 @@ async function fetchJpxShortHistory(
     ];
 
 
+  let pageFailures =
+    0;
+
+
   if (
-    needBackfill
+    fullBackfill
   ) {
 
-    const cutoffDate =
-      new Date();
-
-
-    cutoffDate.setMonth(
-      cutoffDate.getMonth() -
-      13
+    console.log(
+      `[JPX] archive pages discovered: ${rootPage.archives.length}`
     );
-
-
-    const cutoff =
-      (
-        `${cutoffDate.getFullYear()}-` +
-        `${String(cutoffDate.getMonth() + 1).padStart(2, "0")}-` +
-        `${String(cutoffDate.getDate()).padStart(2, "0")}`
-      );
 
 
     for (
@@ -2686,41 +3493,8 @@ async function fetchJpxShortHistory(
           );
 
 
-        const pageDates =
-          datesFromPageText(
-            page.html
-          );
-
-
-        if (
-          pageDates.length
-          &&
-          Math.max(
-            ...pageDates.map(
-              date =>
-                new Date(
-                  `${date}T00:00:00Z`
-                ).getTime()
-            )
-          )
-          <
-          new Date(
-            `${cutoff}T00:00:00Z`
-          )
-          .getTime()
-        ) {
-
-          continue;
-        }
-
-
         files.push(
           ...page.files
-        );
-
-
-        await sleep(
-          150
         );
 
       }
@@ -2728,18 +3502,21 @@ async function fetchJpxShortHistory(
         error
       ) {
 
+        pageFailures++;
+
+
         console.warn(
-          `[JPX] archive skipped ${archiveUrl}:`,
-          error.message
+          `[JPX] archive skipped ${archiveUrl}: ${error.message}`
         );
       }
+
+
+      await sleep(
+        100
+      );
     }
   }
 
-
-  /*
-    URL重複除去
-  */
 
   const unique =
     new Map();
@@ -2784,6 +3561,13 @@ async function fetchJpxShortHistory(
     [];
 
 
+  let processedFiles =
+    0;
+
+  let failedFiles =
+    0;
+
+
   for (
     let i = 0;
     i < files.length;
@@ -2796,18 +3580,17 @@ async function fetchJpxShortHistory(
 
     try {
 
-      const buffer =
-        await fetchBuffer(
-          file.url
-        );
-
-
       const parsed =
         parseJpxShortWorkbook(
-          buffer,
+          await fetchBuffer(
+            file.url
+          ),
           file.publicationDate,
           file.url
         );
+
+
+      processedFiles++;
 
 
       if (
@@ -2815,8 +3598,7 @@ async function fetchJpxShortHistory(
       ) {
 
         console.log(
-          `[JPX] ${file.publicationDate ?? "?"}: ` +
-          `${parsed.length} ${CODE} records`
+          `[JPX] ${file.publicationDate ?? "?"}: ${parsed.length} ${CODE} records`
         );
 
 
@@ -2830,9 +3612,11 @@ async function fetchJpxShortHistory(
       error
     ) {
 
+      failedFiles++;
+
+
       console.warn(
-        `[JPX] file skipped: ${file.url}`,
-        error.message
+        `[JPX] file skipped ${file.url}: ${error.message}`
       );
     }
 
@@ -2843,66 +3627,156 @@ async function fetchJpxShortHistory(
     ) {
 
       await sleep(
-        150
+        120
       );
     }
   }
 
 
-  return events;
+  const publicationDates =
+    files
+      .map(
+        f =>
+          f.publicationDate
+      )
+      .filter(
+        Boolean
+      )
+      .sort();
+
+
+  return {
+
+    events,
+
+    fullBackfill,
+
+    fileCount:
+      files.length,
+
+    processedFiles,
+
+    failedFiles,
+
+    pageFailures,
+
+    coverageStartDate:
+      publicationDates[0]
+      ??
+      null,
+
+    coverageEndDate:
+      publicationDates[
+        publicationDates.length - 1
+      ]
+      ??
+      null
+  };
 }
 
 
-/*
-==============================================================
-空売りイベント → 状態系列
-
-機関ごとの最新報告を保持。
-
-最新残高割合 >= 0.5%
-だけを公表残高合計へ算入。
-
-0.5%未満への変更報告が来たら
-activeから外す。
-==============================================================
-*/
-
-function buildShortSnapshots(
-  events
+function shortStateMap(
+  state
 ) {
 
-  const sorted =
+  const map =
+    new Map();
+
+
+  for (
+    const item
+    of state?.active ??
+    []
+  ) {
+
+    const key =
+      `${item.name ?? "Unknown"}||${item.address ?? ""}`;
+
+
+    map.set(
+      key,
+      {
+
+        name:
+          item.name ??
+          "Unknown",
+
+        address:
+          item.address ??
+          "",
+
+        ratio:
+          Number(
+            item.ratio
+          )
+      }
+    );
+  }
+
+
+  return map;
+}
+
+
+function applyShortEvents(
+  events,
+  previousState = null,
+  incremental = false
+) {
+
+  const active =
+    incremental
+    ?
+      shortStateMap(
+        previousState
+      )
+    :
+      new Map();
+
+
+  const previousAsOf =
+    incremental
+    ?
+      previousState?.asOfDate ??
+      null
+    :
+      null;
+
+
+  const relevant =
     [...events]
+      .filter(
+        e =>
+          !incremental
+          ||
+          !previousAsOf
+          ||
+          e.calculationDate >
+          previousAsOf
+      )
       .sort(
         (
           a,
           b
         ) => {
 
-          const dateCompare =
+          const d =
             a.calculationDate
               .localeCompare(
                 b.calculationDate
               );
 
 
-          if (
-            dateCompare !==
-            0
-          ) {
-
-            return dateCompare;
-          }
-
-
-          return (
-            a.publicationDate ||
-            ""
-          )
-          .localeCompare(
-            b.publicationDate ||
-            ""
-          );
+          return d
+            ||
+            (
+              a.publicationDate ||
+              ""
+            )
+            .localeCompare(
+              b.publicationDate ||
+              ""
+            );
         }
       );
 
@@ -2913,7 +3787,7 @@ function buildShortSnapshots(
 
   for (
     const event
-    of sorted
+    of relevant
   ) {
 
     if (
@@ -2939,22 +3813,18 @@ function buildShortSnapshots(
   }
 
 
-  const active =
-    new Map();
-
-
   const snapshots =
     [];
 
 
-  const dates =
-    [...byDate.keys()]
-      .sort();
+  let asOfDate =
+    previousAsOf;
 
 
   for (
     const date
-    of dates
+    of [...byDate.keys()]
+      .sort()
   ) {
 
     for (
@@ -2965,10 +3835,7 @@ function buildShortSnapshots(
     ) {
 
       const key =
-        (
-          `${event.institution}` +
-          `||${event.address}`
-        );
+        `${event.institution}||${event.address}`;
 
 
       if (
@@ -2982,6 +3849,9 @@ function buildShortSnapshots(
 
             name:
               event.institution,
+
+            address:
+              event.address,
 
             ratio:
               event.ratio
@@ -3000,6 +3870,19 @@ function buildShortSnapshots(
 
     const institutions =
       [...active.values()]
+        .map(
+          (
+            {
+              name,
+              ratio
+            }
+          ) => ({
+
+            name,
+
+            ratio
+          })
+        )
         .sort(
           (
             a,
@@ -3010,52 +3893,69 @@ function buildShortSnapshots(
         );
 
 
-    const total =
-      institutions.reduce(
-        (
-          sum,
-          item
-        ) =>
-          sum +
-          item.ratio,
-        0
-      );
-
-
     snapshots.push({
 
       date,
 
       publicShortRatio:
         round(
-          total,
+          institutions
+            .reduce(
+              (
+                sum,
+                item
+              ) =>
+                sum +
+                item.ratio,
+              0
+            ),
           4
         ),
 
       publicShortInstitutions:
         institutions
     });
+
+
+    asOfDate =
+      date;
   }
 
 
-  console.log(
-    `[JPX] snapshots: ${snapshots.length}`
-  );
+  return {
 
+    snapshots,
 
-  return snapshots;
+    state: {
+
+      asOfDate,
+
+      active:
+        [...active.values()]
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.ratio -
+              a.ratio
+          )
+    },
+
+    appliedEventCount:
+      relevant.length
+  };
 }
 
 
 /*
 ==============================================================
-Row Merge
+Merge / Coverage
 ==============================================================
 */
 
-function mergeRows(
-  existingRows,
-  sources
+function dedupeRows(
+  rows
 ) {
 
   const map =
@@ -3064,12 +3964,11 @@ function mergeRows(
 
   for (
     const row
-    of existingRows ||
-    []
+    of rows
   ) {
 
     if (
-      !row.date
+      !row?.date
     ) {
 
       continue;
@@ -3079,68 +3978,219 @@ function mergeRows(
     map.set(
       row.date,
       {
+        ...(
+          map.get(
+            row.date
+          )
+          ||
+          {}
+        ),
+
         ...row
       }
     );
   }
 
 
-  for (
-    const rows
-    of sources
-  ) {
-
-    for (
-      const row
-      of rows
-    ) {
-
-      if (
-        !row.date
-      ) {
-
-        continue;
-      }
-
-
-      const current =
-        map.get(
-          row.date
-        )
-        ||
-        {
-          date:
-            row.date
-        };
-
-
-      map.set(
-        row.date,
-        {
-          ...current,
-          ...row
-        }
-      );
-    }
-  }
-
-
   return [...map.values()]
     .sort(
-      (a, b) =>
+      (
+        a,
+        b
+      ) =>
         a.date
           .localeCompare(
             b.date
-        )
+          )
     );
 }
 
 
-/*
-==============================================================
-Upload
-==============================================================
-*/
+function mergeRows(
+  existingRows,
+  sources
+) {
+
+  return dedupeRows(
+    [
+      ...(
+        existingRows ||
+        []
+      ),
+
+      ...sources.flat()
+    ]
+  );
+}
+
+
+function metricCoverage(
+  rows,
+  field,
+  statusWhenPresent = "ok"
+) {
+
+  const filtered =
+    rows.filter(
+      r =>
+        r[field] !==
+        undefined
+      &&
+        r[field] !==
+        null
+    );
+
+
+  const {
+    startDate,
+    endDate
+  } =
+    minMaxDates(
+      filtered
+    );
+
+
+  return {
+
+    status:
+      filtered.length
+      ?
+        statusWhenPresent
+      :
+        "error",
+
+    startDate,
+
+    endDate,
+
+    count:
+      filtered.length
+  };
+}
+
+
+function buildPublicShortCoverage(
+  jpxResult,
+  shortApplied,
+  priorCoverage
+) {
+
+  if (
+    !jpxResult
+  ) {
+
+    return (
+      priorCoverage
+      ||
+      {
+        status:
+          "error",
+
+        startDate:
+          null,
+
+        endDate:
+          null,
+
+        eventCount:
+          0
+      }
+    );
+  }
+
+
+  const hadFailures =
+    jpxResult.failedFiles >
+      0
+    ||
+    jpxResult.pageFailures >
+      0;
+
+
+  const totalKnownEvents =
+    (
+      priorCoverage?.eventCount
+      ||
+      0
+    )
+    +
+    shortApplied.appliedEventCount;
+
+
+  let status;
+
+
+  if (
+    hadFailures
+  ) {
+
+    status =
+      "partial";
+
+  }
+  else if (
+    shortApplied.state
+      .asOfDate
+  ) {
+
+    status =
+      "ok";
+
+  }
+  else if (
+    jpxResult.fullBackfill
+  ) {
+
+    status =
+      "no_events_in_coverage";
+
+  }
+  else {
+
+    status =
+      priorCoverage?.status
+      ||
+      "unknown";
+  }
+
+
+  return {
+
+    status,
+
+    startDate:
+      priorCoverage?.startDate
+      ||
+      jpxResult.coverageStartDate,
+
+    endDate:
+      jpxResult.coverageEndDate
+      ||
+      priorCoverage?.endDate
+      ||
+      null,
+
+    stateAsOfDate:
+      shortApplied.state
+        .asOfDate
+      ||
+      priorCoverage?.stateAsOfDate
+      ||
+      null,
+
+    eventCount:
+      totalKnownEvents,
+
+    filesScanned:
+      jpxResult.processedFiles,
+
+    failedFiles:
+      jpxResult.failedFiles
+      +
+      jpxResult.pageFailures
+  };
+}
+
 
 async function uploadSupply(
   data
@@ -3195,12 +4245,7 @@ async function uploadSupply(
 
 
   console.log(
-    `[R2] JSON ${Buffer.byteLength(json).toLocaleString()} bytes`
-  );
-
-
-  console.log(
-    `[R2] gzip ${gzip.length.toLocaleString()} bytes`
+    `[R2] JSON ${Buffer.byteLength(json).toLocaleString()} bytes / gzip ${gzip.length.toLocaleString()} bytes`
   );
 }
 
@@ -3240,55 +4285,110 @@ async function main() {
       [];
 
 
-  /*
-    公表空売り履歴が無ければ
-    初回backfill
-  */
-
-  const hasShortHistory =
-    existingRows.some(
-      row =>
-        row.publicShortRatio !==
+  const existingLoanCount =
+    existingRows.filter(
+      r =>
+        r.loanRatio !==
         undefined
+      &&
+        r.loanRatio !==
+        null
+    ).length;
+
+
+  const needLoanBackfill =
+    existingLoanCount <
+    100;
+
+
+  const priorShortCoverage =
+    existing?.coverage
+      ?.publicShort
+    ||
+    null;
+
+
+  const haveCompletedShortBackfill =
+    Boolean(
+      priorShortCoverage
+      &&
+      [
+        "ok",
+        "partial",
+        "no_events_in_coverage"
+      ]
+      .includes(
+        priorShortCoverage.status
+      )
     );
 
 
+  const fullShortBackfill =
+    !haveCompletedShortBackfill;
+
+
+  console.log(
+    `[PLAN] JSF historical backfill: ${needLoanBackfill ? "YES" : "NO"} (${existingLoanCount} existing rows)`
+  );
+
+
+  console.log(
+    `[PLAN] JPX full archive scan: ${fullShortBackfill ? "YES" : "NO"}`
+  );
+
+
+  const tasks = [
+
+    fetchJsfRecentDetail(),
+
+    fetchJsfCurrentCsv(),
+
+    fetchYahooMarginHistory(
+      10
+    ),
+
+    fetchJpxShortHistory(
+      fullShortBackfill
+    ),
+
+    needLoanBackfill
+      ?
+        fetchJsfHistoricalCsv(
+          JSF_BACKFILL_YEARS
+        )
+      :
+        Promise.resolve(
+          []
+        )
+  ];
+
+
   const [
-    jsfRecentResult,
-    jsfCurrentResult,
+    recentResult,
+    currentResult,
     marginResult,
-    shortEventsResult
+    jpxResultSettled,
+    historyResult
   ] =
-    await Promise.allSettled([
-
-      fetchJsfRecentDetail(),
-
-      fetchJsfCurrentCsv(),
-
-      fetchYahooMarginHistory(
-        10
-      ),
-
-      fetchJpxShortHistory(
-        !hasShortHistory
-      )
-    ]);
+    await Promise.allSettled(
+      tasks
+    );
 
 
   const jsfRecent =
-    jsfRecentResult.status ===
+    recentResult.status ===
       "fulfilled"
     ?
-      jsfRecentResult.value
+      recentResult.value
     :
       [];
 
 
   const jsfCurrent =
-    jsfCurrentResult.status ===
+    currentResult.status ===
       "fulfilled"
     ?
-      jsfCurrentResult.value
+      currentResult.value
     :
       [];
 
@@ -3302,80 +4402,111 @@ async function main() {
       [];
 
 
-  const shortEvents =
-    shortEventsResult.status ===
+  const jsfHistory =
+    historyResult.status ===
       "fulfilled"
     ?
-      shortEventsResult.value
+      historyResult.value
     :
       [];
 
 
-  if (
-    jsfRecentResult.status ===
-    "rejected"
+  const jpxResult =
+    jpxResultSettled.status ===
+      "fulfilled"
+    ?
+      jpxResultSettled.value
+    :
+      null;
+
+
+  for (
+    const [
+      label,
+      result
+    ]
+    of [
+
+      [
+        "JSF recent",
+        recentResult
+      ],
+
+      [
+        "JSF current",
+        currentResult
+      ],
+
+      [
+        "Yahoo margin",
+        marginResult
+      ],
+
+      [
+        "JPX short",
+        jpxResultSettled
+      ],
+
+      [
+        "JSF historical",
+        historyResult
+      ]
+    ]
   ) {
 
-    console.warn(
-      "[JSF detail error]",
-      jsfRecentResult.reason
-        ?.message
-    );
+    if (
+      result.status ===
+      "rejected"
+    ) {
+
+      console.warn(
+        `[${label} ERROR] ${result.reason?.message ?? result.reason}`
+      );
+    }
   }
 
 
-  if (
-    jsfCurrentResult.status ===
-    "rejected"
-  ) {
-
-    console.warn(
-      "[JSF CSV error]",
-      jsfCurrentResult.reason
-        ?.message
-    );
-  }
+  const previousShortState =
+    existing?.shortState
+    ||
+    null;
 
 
-  if (
-    marginResult.status ===
-    "rejected"
-  ) {
+  const shortApplied =
+    jpxResult
+    ?
+      applyShortEvents(
+        jpxResult.events,
+        previousShortState,
+        !fullShortBackfill
+      )
+    :
+      {
+        snapshots:
+          [],
 
-    console.warn(
-      "[Margin error]",
-      marginResult.reason
-        ?.message
-    );
-  }
+        state:
+          previousShortState
+          ||
+          {
+            asOfDate:
+              null,
 
+            active:
+              []
+          },
 
-  if (
-    shortEventsResult.status ===
-    "rejected"
-  ) {
-
-    console.warn(
-      "[JPX short error]",
-      shortEventsResult.reason
-        ?.message
-    );
-  }
-
-
-  const shortSnapshots =
-    buildShortSnapshots(
-      shortEvents
-    );
+        appliedEventCount:
+          0
+      };
 
 
   const rows =
     mergeRows(
-
       existingRows,
-
       [
-        shortSnapshots,
+        shortApplied.snapshots,
+        jsfHistory,
         jsfRecent,
         jsfCurrent,
         margin
@@ -3383,10 +4514,60 @@ async function main() {
     );
 
 
+  let loanCoverage =
+    metricCoverage(
+      rows,
+      "loanRatio"
+    );
+
+
+  if (
+    loanCoverage.count >
+      0
+    &&
+    loanCoverage.count <
+      100
+  ) {
+
+    loanCoverage.status =
+      "partial";
+  }
+
+
+  if (
+    needLoanBackfill
+    &&
+    historyResult.status ===
+      "rejected"
+    &&
+    loanCoverage.count >
+      0
+  ) {
+
+    loanCoverage.status =
+      "partial";
+  }
+
+
+  const marginCoverage =
+    metricCoverage(
+      rows,
+      "marginRatio"
+    );
+
+
+  const publicShortCoverage =
+    buildPublicShortCoverage(
+      jpxResult,
+      shortApplied,
+      priorShortCoverage
+    );
+
+
   const output = {
 
     schemaVersion:
-      1,
+      2,
 
     code:
       CODE,
@@ -3410,40 +4591,58 @@ async function main() {
     notes: {
 
       publicShortRatio:
-        "Sum of latest disclosed positions that remain at or above 0.5%.",
+        "Sum of latest disclosed positions that remain at or above 0.5%. Zero is emitted only after an explicit state can be reconstructed; no event in the available archive is not treated as zero.",
 
       loanRatio:
         "Fund Loan Outstanding / Stock Loan Outstanding.",
 
       marginRatio:
-        "Margin Buying Outstanding / Margin Selling Outstanding."
+        "Margin Buying Outstanding / Margin Selling Outstanding. Weekly values are forward-filled only in the browser for chart alignment."
     },
+
+    coverage: {
+
+      publicShort:
+        publicShortCoverage,
+
+      loanRatio:
+        loanCoverage,
+
+      marginRatio:
+        marginCoverage
+    },
+
+    shortState:
+      shortApplied.state,
 
     rows
   };
 
 
   console.log(
-    "\n=== Result ==="
+    "\n=== Coverage ==="
   );
 
 
   console.log(
-    `rows: ${rows.length}`
+    JSON.stringify(
+      output.coverage,
+      null,
+      2
+    )
   );
 
 
-  if (
-    rows.length
-  ) {
+  console.log(
+    "\n=== Latest rows ==="
+  );
 
-    console.log(
-      "latest:",
-      rows[
-        rows.length - 1
-      ]
-    );
-  }
+
+  console.log(
+    rows.slice(
+      -8
+    )
+  );
 
 
   await uploadSupply(
