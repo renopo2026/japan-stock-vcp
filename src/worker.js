@@ -1,100 +1,181 @@
 export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
 
-    // ========================================================
-    // 株価API
-    // /api/stock/7203
-    // ========================================================
+  async fetch(
+    request,
+    env
+  ) {
 
-    const match =
+    const url =
+      new URL(
+        request.url
+      );
+
+
+    /*
+    ==========================================================
+    株価API
+
+    /api/stock/9984
+    ==========================================================
+    */
+
+    const stockMatch =
       url.pathname.match(
         /^\/api\/stock\/([0-9A-Z]{4})$/
       );
 
-    if (match) {
-      const code = match[1];
 
-      const key =
-        `stocks/${code}.json.gz`;
+    if (
+      stockMatch
+    ) {
 
-      // R2から取得
-      const object =
-        await env.STOCK_DATA.get(key);
+      return serveR2JsonGzip(
 
-      // 存在しない銘柄
-      if (!object) {
-        return new Response(
-          JSON.stringify({
-            error: "Stock data not found",
-            code
-          }),
-          {
-            status: 404,
-            headers: {
-              "Content-Type":
-                "application/json; charset=utf-8"
-            }
-          }
-        );
-      }
+        env,
 
-      // ======================================================
-      // R2に保存されているHTTPメタデータを引き継ぐ
-      //
-      // Content-Type: application/json
-      // Content-Encoding: gzip
-      // など
-      // ======================================================
+        `stocks/${stockMatch[1]}.json.gz`,
 
-      const headers =
-        new Headers();
-
-      object.writeHttpMetadata(
-        headers
-      );
-
-      headers.set(
-        "ETag",
-        object.httpEtag
-      );
-
-      headers.set(
-        "Cache-Control",
-        "no-cache"
-      );
-
-      /*
-       * 重要
-       *
-       * R2内のobject.bodyはすでにgzip済み。
-       *
-       * encodeBody:"automatic"のままだと
-       * Cloudflare Workersが再圧縮する可能性がある。
-       *
-       * manualにすることで、
-       * 「このbodyはContent-Encodingに記載された形式で
-       *  すでに圧縮済み」とWorkerへ伝える。
-       */
-      return new Response(
-        object.body,
         {
-          headers,
+          error:
+            "Stock data not found",
 
-          encodeBody:
-            "manual"
+          code:
+            stockMatch[1]
         }
       );
     }
 
-    // ========================================================
-    // API以外
-    //
-    // public/index.html等のStatic Assetsへ
-    // ========================================================
+
+    /*
+    ==========================================================
+    需給API
+
+    /api/supply/9984
+    ==========================================================
+    */
+
+    const supplyMatch =
+      url.pathname.match(
+        /^\/api\/supply\/([0-9A-Z]{4})$/
+      );
+
+
+    if (
+      supplyMatch
+    ) {
+
+      return serveR2JsonGzip(
+
+        env,
+
+        `supply/${supplyMatch[1]}.json.gz`,
+
+        {
+          error:
+            "Supply data not found",
+
+          code:
+            supplyMatch[1]
+        }
+      );
+    }
+
+
+    /*
+    ==========================================================
+    Static assets
+    ==========================================================
+    */
 
     return env.ASSETS.fetch(
       request
     );
   }
 };
+
+
+/*
+==============================================================
+R2 gzip JSON response
+
+encodeBody: manual が重要。
+
+R2内のgzipを
+Cloudflareに再圧縮させない。
+==============================================================
+*/
+
+async function serveR2JsonGzip(
+  env,
+  key,
+  notFoundBody
+) {
+
+  const object =
+    await env.STOCK_DATA.get(
+      key
+    );
+
+
+  if (
+    !object
+  ) {
+
+    return new Response(
+
+      JSON.stringify(
+        notFoundBody
+      ),
+
+      {
+
+        status:
+          404,
+
+        headers: {
+
+          "Content-Type":
+            "application/json; charset=utf-8",
+
+          "Cache-Control":
+            "no-cache"
+        }
+      }
+    );
+  }
+
+
+  const headers =
+    new Headers();
+
+
+  object.writeHttpMetadata(
+    headers
+  );
+
+
+  headers.set(
+    "ETag",
+    object.httpEtag
+  );
+
+
+  headers.set(
+    "Cache-Control",
+    "no-cache"
+  );
+
+
+  return new Response(
+
+    object.body,
+
+    {
+
+      headers,
+
+      encodeBody:
+        "manual"
+    }
+  );
+}
