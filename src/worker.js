@@ -83,6 +83,39 @@ export default {
 
     /*
     ==========================================================
+    TOPIX API
+
+    /api/topix
+
+    R2:
+    benchmark/TOPIX.json.gz
+    ==========================================================
+    */
+
+    if (
+      url.pathname ===
+      "/api/topix"
+    ) {
+
+      return serveR2JsonGzip(
+
+        env,
+
+        "benchmark/TOPIX.json.gz",
+
+        {
+          error:
+            "TOPIX data not found",
+
+          code:
+            "TOPIX"
+        }
+      );
+    }
+
+
+    /*
+    ==========================================================
     Static assets
     ==========================================================
     */
