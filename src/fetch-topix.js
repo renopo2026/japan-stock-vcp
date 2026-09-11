@@ -105,6 +105,36 @@ const sleep =
         )
     );
 
+/*
+ * 指定範囲内でランダムに待機する。
+ *
+ * 通常アクセスを一定間隔にせず、
+ * Yahoo側へのアクセス負荷も抑える。
+ */
+async function randomWait(
+  minMs = 3000,
+  maxMs = 6000
+) {
+  const wait =
+    Math.floor(
+      Math.random() *
+      (
+        maxMs -
+        minMs +
+        1
+      )
+    ) +
+    minMs;
+
+  console.log(
+    `[WAIT] ${(wait / 1000).toFixed(2)} sec`
+  );
+
+  await sleep(
+    wait
+  );
+}
+
 function pad2(
   value
 ) {
@@ -278,6 +308,17 @@ function buildHistoryUrl(
   );
 }
 
+/*
+ * HTML取得。
+ *
+ * エラー時は、
+ *
+ * 1回目: 10〜15秒
+ * 2回目: 20〜30秒
+ * 3回目: 30〜45秒
+ *
+ * 待って再試行する。
+ */
 async function fetchText(
   url,
   attempts = 4
@@ -349,9 +390,9 @@ async function fetchText(
         attempt <
         attempts
       ) {
-        await sleep(
-          attempt *
-          2500
+        await randomWait(
+          attempt * 10000,
+          attempt * 15000
         );
       }
     }
@@ -610,11 +651,7 @@ function dedupeRows(
 }
 
 /*
- * 通常の1期間取得。
- *
- * この関数自体では期間分割しない。
- * Yahoo側で500等が発生した場合は
- * fetchWindowSafe() が期間を分割して再試行する。
+ * 1期間分を取得。
  */
 async function fetchWindowOnce(
   from,
@@ -714,8 +751,13 @@ async function fetchWindowOnce(
       break;
     }
 
-    await sleep(
-      700
+    /*
+     * 通常ページ間:
+     * 3〜6秒ランダム待機
+     */
+    await randomWait(
+      3000,
+      6000
     );
   }
 
@@ -735,10 +777,10 @@ async function fetchWindowOnce(
 }
 
 /*
- * Yahoo側が特定期間で500を返した場合、
- * 期間を2分割して再取得する。
+ * 期間取得に失敗した場合は、
+ * 期間を2分割して再試行する。
  *
- * それでも失敗すれば再帰的にさらに分割する。
+ * 現時点では従来ロジックを維持。
  */
 async function fetchWindowSafe(
   from,
@@ -773,10 +815,6 @@ async function fetchWindowSafe(
       `(${error.message})`
     );
 
-    /*
-     * これ以上細かくすると
-     * リクエストが増え過ぎるため停止。
-     */
     if (
       days <= 45 ||
       depth >= 5
@@ -790,9 +828,6 @@ async function fetchWindowSafe(
       throw error;
     }
 
-    /*
-     * 時間幅の中央で分割。
-     */
     const middleTime =
       Math.floor(
         (
@@ -821,6 +856,14 @@ async function fetchWindowSafe(
       `${toIsoDate(to)}`
     );
 
+    /*
+     * 失敗直後にも少し長めの待機。
+     */
+    await randomWait(
+      10000,
+      15000
+    );
+
     const firstRows =
       await fetchWindowSafe(
         from,
@@ -828,8 +871,13 @@ async function fetchWindowSafe(
         depth + 1
       );
 
-    await sleep(
-      1000
+    /*
+     * 分割した2区間の間も
+     * 4〜7秒待つ。
+     */
+    await randomWait(
+      4000,
+      7000
     );
 
     const secondRows =
@@ -903,17 +951,19 @@ async function fetchTopixHistory() {
       `${rows.length} rows`
     );
 
-    /*
-     * 次の期間との日付重複を防ぐ。
-     */
     windowEnd =
       addDays(
         windowStart,
         -1
       );
 
-    await sleep(
-      1000
+    /*
+     * 年区間切替:
+     * 4〜7秒ランダム待機
+     */
+    await randomWait(
+      4000,
+      7000
     );
   }
 
@@ -923,11 +973,8 @@ async function fetchTopixHistory() {
     );
 
   /*
-   * 10年なら通常は
-   * 2,400営業日前後になる。
-   *
-   * 200営業日 × 年数を
-   * 最低ラインとして異常検知。
+   * 10年なら通常約2400営業日。
+   * 200営業日 × 年数を最低ラインにする。
    */
   if (
     rows.length <
@@ -940,11 +987,6 @@ async function fetchTopixHistory() {
     );
   }
 
-  /*
-   * 最古データが
-   * 要求開始日の20日以内に
-   * 到達しているか確認。
-   */
   const startTolerance =
     new Date(
       requestedStart
@@ -1072,6 +1114,11 @@ async function main() {
   console.log(
     `History years: ` +
     `${YEARS}`
+  );
+
+  console.log(
+    `Normal request interval: ` +
+    `3-6 sec random`
   );
 
   const rows =
