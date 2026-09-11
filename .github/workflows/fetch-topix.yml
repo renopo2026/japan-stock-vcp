@@ -4,14 +4,15 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 20:30 JST, Monday-Friday
+    # 20:30 JST / Monday-Friday
     - cron: "30 11 * * 1-5"
 
 jobs:
   fetch-topix:
     runs-on: ubuntu-latest
 
-    timeout-minutes: 30
+    # Playwright + 10年取得なので余裕を持たせる
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -25,13 +26,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Fetch TOPIX and upload to R2
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Fetch TOPIX with Playwright and upload to R2
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+
           TOPIX_HISTORY_YEARS: "10"
 
         run: node src/fetch-topix.js
