@@ -2,46 +2,57 @@
 ==============================================================
 Signal Engine
 
-売買シグナル判定だけを担当する。
+BUY
+  Trigger > Setup > Trend > 0
 
-チャート描画・TOPIX取得・VCP計算などは
-index.html側で担当する。
+SELL
+  VCP 5MA < VCP 25MA
+  AND
+  VCP N < vcpSellThreshold
+  AND
+  Trend_t < Trend_t-5
 
-入力:
-  rows
+SELLはBUY後だけ有効。
 
-必要なrow項目:
-  date
-  close
-  vcp26
-  vcp26Ma5
-  vcp26Ma25
-  trendLine
-  setupLine
-  triggerLine
-
-出力:
-  BUY / SELLの日付
-  トレード一覧
-  現在のポジション状態
+バックテスト統計:
+  Total Return
+  MFE
+  MAE
+  Capture Ratio
+  Win Rate
 ==============================================================
 */
 
 (function () {
 
-  function isFiniteNumber(value) {
+  const DEFAULT_OPTIONS = {
+
+    /*
+     * SELL条件のVCP N閾値
+     */
+    vcpSellThreshold:
+      -0.08
+  };
+
+
+  function isFiniteNumber(
+    value
+  ) {
+
     return (
-      typeof value === "number" &&
-      Number.isFinite(value)
+      typeof value ===
+      "number"
+      &&
+      Number.isFinite(
+        value
+      )
     );
   }
 
 
   /*
   ============================================================
-  BUY条件
-
-  Trigger > Setup > Trend > 0
+  BUY
   ============================================================
   */
 
@@ -58,6 +69,7 @@ index.html側で担当する。
         isFiniteNumber
       )
     ) {
+
       return false;
     }
 
@@ -81,28 +93,21 @@ index.html側で担当する。
 
   /*
   ============================================================
-  SELL条件
-
-  VCP 5MA < VCP 25MA
-
-  AND
-
-  VCP N < 0
-
-  AND
-
-  Trend_t < Trend_t-5
+  SELL
   ============================================================
   */
 
   function isSellCondition(
     rows,
-    index
+    index,
+    options
   ) {
 
     if (
-      index < 5
+      index <
+      5
     ) {
+
       return false;
     }
 
@@ -112,7 +117,10 @@ index.html側で担当する。
 
 
     const row5 =
-      rows[index - 5];
+      rows[
+        index -
+        5
+      ];
 
 
     if (
@@ -126,6 +134,7 @@ index.html側で担当する。
         isFiniteNumber
       )
     ) {
+
       return false;
     }
 
@@ -137,7 +146,7 @@ index.html側で担当する。
       &&
 
       row.vcp26 <
-      0
+      options.vcpSellThreshold
 
       &&
 
@@ -149,23 +158,468 @@ index.html側で担当する。
 
   /*
   ============================================================
-  メイン判定
+  1トレードのMFE / MAE / Capture Ratio
+  ============================================================
+  */
 
-  State Machine
+  function calculateTradeStats(
+    rows,
+    trade
+  ) {
 
-  FLAT
-    ↓ BUY
-  LONG
-    ↓ SELL
-  FLAT
+    const start =
+      trade.entryIndex;
 
-  SELLはLONG時しか出さない。
+
+    const end =
+      trade.exitIndex ??
+      (
+        rows.length -
+        1
+      );
+
+
+    if (
+      start === null
+      ||
+      start === undefined
+      ||
+      end <
+      start
+      ||
+      !isFiniteNumber(
+        trade.entryPrice
+      )
+    ) {
+
+      return {
+        mfePct:
+          null,
+
+        maePct:
+          null,
+
+        captureRatio:
+          null
+      };
+    }
+
+
+    let highest =
+      trade.entryPrice;
+
+
+    let lowest =
+      trade.entryPrice;
+
+
+    for (
+      let i =
+        start;
+
+      i <=
+        end;
+
+      i++
+    ) {
+
+      const row =
+        rows[i];
+
+
+      /*
+       * MFEは日中高値を使用
+       */
+      if (
+        isFiniteNumber(
+          row.high
+        )
+      ) {
+
+        highest =
+          Math.max(
+            highest,
+            row.high
+          );
+      }
+
+
+      /*
+       * MAEは日中安値を使用
+       */
+      if (
+        isFiniteNumber(
+          row.low
+        )
+      ) {
+
+        lowest =
+          Math.min(
+            lowest,
+            row.low
+          );
+      }
+    }
+
+
+    const mfePct =
+      (
+        highest /
+        trade.entryPrice -
+        1
+      ) *
+      100;
+
+
+    const maePct =
+      (
+        lowest /
+        trade.entryPrice -
+        1
+      ) *
+      100;
+
+
+    const effectiveExitPrice =
+      trade.status ===
+      "OPEN"
+        ? trade.currentPrice
+        : trade.exitPrice;
+
+
+    let captureRatio =
+      null;
+
+
+    /*
+     * 最大含み益が存在する場合だけ
+     * Capture Ratioを計算。
+     */
+    if (
+      isFiniteNumber(
+        effectiveExitPrice
+      )
+      &&
+      highest >
+      trade.entryPrice
+    ) {
+
+      captureRatio =
+        (
+          effectiveExitPrice -
+          trade.entryPrice
+        )
+        /
+        (
+          highest -
+          trade.entryPrice
+        )
+        *
+        100;
+    }
+
+
+    return {
+
+      highestPrice:
+        highest,
+
+      lowestPrice:
+        lowest,
+
+      mfePct,
+
+      maePct,
+
+      captureRatio
+    };
+  }
+
+
+  /*
+  ============================================================
+  Strategy Summary
+  ============================================================
+  */
+
+  function calculateSummary(
+    trades
+  ) {
+
+    if (
+      !trades.length
+    ) {
+
+      return {
+
+        totalReturnPct:
+          0,
+
+        closedTotalReturnPct:
+          0,
+
+        averageMfePct:
+          null,
+
+        averageMaePct:
+          null,
+
+        averageCaptureRatio:
+          null,
+
+        closedTrades:
+          0,
+
+        winningTrades:
+          0,
+
+        winRate:
+          null
+      };
+    }
+
+
+    /*
+     * Total Return
+     *
+     * トレードが重複しないため、
+     * 各リターンを複利で接続する。
+     */
+    let totalEquity =
+      1;
+
+
+    let closedEquity =
+      1;
+
+
+    let closedTrades =
+      0;
+
+
+    let winningTrades =
+      0;
+
+
+    const mfeValues =
+      [];
+
+
+    const maeValues =
+      [];
+
+
+    const captureValues =
+      [];
+
+
+    for (
+      const trade
+      of trades
+    ) {
+
+      if (
+        isFiniteNumber(
+          trade.returnPct
+        )
+      ) {
+
+        totalEquity *=
+          (
+            1 +
+            trade.returnPct /
+            100
+          );
+      }
+
+
+      if (
+        trade.status ===
+        "CLOSED"
+      ) {
+
+        closedTrades++;
+
+
+        if (
+          isFiniteNumber(
+            trade.returnPct
+          )
+        ) {
+
+          closedEquity *=
+            (
+              1 +
+              trade.returnPct /
+              100
+            );
+
+
+          if (
+            trade.returnPct >
+            0
+          ) {
+
+            winningTrades++;
+          }
+        }
+      }
+
+
+      if (
+        isFiniteNumber(
+          trade.mfePct
+        )
+      ) {
+
+        mfeValues.push(
+          trade.mfePct
+        );
+      }
+
+
+      if (
+        isFiniteNumber(
+          trade.maePct
+        )
+      ) {
+
+        maeValues.push(
+          trade.maePct
+        );
+      }
+
+
+      /*
+       * Capture Ratio平均は
+       * CLOSEDだけを対象にする。
+       *
+       * OPENトレードはまだ途中なので
+       * 平均値に混ぜない。
+       */
+      if (
+        trade.status ===
+        "CLOSED"
+        &&
+        isFiniteNumber(
+          trade.captureRatio
+        )
+      ) {
+
+        captureValues.push(
+          trade.captureRatio
+        );
+      }
+    }
+
+
+    const average =
+      values => {
+
+        if (
+          !values.length
+        ) {
+
+          return null;
+        }
+
+
+        return (
+          values.reduce(
+            (
+              sum,
+              value
+            ) =>
+              sum +
+              value,
+
+            0
+          )
+          /
+          values.length
+        );
+      };
+
+
+    return {
+
+      /*
+       * OPENポジションの現在損益も含む
+       */
+      totalReturnPct:
+        (
+          totalEquity -
+          1
+        ) *
+        100,
+
+
+      /*
+       * 決済済みのみ
+       */
+      closedTotalReturnPct:
+        (
+          closedEquity -
+          1
+        ) *
+        100,
+
+
+      averageMfePct:
+        average(
+          mfeValues
+        ),
+
+
+      averageMaePct:
+        average(
+          maeValues
+        ),
+
+
+      averageCaptureRatio:
+        average(
+          captureValues
+        ),
+
+
+      closedTrades,
+
+
+      winningTrades,
+
+
+      winRate:
+        closedTrades >
+        0
+          ? (
+              winningTrades /
+              closedTrades *
+              100
+            )
+          : null
+    };
+  }
+
+
+  /*
+  ============================================================
+  Evaluate
   ============================================================
   */
 
   function evaluate(
-    rows
+    rows,
+    userOptions = {}
   ) {
+
+    const options = {
+
+      ...DEFAULT_OPTIONS,
+
+      ...userOptions
+    };
+
 
     let inPosition =
       false;
@@ -188,10 +642,11 @@ index.html側で担当する。
 
 
     /*
-     * 既存シグナルを初期化。
+     * 前回計算をリセット
      */
     for (
-      const row of rows
+      const row
+      of rows
     ) {
 
       row.buyCondition =
@@ -217,7 +672,10 @@ index.html側で担当する。
 
     for (
       let i = 0;
-      i < rows.length;
+
+      i <
+      rows.length;
+
       i++
     ) {
 
@@ -225,10 +683,6 @@ index.html側で担当する。
         rows[i];
 
 
-      /*
-       * 条件そのものは
-       * 保有状態に関係なく計算しておく。
-       */
       row.buyCondition =
         isBuyCondition(
           row
@@ -238,13 +692,14 @@ index.html側で担当する。
       row.sellCondition =
         isSellCondition(
           rows,
-          i
+          i,
+          options
         );
 
 
       /*
       ========================================================
-      未保有
+      FLAT
       ========================================================
       */
 
@@ -269,6 +724,7 @@ index.html側で担当する。
 
 
           const signal = {
+
             type:
               "BUY",
 
@@ -291,13 +747,7 @@ index.html側で担当する。
               row.trendLine,
 
             vcpN:
-              row.vcp26,
-
-            vcp5Ma:
-              row.vcp26Ma5,
-
-            vcp25Ma:
-              row.vcp26Ma25
+              row.vcp26
           };
 
 
@@ -307,6 +757,7 @@ index.html側で担当する。
 
 
           currentTrade = {
+
             entryDate:
               row.date,
 
@@ -325,7 +776,22 @@ index.html側で担当する。
             exitIndex:
               null,
 
+            currentDate:
+              null,
+
+            currentPrice:
+              null,
+
             returnPct:
+              null,
+
+            mfePct:
+              null,
+
+            maePct:
+              null,
+
+            captureRatio:
               null,
 
             status:
@@ -333,13 +799,14 @@ index.html側で担当する。
           };
         }
 
+
         continue;
       }
 
 
       /*
       ========================================================
-      保有中
+      LONG
       ========================================================
       */
 
@@ -347,10 +814,6 @@ index.html側で担当する。
         true;
 
 
-      /*
-       * BUY済みなので
-       * SELL条件を評価する。
-       */
       if (
         row.sellCondition
       ) {
@@ -359,7 +822,8 @@ index.html側で担当する。
           true;
 
 
-        const signal = {
+        sellSignals.push({
+
           type:
             "SELL",
 
@@ -372,34 +836,23 @@ index.html側で担当する。
           index:
             i,
 
-          trigger:
-            row.triggerLine,
-
-          setup:
-            row.setupLine,
-
           trend:
             row.trendLine,
 
           trend5:
-            rows[i - 5]
-              ?.trendLine ??
+            rows[
+              i -
+              5
+            ]?.trendLine
+            ??
             null,
 
           vcpN:
             row.vcp26,
 
-          vcp5Ma:
-            row.vcp26Ma5,
-
-          vcp25Ma:
-            row.vcp26Ma25
-        };
-
-
-        sellSignals.push(
-          signal
-        );
+          vcpThreshold:
+            options.vcpSellThreshold
+        });
 
 
         if (
@@ -431,6 +884,19 @@ index.html側で担当する。
             "CLOSED";
 
 
+          const stats =
+            calculateTradeStats(
+              rows,
+              currentTrade
+            );
+
+
+          Object.assign(
+            currentTrade,
+            stats
+          );
+
+
           trades.push(
             currentTrade
           );
@@ -445,10 +911,6 @@ index.html側で担当する。
           false;
 
 
-        /*
-         * SELLした当日は
-         * positionStateをfalseにする。
-         */
         row.positionState =
           false;
       }
@@ -456,26 +918,31 @@ index.html側で担当する。
 
 
     /*
-     * 最後までSELLされていなければ
-     * OPENトレードとして追加。
-     */
+    ==========================================================
+    OPEN trade
+    ==========================================================
+    */
+
     if (
       currentTrade
     ) {
 
       const latest =
         rows[
-          rows.length - 1
+          rows.length -
+          1
         ];
 
 
       currentTrade.currentDate =
-        latest?.date ??
+        latest?.date
+        ??
         null;
 
 
       currentTrade.currentPrice =
-        latest?.close ??
+        latest?.close
+        ??
         null;
 
 
@@ -483,7 +950,8 @@ index.html側で担当する。
         (
           isFiniteNumber(
             latest?.close
-          ) &&
+          )
+          &&
           isFiniteNumber(
             currentTrade.entryPrice
           )
@@ -497,13 +965,34 @@ index.html側で担当する。
           : null;
 
 
+      const stats =
+        calculateTradeStats(
+          rows,
+          currentTrade
+        );
+
+
+      Object.assign(
+        currentTrade,
+        stats
+      );
+
+
       trades.push(
         currentTrade
       );
     }
 
 
+    const summary =
+      calculateSummary(
+        trades
+      );
+
+
     return {
+
+      options,
 
       buySignals,
 
@@ -511,30 +1000,28 @@ index.html側で担当する。
 
       trades,
 
+      summary,
+
       inPosition,
 
       latestBuy:
         buySignals.length
           ? buySignals[
-              buySignals.length - 1
+              buySignals.length -
+              1
             ]
           : null,
 
       latestSell:
         sellSignals.length
           ? sellSignals[
-              sellSignals.length - 1
+              sellSignals.length -
+              1
             ]
           : null
     };
   }
 
-
-  /*
-  ============================================================
-  外部公開
-  ============================================================
-  */
 
   window.SignalEngine = {
 
