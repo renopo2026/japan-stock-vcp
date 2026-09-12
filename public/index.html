@@ -4,39 +4,117 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Japan Stock VCP</title>
-  <script src="https://cdn.plot.ly/plotly-3.7.0.min.js" charset="utf-8"></script>
+
+  <script
+    src="https://cdn.plot.ly/plotly-3.7.0.min.js"
+    charset="utf-8"
+  ></script>
+
+  <script src="/signal-engine.js"></script>
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       background: #f3f4f6;
       color: #202124;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
     }
-    .app { max-width: 1800px; margin: 0 auto; padding: 14px; }
-    .header, .chart-card {
+
+    .app {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    .header,
+    .chart-card {
       background: #fff;
       border-radius: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      box-shadow:
+        0 1px 4px
+        rgba(0,0,0,.08);
     }
-    .header { padding: 15px 18px; margin-bottom: 10px; }
-    .chart-card { padding: 5px; }
-    .title-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 23px; }
-    #stockTitle { margin-top: 6px; font-size: 18px; font-weight: 600; }
-    .controls { margin-top: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    input, select, button {
+
+    .header {
+      padding: 15px 18px;
+      margin-bottom: 10px;
+    }
+
+    .chart-card {
+      padding: 5px;
+    }
+
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 23px;
+    }
+
+    #stockTitle {
+      margin-top: 6px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .controls {
+      margin-top: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    input,
+    select,
+    button {
       padding: 7px 9px;
       border: 1px solid #bbb;
       border-radius: 5px;
       background: #fff;
       font-size: 14px;
     }
-    #stockCode { width: 110px; font-size: 16px; }
-    button { cursor: pointer; padding: 7px 12px; }
-    button:hover { background: #f2f2f2; }
-    button.active { color: #fff; background: #222; border-color: #222; }
-    .period-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    #stockCode {
+      width: 110px;
+      font-size: 16px;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 7px 12px;
+    }
+
+    button:hover {
+      background: #f2f2f2;
+    }
+
+    button.active {
+      color: #fff;
+      background: #222;
+      border-color: #222;
+    }
+
+    .period-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
     .checkbox-control {
       display: inline-flex;
       align-items: center;
@@ -49,311 +127,862 @@
       user-select: none;
       font-size: 14px;
     }
-    .checkbox-control input { margin: 0; width: 16px; height: 16px; cursor: pointer; }
-    .status { margin-top: 9px; font-size: 13px; color: #666; }
-    .error { color: #c62828; font-weight: 600; }
-    .summary { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 15px; font-size: 13px; }
-    .summary-label { color: #777; }
-    .buy { color: #1565c0; font-weight: 700; }
-    .sell { color: #c62828; font-weight: 700; }
-    #chart { width: 100%; height: 1080px; }
-    .info { padding: 3px 12px 8px; color: #666; font-size: 12px; }
-    @media (max-width: 800px) { #chart { height: 900px; } }
+
+    .checkbox-control input {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .status {
+      margin-top: 9px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .error {
+      color: #c62828;
+      font-weight: 600;
+    }
+
+    .summary {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 13px;
+    }
+
+    .summary-label {
+      color: #777;
+    }
+
+    .buy {
+      color: #1565c0;
+      font-weight: 700;
+    }
+
+    .sell {
+      color: #c62828;
+      font-weight: 700;
+    }
+
+    #chart {
+      width: 100%;
+      height: 1080px;
+    }
+
+    .info {
+      padding: 3px 12px 8px;
+      color: #666;
+      font-size: 12px;
+    }
+
+    /*
+    ==========================================================
+    Chart + Signal sidebar
+    ==========================================================
+    */
+
+    .chart-workspace {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1fr)
+        260px;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .signal-sidebar {
+      position: sticky;
+      top: 10px;
+
+      background: #fff;
+
+      border-radius: 10px;
+
+      box-shadow:
+        0 1px 4px
+        rgba(0,0,0,.08);
+
+      padding: 15px;
+
+      min-height: 300px;
+    }
+
+    .signal-sidebar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #666;
+      letter-spacing: .08em;
+      margin-bottom: 14px;
+    }
+
+    .signal-state {
+      font-size: 25px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .signal-state.long {
+      color: #1976d2;
+    }
+
+    .signal-state.flat {
+      color: #777;
+    }
+
+    .signal-section {
+      padding: 11px 0;
+      border-top:
+        1px solid #eee;
+    }
+
+    .signal-section-title {
+      color: #777;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+
+    .signal-main-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .signal-sub-value {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .signal-return-positive {
+      color: #1976d2;
+      font-weight: 700;
+    }
+
+    .signal-return-negative {
+      color: #d32f2f;
+      font-weight: 700;
+    }
+
+    @media (
+      max-width: 1100px
+    ) {
+
+      .chart-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .signal-sidebar {
+        position: static;
+      }
+    }
+
+    @media (
+      max-width: 800px
+    ) {
+
+      #chart {
+        height: 900px;
+      }
+    }
+
   </style>
 </head>
+
 <body>
+
 <div class="app">
+
   <div class="header">
+
     <div class="title-row">
+
       <div>
-        <h1>Japan Stock VCP</h1>
-        <div id="stockTitle">読み込み中...</div>
+
+        <h1>
+          Japan Stock VCP
+        </h1>
+
+        <div id="stockTitle">
+          読み込み中...
+        </div>
+
       </div>
+
+
       <div>
-        <button id="favoriteButton">☆ お気に入り</button>
-        <button id="saveImage">PNG保存</button>
+
+        <button id="favoriteButton">
+          ☆ お気に入り
+        </button>
+
+        <button id="saveImage">
+          PNG保存
+        </button>
+
       </div>
+
     </div>
+
 
     <div class="controls">
-      <input id="stockCode" value="9984" maxlength="4" placeholder="9984">
-      <button id="loadButton">読み込む</button>
+
+      <input
+        id="stockCode"
+        value="9984"
+        maxlength="4"
+        placeholder="9984"
+      >
+
+      <button id="loadButton">
+        読み込む
+      </button>
+
 
       <div class="period-buttons">
-        <button data-period="3m">3M</button>
-        <button data-period="6m">6M</button>
-        <button data-period="1y" class="active">1Y</button>
-        <button data-period="3y">3Y</button>
-        <button data-period="5y">5Y</button>
-        <button data-period="10y">10Y</button>
-        <button data-period="all">ALL</button>
+
+        <button data-period="3m">
+          3M
+        </button>
+
+        <button data-period="6m">
+          6M
+        </button>
+
+        <button
+          data-period="1y"
+          class="active"
+        >
+          1Y
+        </button>
+
+        <button data-period="3y">
+          3Y
+        </button>
+
+        <button data-period="5y">
+          5Y
+        </button>
+
+        <button data-period="10y">
+          10Y
+        </button>
+
+        <button data-period="all">
+          ALL
+        </button>
+
       </div>
 
-      <label>価格帯
+
+      <label>
+        価格帯
+
         <select id="profileBins">
-          <option value="20">20</option>
-          <option value="30">30</option>
-          <option value="50" selected>50</option>
-          <option value="75">75</option>
-          <option value="100">100</option>
+
+          <option value="20">
+            20
+          </option>
+
+          <option value="30">
+            30
+          </option>
+
+          <option
+            value="50"
+            selected
+          >
+            50
+          </option>
+
+          <option value="75">
+            75
+          </option>
+
+          <option value="100">
+            100
+          </option>
+
         </select>
+
       </label>
+
 
       <label class="checkbox-control">
-        <input type="checkbox" id="showVolumePane">
+
+        <input
+          type="checkbox"
+          id="showVolumePane"
+        >
+
         出来高ペイン
+
       </label>
+
     </div>
 
-    <div id="status" class="status">読み込み中...</div>
-    <div id="summary" class="summary"></div>
+
+    <div
+      id="status"
+      class="status"
+    >
+      読み込み中...
+    </div>
+
+
+    <div
+      id="summary"
+      class="summary"
+    ></div>
+
   </div>
 
-  <div class="chart-card">
-    <div id="chart"></div>
 
-    <div id="profileInfo" class="info">
-      価格帯別出来高を計算中...
+  <div class="chart-workspace">
+
+    <div class="chart-card">
+
+      <div id="chart"></div>
+
+
+      <div
+        id="profileInfo"
+        class="info"
+      >
+        価格帯別出来高を計算中...
+      </div>
+
+
+      <div
+        id="vcpInfo"
+        class="info"
+      >
+        VCP：青棒＝N（26日上昇VCP合計 − 26日下落VCP合計）、
+        オレンジ＝5MA、
+        紫＝25MA、
+        黒太線＝0。
+        K/L/Mは非表示。
+      </div>
+
+
+      <div
+        id="signalInfo"
+        class="info"
+      >
+        Trend / Setup / Trigger：
+        TOPIX相対強度を読み込み中...
+      </div>
+
+
+      <div
+        id="supplyInfo"
+        class="info"
+      >
+        需給データを確認中...
+      </div>
+
     </div>
 
-    <div id="vcpInfo" class="info">
-      VCP：青棒＝N（26日上昇VCP合計 − 26日下落VCP合計）、オレンジ＝5MA、紫＝25MA、黒太線＝0。K/L/Mは非表示。
-    </div>
 
-    <div id="signalInfo" class="info">
-      Trend / Setup / Trigger：TOPIX相対強度を読み込み中...
-    </div>
+    <aside
+      id="signalSidebar"
+      class="signal-sidebar"
+    >
 
-    <div id="supplyInfo" class="info">
-      需給データを確認中...
-    </div>
+      <div class="signal-sidebar-title">
+        SIGNAL
+      </div>
+
+      <div id="signalSidebarBody">
+        計算中...
+      </div>
+
+    </aside>
+
   </div>
+
 </div>
 
+
 <script>
-const BLUE = "#1976d2";
-const RED = "#d32f2f";
-const ORANGE = "#ef6c00";
-const PURPLE = "#7b1fa2";
-const GREEN = "#388e3c";
-const BLACK = "#111111";
-const GRAY = "#616161";
 
-const chart = document.getElementById("chart");
+const BLUE =
+  "#1976d2";
 
-let currentStock = null;
-let currentTopix = null;
-let topixPromise = null;
+const RED =
+  "#d32f2f";
 
-let currentSupply = null;
-let currentSupplyDaily = [];
+const ORANGE =
+  "#ef6c00";
 
-let currentCode = "9984";
-let currentRangeStart = null;
-let currentRangeEnd = null;
+const PURPLE =
+  "#7b1fa2";
 
-let updatingRange = false;
-let showVolumePane = false;
+const GREEN =
+  "#388e3c";
 
-// Trace indexes.
-// Profile indexes must stay stable because restyle() uses them.
-const PROFILE_UP_INDEX = 8;
-const PROFILE_DOWN_INDEX = 9;
+const BLACK =
+  "#111111";
 
-function isFiniteNumber(v) {
-  return typeof v === "number" && Number.isFinite(v);
+const GRAY =
+  "#616161";
+
+
+const chart =
+  document.getElementById(
+    "chart"
+  );
+
+
+let currentStock =
+  null;
+
+let currentTopix =
+  null;
+
+let topixPromise =
+  null;
+
+let currentSignalResult =
+  null;
+
+let currentSupply =
+  null;
+
+let currentSupplyDaily =
+  [];
+
+let currentCode =
+  "9984";
+
+let currentRangeStart =
+  null;
+
+let currentRangeEnd =
+  null;
+
+let updatingRange =
+  false;
+
+let showVolumePane =
+  false;
+
+
+/*
+==============================================================
+Trace indexes
+
+価格帯別出来高は
+Plotly.restyle() で直接更新するため固定。
+==============================================================
+*/
+
+const PROFILE_UP_INDEX =
+  8;
+
+const PROFILE_DOWN_INDEX =
+  9;
+
+
+/*
+==============================================================
+基本ユーティリティ
+==============================================================
+*/
+
+function isFiniteNumber(
+  value
+) {
+  return (
+    typeof value ===
+    "number"
+    &&
+    Number.isFinite(
+      value
+    )
+  );
 }
 
-function toNumber(v) {
-  if (v === null || v === undefined || v === "") {
+
+function toNumber(
+  value
+) {
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
-  const n = Number(v);
 
-  return Number.isFinite(n)
-    ? n
+  const number =
+    Number(
+      value
+    );
+
+
+  return Number.isFinite(
+    number
+  )
+    ? number
     : null;
 }
 
-function formatNumber(v, digits = 0) {
-  const n = toNumber(v);
 
-  return n === null
+function formatNumber(
+  value,
+  digits = 0
+) {
+
+  const number =
+    toNumber(
+      value
+    );
+
+
+  return number === null
     ? "-"
-    : n.toLocaleString(
+    : number.toLocaleString(
         "ja-JP",
         {
-          maximumFractionDigits: digits
+          maximumFractionDigits:
+            digits
         }
       );
 }
 
-function parseDate(text) {
+
+function parseDate(
+  text
+) {
+
   return new Date(
     `${text}T00:00:00`
   );
 }
 
-function dateString(date) {
+
+function dateString(
+  date
+) {
+
   return (
     `${date.getFullYear()}-` +
-    `${String(date.getMonth()+1).padStart(2,"0")}-` +
-    `${String(date.getDate()).padStart(2,"0")}`
+    `${String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    )}-` +
+    `${String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    )}`
   );
 }
 
-function percentileInc(values, p) {
+
+function percentileInc(
+  values,
+  p
+) {
+
   if (
     !values.length ||
-    !values.every(isFiniteNumber)
+    !values.every(
+      isFiniteNumber
+    )
   ) {
     return null;
   }
 
+
   const sorted =
-    [...values].sort(
-      (a,b) => a-b
+    [
+      ...values
+    ].sort(
+      (
+        a,
+        b
+      ) =>
+        a -
+        b
     );
 
-  if (sorted.length === 1) {
+
+  if (
+    sorted.length ===
+    1
+  ) {
     return sorted[0];
   }
 
+
   const rank =
     p *
-    (sorted.length - 1);
+    (
+      sorted.length -
+      1
+    );
+
 
   const lower =
-    Math.floor(rank);
+    Math.floor(
+      rank
+    );
+
 
   const upper =
-    Math.ceil(rank);
+    Math.ceil(
+      rank
+    );
 
-  if (lower === upper) {
-    return sorted[lower];
+
+  if (
+    lower ===
+    upper
+  ) {
+    return sorted[
+      lower
+    ];
   }
 
-  const w =
-    rank - lower;
+
+  const weight =
+    rank -
+    lower;
+
 
   return (
-    sorted[lower] * (1-w) +
-    sorted[upper] * w
+    sorted[lower] *
+    (
+      1 -
+      weight
+    )
+    +
+    sorted[upper] *
+    weight
   );
 }
 
-function calculateSma(rows, key, period) {
+
+/*
+==============================================================
+Simple Moving Average
+==============================================================
+*/
+
+function calculateSma(
+  rows,
+  key,
+  period
+) {
+
   const result =
-    new Array(rows.length).fill(null);
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
 
   for (
-    let i = period - 1;
-    i < rows.length;
+    let i =
+      period - 1;
+
+    i <
+      rows.length;
+
     i++
   ) {
+
     const values =
       rows
         .slice(
-          i-period+1,
-          i+1
+          i -
+          period +
+          1,
+
+          i +
+          1
         )
         .map(
-          r => r[key]
+          row =>
+            row[key]
         );
 
+
     if (
-      values.every(isFiniteNumber)
+      values.every(
+        isFiniteNumber
+      )
     ) {
+
       result[i] =
         values.reduce(
-          (a,b) => a+b,
+          (
+            a,
+            b
+          ) =>
+            a +
+            b,
+
           0
-        ) /
+        )
+        /
         period;
     }
   }
 
+
   return result;
 }
+
 
 function calculateSmaValues(
   values,
   period
 ) {
+
   const result =
     new Array(
       values.length
-    ).fill(null);
+    ).fill(
+      null
+    );
 
-  let sum = 0;
-  let validCount = 0;
+
+  let sum =
+    0;
+
+
+  let validCount =
+    0;
+
 
   for (
     let i = 0;
-    i < values.length;
+
+    i <
+      values.length;
+
     i++
   ) {
+
     const value =
       values[i];
 
+
     if (
-      isFiniteNumber(value)
+      isFiniteNumber(
+        value
+      )
     ) {
-      sum += value;
+
+      sum +=
+        value;
+
       validCount++;
     }
 
+
     if (
-      i >= period
+      i >=
+      period
     ) {
+
       const old =
-        values[i-period];
+        values[
+          i -
+          period
+        ];
+
 
       if (
-        isFiniteNumber(old)
+        isFiniteNumber(
+          old
+        )
       ) {
-        sum -= old;
+
+        sum -=
+          old;
+
         validCount--;
       }
     }
 
+
     if (
-      i >= period-1 &&
-      validCount === period
+      i >=
+      period -
+      1
+      &&
+      validCount ===
+      period
     ) {
+
       result[i] =
         sum /
         period;
     }
   }
 
+
   return result;
 }
+
+
+/*
+==============================================================
+RCI
+==============================================================
+*/
 
 function calculateRci(
   rows,
   period
 ) {
+
   const result =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   for (
-    let i = period-1;
-    i < rows.length;
+    let i =
+      period -
+      1;
+
+    i <
+      rows.length;
+
     i++
   ) {
+
     const prices =
       rows
         .slice(
-          i-period+1,
-          i+1
+          i -
+          period +
+          1,
+
+          i +
+          1
         )
         .map(
-          r => r.close
+          row =>
+            row.close
         );
+
 
     if (
       !prices.every(
@@ -363,127 +992,197 @@ function calculateRci(
       continue;
     }
 
+
     const sorted =
       prices
         .map(
-          (value,index) => ({
+          (
+            value,
+            index
+          ) => ({
             value,
             index
           })
         )
         .sort(
-          (a,b) =>
+          (
+            a,
+            b
+          ) =>
             a.value -
             b.value
         );
 
+
     const priceRanks =
-      new Array(period);
+      new Array(
+        period
+      );
+
 
     for (
       let p = 0;
-      p < period;
+
+      p <
+      period;
     ) {
+
       let q =
-        p + 1;
+        p +
+        1;
+
 
       while (
-        q < period &&
+        q <
+        period
+        &&
         sorted[q].value ===
         sorted[p].value
       ) {
         q++;
       }
 
+
       const averageRank =
         (
-          (p+1) +
+          (
+            p +
+            1
+          )
+          +
           q
-        ) /
+        )
+        /
         2;
+
 
       for (
         let k = p;
-        k < q;
+
+        k <
+        q;
+
         k++
       ) {
+
         priceRanks[
           sorted[k].index
         ] =
           averageRank;
       }
 
-      p = q;
+
+      p =
+        q;
     }
 
-    let sumD2 = 0;
+
+    let sumD2 =
+      0;
+
 
     for (
       let j = 0;
-      j < period;
+
+      j <
+      period;
+
       j++
     ) {
-      const timeRank =
-        j + 1;
 
-      const d =
+      const timeRank =
+        j +
+        1;
+
+
+      const difference =
         timeRank -
         priceRanks[j];
 
+
       sumD2 +=
-        d*d;
+        difference *
+        difference;
     }
+
 
     result[i] =
       (
         1 -
         (
-          6*sumD2
-        ) /
+          6 *
+          sumD2
+        )
+        /
         (
           period *
           (
-            period*period -
+            period *
+            period -
             1
           )
         )
-      ) *
+      )
+      *
       100;
   }
 
+
   return result;
 }
+
+
+/*
+==============================================================
+Rolling Z-score
+==============================================================
+*/
 
 function calculateRollingZ(
   values,
   period = 252,
   minValid = 60
 ) {
+
   const result =
     new Array(
       values.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   for (
     let i = 0;
-    i < values.length;
+
+    i <
+      values.length;
+
     i++
   ) {
+
     const start =
       Math.max(
         0,
-        i-period+1
+
+        i -
+        period +
+        1
       );
+
 
     const window =
       values
         .slice(
           start,
-          i+1
+
+          i +
+          1
         )
         .filter(
           isFiniteNumber
         );
+
 
     if (
       window.length <
@@ -495,13 +1194,21 @@ function calculateRollingZ(
       continue;
     }
 
+
     const mean =
       window.reduce(
-        (sum,value) =>
-          sum + value,
+        (
+          sum,
+          value
+        ) =>
+          sum +
+          value,
+
         0
-      ) /
+      )
+      /
       window.length;
+
 
     const variance =
       window.reduce(
@@ -513,22 +1220,31 @@ function calculateRollingZ(
           (
             value -
             mean
-          ) *
+          )
+          *
           (
             value -
             mean
           ),
+
         0
-      ) /
+      )
+      /
       window.length;
+
 
     const sd =
       Math.sqrt(
         variance
       );
 
+
     if (
-      !(sd > 0) ||
+      !(
+        sd >
+        0
+      )
+      ||
       !isFiniteNumber(
         values[i]
       )
@@ -536,43 +1252,69 @@ function calculateRollingZ(
       continue;
     }
 
+
     result[i] =
       (
         values[i] -
         mean
-      ) /
+      )
+      /
       sd;
   }
+
 
   return result;
 }
 
-function smoothZ(z) {
-  return isFiniteNumber(z)
+
+function smoothZ(
+  z
+) {
+
+  return isFiniteNumber(
+    z
+  )
     ? Math.tanh(
-        z/2
+        z /
+        2
       )
     : null;
 }
+
+
+/*
+==============================================================
+ATR
+==============================================================
+*/
 
 function calculateAtr(
   rows,
   period
 ) {
-  const tr =
+
+  const trueRange =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   for (
     let i = 0;
-    i < rows.length;
+
+    i <
+      rows.length;
+
     i++
   ) {
+
     if (
       !isFiniteNumber(
         rows[i].high
-      ) ||
+      )
+      ||
       !isFiniteNumber(
         rows[i].low
       )
@@ -580,79 +1322,123 @@ function calculateAtr(
       continue;
     }
 
+
     if (
-      i === 0 ||
+      i === 0
+      ||
       !isFiniteNumber(
-        rows[i-1].close
+        rows[
+          i -
+          1
+        ].close
       )
     ) {
-      tr[i] =
+
+      trueRange[i] =
         rows[i].high -
         rows[i].low;
 
       continue;
     }
 
-    tr[i] =
+
+    trueRange[i] =
       Math.max(
+
         rows[i].high -
         rows[i].low,
 
         Math.abs(
           rows[i].high -
-          rows[i-1].close
+          rows[
+            i -
+            1
+          ].close
         ),
 
         Math.abs(
           rows[i].low -
-          rows[i-1].close
+          rows[
+            i -
+            1
+          ].close
         )
       );
   }
 
+
   return calculateSmaValues(
-    tr,
+    trueRange,
     period
   );
 }
+
+
+/*
+==============================================================
+Indicators
+
+売買シグナル判定そのものは
+signal-engine.jsへ分離する。
+
+ここでは、
+Trend / Setup / Triggerなど、
+signal-engineへ渡す指標まで計算する。
+==============================================================
+*/
 
 function prepareIndicators(
   rows,
   topixRows = []
 ) {
+
   /*
-   * ==========================================================
-   * 既存VCP系
-   * ==========================================================
-   */
+  ============================================================
+  既存VCP系
+  ============================================================
+  */
 
   for (
     let i = 0;
-    i < rows.length;
+
+    i <
+      rows.length;
+
     i++
   ) {
 
     /*
      * 表示用52週高値。
+     *
      * 当日を含む。
      */
     if (
-      i >= 251
+      i >=
+      251
     ) {
+
       let maxHigh =
         -Infinity;
 
+
       for (
-        let j = i-251;
-        j <= i;
+        let j =
+          i -
+          251;
+
+        j <=
+          i;
+
         j++
       ) {
+
         maxHigh =
           Math.max(
             maxHigh,
             rows[j].high
           );
       }
+
 
       rows[i].high52 =
         maxHigh;
@@ -667,27 +1453,36 @@ function prepareIndicators(
     /*
      * シグナル計算用52週高値。
      *
-     * 当日を含めない。
-     * ブレイク日に高値距離が
-     * 強制的に0になることを避ける。
+     * 当日は含めない。
      */
     if (
-      i >= 252
+      i >=
+      252
     ) {
+
       let maxHighPrev =
         -Infinity;
 
+
       for (
-        let j = i-252;
-        j <= i-1;
+        let j =
+          i -
+          252;
+
+        j <=
+          i -
+          1;
+
         j++
       ) {
+
         maxHighPrev =
           Math.max(
             maxHighPrev,
             rows[j].high
           );
       }
+
 
       rows[i].high52Prev =
         maxHighPrev;
@@ -700,26 +1495,40 @@ function prepareIndicators(
 
 
     /*
-     * BUY判定用
-     * 直前20営業日の高値。
+     * 直前20営業日高値。
+     *
+     * 現在のSignal Engineでは
+     * BUY条件に使っていないが、
+     * 今後の変更用に残しておく。
      */
     if (
-      i >= 20
+      i >=
+      20
     ) {
+
       let maxHigh20Prev =
         -Infinity;
 
+
       for (
-        let j = i-20;
-        j <= i-1;
+        let j =
+          i -
+          20;
+
+        j <=
+          i -
+          1;
+
         j++
       ) {
+
         maxHigh20Prev =
           Math.max(
             maxHigh20Prev,
             rows[j].high
           );
       }
+
 
       rows[i].high20Prev =
         maxHigh20Prev;
@@ -731,46 +1540,61 @@ function prepareIndicators(
     }
 
 
-    /*
-     * 既存VCP delta
-     */
     if (
       !isFiniteNumber(
         rows[i].vcp26Delta5
-      ) &&
-      i >= 5 &&
+      )
+      &&
+      i >=
+      5
+      &&
       isFiniteNumber(
         rows[i].vcp26
-      ) &&
+      )
+      &&
       isFiniteNumber(
-        rows[i-5].vcp26
+        rows[
+          i -
+          5
+        ].vcp26
       )
     ) {
+
       rows[i].vcp26Delta5 =
         rows[i].vcp26 -
-        rows[i-5].vcp26;
+        rows[
+          i -
+          5
+        ].vcp26;
     }
 
 
     if (
-      i >= 119
+      i >=
+      119
     ) {
+
       const values =
         rows
           .slice(
-            i-119,
-            i+1
+            i -
+            119,
+
+            i +
+            1
           )
           .map(
-            r =>
-              r.vcp26Delta5
+            row =>
+              row.vcp26Delta5
           );
+
 
       rows[i].deltaP10 =
         percentileInc(
           values,
           .10
         );
+
 
       rows[i].deltaP90 =
         percentileInc(
@@ -791,53 +1615,68 @@ function prepareIndicators(
     const contraction =
       isFiniteNumber(
         rows[i].dailyVcp
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].dailyVcpP10
-      ) &&
+      )
+      &&
       rows[i].dailyVcp <=
       rows[i].dailyVcpP10;
 
 
     /*
-     * 旧候補は計算だけ残す。
+     * 旧シグナルでは使っていたが、
+     * 現在は表示・売買判断には使わない。
      *
-     * 画面上のBUY / SELLには
-     * 使用しない。
+     * 後方互換のため計算自体は残す。
      */
     rows[i].buyCandidate =
-      contraction &&
+      contraction
+      &&
       isFiniteNumber(
         rows[i].vcp26Delta5
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].deltaP90
-      ) &&
+      )
+      &&
       rows[i].vcp26Delta5 >=
       rows[i].deltaP90;
 
 
     rows[i].sellCandidate =
-      contraction &&
+      contraction
+      &&
       isFiniteNumber(
         rows[i].vcp26Delta5
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].deltaP10
-      ) &&
+      )
+      &&
       rows[i].vcp26Delta5 <=
       rows[i].deltaP10;
   }
 
 
-  const ma5 =
+  /*
+  ============================================================
+  VCP N 5MA / 25MA
+  ============================================================
+  */
+
+  const vcpMa5 =
     calculateSma(
       rows,
       "vcp26",
       5
     );
 
-  const ma25 =
+
+  const vcpMa25 =
     calculateSma(
       rows,
       "vcp26",
@@ -847,75 +1686,86 @@ function prepareIndicators(
 
   for (
     let i = 0;
-    i < rows.length;
+
+    i <
+      rows.length;
+
     i++
   ) {
+
     rows[i].vcp26Ma5 =
-      ma5[i];
+      vcpMa5[i];
+
 
     rows[i].vcp26Ma25 =
-      ma25[i];
+      vcpMa25[i];
   }
 
 
   /*
-   * ==========================================================
-   * Trend / Setup / Trigger
-   * ==========================================================
-   *
-   * Trend
-   * =
-   * 0.5 * 52週高値Factor
-   * +
-   * 0.5 * TOPIX相対強度
-   *
-   *
-   * Setup
-   * =
-   * 0.6 * VCP Factor
-   * +
-   * 0.4 * RCI Factor
-   *
-   *
-   * Trigger
-   * =
-   * 0.7 * 出来高Factor
-   * +
-   * 0.3 * RCI短期加速Factor
-   *
-   *
-   * 各Raw値
-   * ↓
-   * 252営業日rolling Z-score
-   * ↓
-   * tanh(z/2)
-   * ↓
-   * -1 ～ +1
-   */
+  ============================================================
+  Trend / Setup / Trigger
+  ============================================================
+
+  Trend
+    =
+    0.5 × 52週高値Factor
+    +
+    0.5 × TOPIX相対強度
+
+
+  Setup
+    =
+    0.6 × VCP Factor
+    +
+    0.4 × RCI Factor
+
+
+  Trigger
+    =
+    0.7 × 出来高Factor
+    +
+    0.3 × RCI短期加速Factor
+
+
+  Raw値
+    ↓
+  252営業日rolling Z-score
+    ↓
+  tanh(z/2)
+    ↓
+  -1 ～ +1
+  ============================================================
+  */
 
 
   /*
-   * TOPIXは日付をキーにする。
-   *
-   * 配列番号で合わせない。
+   * TOPIXは配列番号ではなく
+   * 日付で対応させる。
    */
   const topixCloseByDate =
     new Map(
-      (topixRows || [])
+
+      (
+        topixRows ||
+        []
+      )
         .filter(
-          r =>
-            r?.date &&
+          row =>
+            row?.date
+            &&
             isFiniteNumber(
               toNumber(
-                r.close
+                row.close
               )
             )
         )
         .map(
-          r => [
-            r.date,
+          row => [
+            row.date,
+
             toNumber(
-              r.close
+              row.close
             )
           ]
         )
@@ -931,6 +1781,7 @@ function prepareIndicators(
       10
     );
 
+
   const atr50 =
     calculateAtr(
       rows,
@@ -943,11 +1794,12 @@ function prepareIndicators(
    */
   const volumes =
     rows.map(
-      r =>
+      row =>
         toNumber(
-          r.volume
+          row.volume
         )
     );
+
 
   const volMa10 =
     calculateSmaValues(
@@ -955,11 +1807,13 @@ function prepareIndicators(
       10
     );
 
+
   const volMa20 =
     calculateSmaValues(
       volumes,
       20
     );
+
 
   const volMa50 =
     calculateSmaValues(
@@ -977,6 +1831,7 @@ function prepareIndicators(
       9
     );
 
+
   const rci26 =
     calculateRci(
       rows,
@@ -990,166 +1845,248 @@ function prepareIndicators(
   const x52 =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   const xVcp =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   const xRci =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   const xRciSlope =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   const xVol =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
+
 
   const xRs =
     new Array(
       rows.length
-    ).fill(null);
+    ).fill(
+      null
+    );
 
 
   for (
     let i = 0;
-    i < rows.length;
+
+    i <
+      rows.length;
+
     i++
   ) {
 
     rows[i].rci9 =
       rci9[i];
 
+
     rows[i].rci26 =
       rci26[i];
 
 
     /*
-     * ========================================================
-     * 52週高値Factor
-     *
-     * ln(
-     *   現在値 /
-     *   直前52週高値
-     * )
-     * ========================================================
-     */
+    ==========================================================
+    52週高値Factor
+
+    ln(
+      現在値 /
+      直前52週高値
+    )
+    ==========================================================
+    */
 
     if (
       isFiniteNumber(
         rows[i].close
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].high52Prev
-      ) &&
-      rows[i].close > 0 &&
-      rows[i].high52Prev > 0
+      )
+      &&
+      rows[i].close >
+      0
+      &&
+      rows[i].high52Prev >
+      0
     ) {
 
       x52[i] =
         Math.log(
-          rows[i].close /
+
+          rows[i].close
+          /
           rows[i].high52Prev
         );
     }
 
 
     /*
-     * ========================================================
-     * VCP Factor
-     *
-     * Price contraction
-     * =
-     * -ln(ATR10 / ATR50)
-     *
-     * Volume contraction
-     * =
-     * -ln(VolMA10_prev / VolMA50_prev)
-     * ========================================================
-     */
+    ==========================================================
+    VCP Factor
+
+    Price contraction
+    =
+    -ln(
+      ATR10 /
+      ATR50
+    )
+
+
+    Volume contraction
+    =
+    -ln(
+      VolMA10_prev /
+      VolMA50_prev
+    )
+    ==========================================================
+    */
 
     if (
       isFiniteNumber(
         atr10[i]
-      ) &&
+      )
+      &&
       isFiniteNumber(
         atr50[i]
-      ) &&
-      atr10[i] > 0 &&
-      atr50[i] > 0 &&
-      i >= 1 &&
+      )
+      &&
+      atr10[i] >
+      0
+      &&
+      atr50[i] >
+      0
+      &&
+      i >=
+      1
+      &&
       isFiniteNumber(
-        volMa10[i-1]
-      ) &&
+        volMa10[
+          i -
+          1
+        ]
+      )
+      &&
       isFiniteNumber(
-        volMa50[i-1]
-      ) &&
-      volMa10[i-1] > 0 &&
-      volMa50[i-1] > 0
+        volMa50[
+          i -
+          1
+        ]
+      )
+      &&
+      volMa10[
+        i -
+        1
+      ] >
+      0
+      &&
+      volMa50[
+        i -
+        1
+      ] >
+      0
     ) {
 
       const priceContraction =
         -Math.log(
-          atr10[i] /
+
+          atr10[i]
+          /
           atr50[i]
         );
 
 
       const volumeContraction =
         -Math.log(
-          volMa10[i-1] /
-          volMa50[i-1]
+
+          volMa10[
+            i -
+            1
+          ]
+          /
+          volMa50[
+            i -
+            1
+          ]
         );
 
 
       xVcp[i] =
         (
-          priceContraction +
+          priceContraction
+          +
           volumeContraction
-        ) /
+        )
+        /
         2;
     }
 
 
     /*
-     * ========================================================
-     * RCI Factor
-     *
-     * 60%
-     * =
-     * RCI26
-     *
-     * 40%
-     * =
-     * RCI9の5営業日変化
-     * ========================================================
-     */
+    ==========================================================
+    RCI Factor
+
+    60%
+      RCI26
+
+    40%
+      RCI9の5営業日変化
+    ==========================================================
+    */
 
     if (
       isFiniteNumber(
         rci26[i]
-      ) &&
-      i >= 5 &&
+      )
+      &&
+      i >=
+      5
+      &&
       isFiniteNumber(
         rci9[i]
-      ) &&
+      )
+      &&
       isFiniteNumber(
-        rci9[i-5]
+        rci9[
+          i -
+          5
+        ]
       )
     ) {
 
       const slope =
         (
-          rci9[i] -
-          rci9[i-5]
-        ) /
+          rci9[i]
+          -
+          rci9[
+            i -
+            5
+          ]
+        )
+        /
         200;
 
 
@@ -1158,71 +2095,98 @@ function prepareIndicators(
 
 
       xRci[i] =
-        0.6 *
+        0.6
+        *
         (
-          rci26[i] /
+          rci26[i]
+          /
           100
         )
         +
-        0.4 *
+        0.4
+        *
         slope;
     }
 
 
     /*
-     * ========================================================
-     * 出来高Factor
-     *
-     * ln(
-     *   当日出来高 /
-     *   直前20日平均出来高
-     * )
-     * ========================================================
-     */
+    ==========================================================
+    出来高Factor
+
+    ln(
+      当日出来高 /
+      直前20日平均出来高
+    )
+    ==========================================================
+    */
 
     if (
-      i >= 1 &&
+      i >=
+      1
+      &&
       isFiniteNumber(
         rows[i].volume
-      ) &&
-      rows[i].volume > 0 &&
+      )
+      &&
+      rows[i].volume >
+      0
+      &&
       isFiniteNumber(
-        volMa20[i-1]
-      ) &&
-      volMa20[i-1] > 0
+        volMa20[
+          i -
+          1
+        ]
+      )
+      &&
+      volMa20[
+        i -
+        1
+      ] >
+      0
     ) {
 
       xVol[i] =
         Math.log(
-          rows[i].volume /
-          volMa20[i-1]
+
+          rows[i].volume
+          /
+          volMa20[
+            i -
+            1
+          ]
         );
     }
 
 
     /*
-     * ========================================================
-     * TOPIX相対強度
-     *
-     * ER20
-     * =
-     * stock20 -
-     * TOPIX20
-     *
-     * ER60
-     * =
-     * stock60 -
-     * TOPIX60
-     *
-     * X_RS
-     * =
-     * 0.6*ER20 +
-     * 0.4*ER60
-     * ========================================================
-     */
+    ==========================================================
+    TOPIX相対強度
+
+    ER20
+      =
+      stock20
+      -
+      TOPIX20
+
+
+    ER60
+      =
+      stock60
+      -
+      TOPIX60
+
+
+    X_RS
+      =
+      0.6 × ER20
+      +
+      0.4 × ER60
+    ==========================================================
+    */
 
     if (
-      i >= 60
+      i >=
+      60
     ) {
 
       const topixNow =
@@ -1233,72 +2197,119 @@ function prepareIndicators(
 
       const topix20 =
         topixCloseByDate.get(
-          rows[i-20].date
+          rows[
+            i -
+            20
+          ].date
         );
 
 
       const topix60 =
         topixCloseByDate.get(
-          rows[i-60].date
+          rows[
+            i -
+            60
+          ].date
         );
 
 
       if (
         isFiniteNumber(
           topixNow
-        ) &&
+        )
+        &&
         isFiniteNumber(
           topix20
-        ) &&
+        )
+        &&
         isFiniteNumber(
           topix60
-        ) &&
-        topixNow > 0 &&
-        topix20 > 0 &&
-        topix60 > 0 &&
+        )
+        &&
+        topixNow >
+        0
+        &&
+        topix20 >
+        0
+        &&
+        topix60 >
+        0
+        &&
         isFiniteNumber(
-          rows[i-20].close
-        ) &&
+          rows[
+            i -
+            20
+          ].close
+        )
+        &&
         isFiniteNumber(
-          rows[i-60].close
-        ) &&
-        rows[i-20].close > 0 &&
-        rows[i-60].close > 0
+          rows[
+            i -
+            60
+          ].close
+        )
+        &&
+        rows[
+          i -
+          20
+        ].close >
+        0
+        &&
+        rows[
+          i -
+          60
+        ].close >
+        0
       ) {
 
         const stock20 =
-          rows[i].close /
-          rows[i-20].close -
+          rows[i].close
+          /
+          rows[
+            i -
+            20
+          ].close
+          -
           1;
 
 
         const stock60 =
-          rows[i].close /
-          rows[i-60].close -
+          rows[i].close
+          /
+          rows[
+            i -
+            60
+          ].close
+          -
           1;
 
 
         const topixReturn20 =
-          topixNow /
-          topix20 -
+          topixNow
+          /
+          topix20
+          -
           1;
 
 
         const topixReturn60 =
-          topixNow /
-          topix60 -
+          topixNow
+          /
+          topix60
+          -
           1;
 
 
         rows[i].rs20 =
-          stock20 -
+          stock20
+          -
           topixReturn20;
 
 
         rows[i].rs60 =
-          stock60 -
+          stock60
+          -
           topixReturn60;
-
 
         xRs[i] =
           0.6 *
@@ -1328,35 +2339,40 @@ function prepareIndicators(
 
 
   /*
-   * ==========================================================
-   * Rolling Z-score
-   * ==========================================================
-   */
+  ============================================================
+  Rolling Z-score
+  ============================================================
+  */
 
   const z52 =
     calculateRollingZ(
       x52
     );
 
+
   const zVcp =
     calculateRollingZ(
       xVcp
     );
+
 
   const zRci =
     calculateRollingZ(
       xRci
     );
 
+
   const zRciSlope =
     calculateRollingZ(
       xRciSlope
     );
 
+
   const zVol =
     calculateRollingZ(
       xVol
     );
+
 
   const zRs =
     calculateRollingZ(
@@ -1365,14 +2381,17 @@ function prepareIndicators(
 
 
   /*
-   * ==========================================================
-   * -1 ～ +1へ滑らかに変換
-   * ==========================================================
-   */
+  ============================================================
+  -1 ～ +1へ滑らかに変換
+  ============================================================
+  */
 
   for (
     let i = 0;
-    i < rows.length;
+
+    i <
+      rows.length;
+
     i++
   ) {
 
@@ -1418,7 +2437,8 @@ function prepareIndicators(
     rows[i].trendLine =
       isFiniteNumber(
         rows[i].factor52
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].factorRs
       )
@@ -1438,7 +2458,8 @@ function prepareIndicators(
     rows[i].setupLine =
       isFiniteNumber(
         rows[i].factorVcp
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].factorRci
       )
@@ -1458,7 +2479,8 @@ function prepareIndicators(
     rows[i].triggerLine =
       isFiniteNumber(
         rows[i].factorVol
-      ) &&
+      )
+      &&
       isFiniteNumber(
         rows[i].factorRciSlope
       )
@@ -1470,273 +2492,158 @@ function prepareIndicators(
             rows[i].factorRciSlope
           )
         : null;
-
-
-    rows[i].strongBuyCondition =
-      false;
-
-    rows[i].strongSellCondition =
-      false;
-
-    rows[i].strongBuySignal =
-      false;
-
-    rows[i].strongSellSignal =
-      false;
-
-
-    /*
-     * ========================================================
-     * BUY
-     *
-     * Trigger > Setup > Trend > 0
-     *
-     * Trigger上昇
-     *
-     * Trigger-Setup乖離拡大
-     *
-     * 20日高値更新
-     * ========================================================
-     */
-
-    if (
-      i >= 1
-    ) {
-
-      const trend =
-        rows[i].trendLine;
-
-      const setup =
-        rows[i].setupLine;
-
-      const trigger =
-        rows[i].triggerLine;
-
-      const previousTrigger =
-        rows[i-1].triggerLine;
-
-      const previousSetup =
-        rows[i-1].setupLine;
-
-      const previousTrend =
-        rows[i-1].trendLine;
-
-
-      if (
-        [
-          trend,
-          setup,
-          trigger,
-          previousTrigger,
-          previousSetup
-        ].every(
-          isFiniteNumber
-        ) &&
-        isFiniteNumber(
-          rows[i].high20Prev
-        )
-      ) {
-
-        rows[i].strongBuyCondition =
-          trigger >
-          setup
-          &&
-          setup >
-          trend
-          &&
-          trend >
-          0
-          &&
-          trigger >
-          previousTrigger
-          &&
-          (
-            trigger -
-            setup
-          ) >
-          (
-            previousTrigger -
-            previousSetup
-          )
-          &&
-          rows[i].close >
-          rows[i].high20Prev;
-      }
-
-
-      /*
-       * ======================================================
-       * SELL
-       *
-       * Trigger < Setup < Trend
-       *
-       * Trend低下
-       *
-       * 50MA割れ
-       * ======================================================
-       */
-
-      if (
-        [
-          trend,
-          setup,
-          trigger,
-          previousTrend
-        ].every(
-          isFiniteNumber
-        ) &&
-        isFiniteNumber(
-          rows[i].ma50
-        )
-      ) {
-
-        rows[i].strongSellCondition =
-          trigger <
-          setup
-          &&
-          setup <
-          trend
-          &&
-          trend <
-          previousTrend
-          &&
-          rows[i].close <
-          rows[i].ma50;
-      }
-    }
   }
 
 
   /*
-   * ==========================================================
-   * BUY / SELLをペアにする
-   *
-   * BUY後の保有状態だけSELLを出す。
-   * ==========================================================
-   */
+  ============================================================
+  売買判定
 
-  let inTrendPosition =
-    false;
+  SignalEngine側で行う。
+  ============================================================
+  */
 
-
-  for (
-    let i = 0;
-    i < rows.length;
-    i++
+  if (
+    !window.SignalEngine
+    ||
+    typeof window.SignalEngine.evaluate !==
+      "function"
   ) {
-
-    if (
-      !inTrendPosition &&
-      rows[i].strongBuyCondition
-    ) {
-
-      rows[i].strongBuySignal =
-        true;
-
-      inTrendPosition =
-        true;
-
-      continue;
-    }
-
-
-    if (
-      inTrendPosition &&
-      rows[i].strongSellCondition
-    ) {
-
-      rows[i].strongSellSignal =
-        true;
-
-      inTrendPosition =
-        false;
-    }
+    throw new Error(
+      "signal-engine.js が読み込まれていません"
+    );
   }
+
+
+  currentSignalResult =
+    window.SignalEngine.evaluate(
+      rows
+    );
 }
 
-// Volume-by-Price approximation:
-// assign 100% of each day's volume to its close-price bin.
-function calculateVolumeProfile(rows) {
-  if (!rows.length) {
+
+/*
+==============================================================
+価格帯別出来高
+==============================================================
+*/
+
+function calculateVolumeProfile(
+  rows
+) {
+
+  if (
+    !rows.length
+  ) {
     return null;
   }
 
+
   const bins =
     Number(
-      document.getElementById(
-        "profileBins"
-      ).value
+      document
+        .getElementById(
+          "profileBins"
+        )
+        .value
     ) || 50;
+
 
   const minPrice =
     Math.min(
       ...rows.map(
-        r => r.low
+        row =>
+          row.low
       )
     );
+
 
   const maxPrice =
     Math.max(
       ...rows.map(
-        r => r.high
+        row =>
+          row.high
       )
     );
 
+
   if (
-    !(maxPrice > minPrice)
+    !(
+      maxPrice >
+      minPrice
+    )
   ) {
     return null;
   }
+
 
   const step =
     (
       maxPrice -
       minPrice
-    ) /
+    )
+    /
     bins;
+
 
   const up =
     new Array(
       bins
-    ).fill(0);
+    ).fill(
+      0
+    );
+
 
   const down =
     new Array(
       bins
-    ).fill(0);
+    ).fill(
+      0
+    );
+
 
   for (
-    const row of rows
+    const row
+    of rows
   ) {
+
     let index =
       Math.floor(
         (
           row.close -
           minPrice
-        ) /
+        )
+        /
         step
       );
 
+
     if (
-      index === bins
+      index ===
+      bins
     ) {
       index =
-        bins - 1;
+        bins -
+        1;
     }
+
 
     index =
       Math.max(
         0,
         Math.min(
-          bins - 1,
+          bins -
+          1,
           index
         )
       );
+
 
     if (
       row.close >=
       row.open
     ) {
+
       up[index] +=
         row.volume;
 
@@ -1747,25 +2654,29 @@ function calculateVolumeProfile(rows) {
     }
   }
 
+
   const prices =
     Array.from(
       {
         length:
           bins
       },
+
       (
         _,
-        i
+        index
       ) =>
         minPrice +
         (
-          i +
+          index +
           .5
         ) *
         step
     );
 
+
   return {
+
     bins,
 
     prices,
@@ -1785,10 +2696,11 @@ function calculateVolumeProfile(rows) {
       prices.map(
         (
           _,
-          i
+          index
         ) =>
-          up[i] +
-          down[i]
+          up[index]
+          +
+          down[index]
       ),
 
     step
@@ -1796,10 +2708,17 @@ function calculateVolumeProfile(rows) {
 }
 
 
+/*
+==============================================================
+需給データ
+==============================================================
+*/
+
 function buildSupplyDaily(
   stockRows,
   supplyRows
 ) {
+
   const source =
     [
       ...(
@@ -1816,40 +2735,52 @@ function buildSupplyDaily(
         )
     );
 
+
   const result =
     [];
+
 
   let sourceIndex =
     0;
 
+
   let publicShortRatio =
     null;
+
 
   let publicShortInstitutions =
     [];
 
+
   let loanRatio =
     null;
+
 
   let loanBalance =
     null;
 
+
   let stockLoanBalance =
     null;
+
 
   let marginRatio =
     null;
 
+
   let marginBuy =
     null;
 
+
   let marginSell =
     null;
+
 
   for (
     const stockRow
     of stockRows
   ) {
+
     while (
       sourceIndex <
       source.length
@@ -1859,10 +2790,12 @@ function buildSupplyDaily(
       ].date <=
       stockRow.date
     ) {
+
       const row =
         source[
           sourceIndex
         ];
+
 
       if (
         row.publicShortRatio !==
@@ -1871,10 +2804,12 @@ function buildSupplyDaily(
         row.publicShortRatio !==
         null
       ) {
+
         publicShortRatio =
           toNumber(
             row.publicShortRatio
           );
+
 
         publicShortInstitutions =
           Array.isArray(
@@ -1884,70 +2819,85 @@ function buildSupplyDaily(
             : [];
       }
 
+
       if (
         row.loanRatio !==
         undefined
       ) {
+
         loanRatio =
           toNumber(
             row.loanRatio
           );
       }
 
+
       if (
         row.loanBalance !==
         undefined
       ) {
+
         loanBalance =
           toNumber(
             row.loanBalance
           );
       }
 
+
       if (
         row.stockLoanBalance !==
         undefined
       ) {
+
         stockLoanBalance =
           toNumber(
             row.stockLoanBalance
           );
       }
 
+
       if (
         row.marginRatio !==
         undefined
       ) {
+
         marginRatio =
           toNumber(
             row.marginRatio
           );
       }
 
+
       if (
         row.marginBuy !==
         undefined
       ) {
+
         marginBuy =
           toNumber(
             row.marginBuy
           );
       }
 
+
       if (
         row.marginSell !==
         undefined
       ) {
+
         marginSell =
           toNumber(
             row.marginSell
           );
       }
 
+
       sourceIndex++;
     }
 
+
     result.push({
+
       date:
         stockRow.date,
 
@@ -1969,6 +2919,7 @@ function buildSupplyDaily(
     });
   }
 
+
   return result;
 }
 
@@ -1976,25 +2927,32 @@ function buildSupplyDaily(
 function shortInstitutionText(
   institutions
 ) {
+
   if (
     !Array.isArray(
       institutions
-    ) ||
+    )
+    ||
     !institutions.length
   ) {
+
     return "公表対象機関なし";
   }
+
 
   return institutions
     .map(
       item => {
+
         const ratio =
           toNumber(
             item.ratio
           );
 
+
         return (
-          `${item.name ?? "Unknown"}` +
+          `${item.name ?? "Unknown"}`
+          +
           `${
             ratio !== null
               ? ` ${ratio.toFixed(2)}%`
@@ -2003,19 +2961,31 @@ function shortInstitutionText(
         );
       }
     )
-    .join("<br>");
+    .join(
+      "<br>"
+    );
 }
 
+
+/*
+==============================================================
+可視範囲
+==============================================================
+*/
 
 function visibleStockRows(
   start,
   end
 ) {
+
   return currentStock
     ? currentStock.data.filter(
-        r =>
-          r.date >= start &&
-          r.date <= end
+        row =>
+          row.date >=
+          start
+          &&
+          row.date <=
+          end
       )
     : [];
 }
@@ -2025,31 +2995,47 @@ function visibleSupplyRows(
   start,
   end
 ) {
-  return currentSupplyDaily.filter(
-    r =>
-      r.date >= start &&
-      r.date <= end
-  );
+
+  return currentSupplyDaily
+    .filter(
+      row =>
+        row.date >=
+        start
+        &&
+        row.date <=
+        end
+    );
 }
 
 
+/*
+==============================================================
+軸レンジ
+==============================================================
+*/
+
 function rangeIncludeZero(
   values,
-  paddingRatio = .10
+  paddingRatio =
+    .10
 ) {
+
   const valid =
     values.filter(
       isFiniteNumber
     );
 
+
   if (
     !valid.length
   ) {
+
     return [
       -.01,
       .01
     ];
   }
+
 
   let min =
     Math.min(
@@ -2057,19 +3043,24 @@ function rangeIncludeZero(
       ...valid
     );
 
+
   let max =
     Math.max(
       0,
       ...valid
     );
 
+
   let span =
     max -
     min;
 
+
   if (
-    span === 0
+    span ===
+    0
   ) {
+
     span =
       Math.max(
         Math.abs(
@@ -2079,43 +3070,53 @@ function rangeIncludeZero(
       );
   }
 
+
   return [
+
     min -
-      span *
-      paddingRatio,
+    span *
+    paddingRatio,
 
     max +
-      span *
-      paddingRatio
+    span *
+    paddingRatio
   ];
 }
 
 
 function positiveRange(
   values,
-  fallback = 1
+  fallback =
+    1
 ) {
+
   const valid =
     values.filter(
       isFiniteNumber
     );
 
+
   if (
     !valid.length
   ) {
+
     return [
       0,
       fallback
     ];
   }
 
+
   return [
+
     0,
 
     Math.max(
+
       Math.max(
         ...valid
-      ) *
+      )
+      *
       1.15,
 
       fallback
@@ -2126,22 +3127,30 @@ function positiveRange(
 
 function positiveLogRange(
   values,
-  fallbackMin = .1,
-  fallbackMax = 1
+  fallbackMin =
+    .1,
+  fallbackMax =
+    1
 ) {
+
   const valid =
     values.filter(
       value =>
         isFiniteNumber(
           value
-        ) &&
-        value > 0
+        )
+        &&
+        value >
+        0
     );
+
 
   if (
     !valid.length
   ) {
+
     return [
+
       Math.log10(
         fallbackMin
       ),
@@ -2152,26 +3161,31 @@ function positiveLogRange(
     ];
   }
 
+
   let min =
     Math.min(
       ...valid
     );
+
 
   let max =
     Math.max(
       ...valid
     );
 
+
   if (
-    min === max
+    min ===
+    max
   ) {
+
     min =
       Math.max(
         min /
         1.5,
-
         .000001
       );
+
 
     max *=
       1.5;
@@ -2182,15 +3196,17 @@ function positiveLogRange(
       Math.max(
         min *
         .85,
-
         .000001
       );
+
 
     max *=
       1.15;
   }
 
+
   return [
+
     Math.log10(
       min
     ),
@@ -2203,6 +3219,7 @@ function positiveLogRange(
 
 
 function getSignalRange() {
+
   return [
     -1.05,
     1.05
@@ -2213,16 +3230,17 @@ function getSignalRange() {
 /*
 ==============================================================
 ペイン配置
-
-SignalペインをVCPと需給の間へ追加。
 ==============================================================
 */
 
 function getPaneLayout() {
+
   if (
     showVolumePane
   ) {
+
     return {
+
       height:
         1370,
 
@@ -2258,7 +3276,9 @@ function getPaneLayout() {
     };
   }
 
+
   return {
+
     height:
       1230,
 
@@ -2295,12 +3315,22 @@ function getPaneLayout() {
 }
 
 
+/*
+==============================================================
+初期表示期間
+==============================================================
+*/
+
 function getInitialDisplayRange() {
+
   if (
-    currentRangeStart &&
+    currentRangeStart
+    &&
     currentRangeEnd
   ) {
+
     return {
+
       start:
         currentRangeStart,
 
@@ -2309,35 +3339,43 @@ function getInitialDisplayRange() {
     };
   }
 
+
   const end =
     parseDate(
       currentStock.endDate
     );
+
 
   const start =
     new Date(
       end
     );
 
+
   start.setFullYear(
     start.getFullYear() -
     1
   );
+
 
   let startText =
     dateString(
       start
     );
 
+
   if (
     startText <
     currentStock.startDate
   ) {
+
     startText =
       currentStock.startDate;
   }
 
+
   return {
+
     start:
       startText,
 
@@ -2347,56 +3385,84 @@ function getInitialDisplayRange() {
 }
 
 
+/*
+==============================================================
+需給coverage表記
+==============================================================
+*/
+
 function coverageLabel(
   item
 ) {
+
   if (
     !item
   ) {
+
     return "未取得";
   }
 
+
   const period =
-    item.startDate ||
+    item.startDate
+    ||
     item.endDate
       ? (
-          `${item.startDate ?? "?"}` +
-          `〜` +
+          `${item.startDate ?? "?"}`
+          +
+          `〜`
+          +
           `${item.endDate ?? "?"}`
         )
       : "期間不明";
 
+
   switch (
     item.status
   ) {
+
     case "ok":
+
       return (
         `${period}`
       );
 
+
     case "partial":
+
       return (
         `一部取得 ${period}`
       );
 
+
     case "no_events_in_coverage":
+
       return (
-        `公表イベントなし` +
-        `（0とは断定しない） ` +
+        `公表イベントなし`
+        +
+        `（0とは断定しない） `
+        +
         `${period}`
       );
 
+
     case "unknown":
+
       return (
         `状態不明 ${period}`
       );
 
+
     case "error":
+
       return "取得失敗";
 
+
     default:
+
       return (
-        `${item.status ?? "不明"} ` +
+        `${item.status ?? "不明"} `
+        +
         `${period}`
       );
   }
@@ -2405,7 +3471,7 @@ function coverageLabel(
 
 /*
 ==============================================================
-可視範囲変更時
+可視範囲変更
 ==============================================================
 */
 
@@ -2413,12 +3479,16 @@ async function updateVisibleRange(
   start,
   end
 ) {
+
   if (
-    updatingRange ||
+    updatingRange
+    ||
     !currentStock
   ) {
+
     return;
   }
+
 
   const rows =
     visibleStockRows(
@@ -2426,22 +3496,28 @@ async function updateVisibleRange(
       end
     );
 
+
   if (
     !rows.length
   ) {
+
     return;
   }
+
 
   const profile =
     calculateVolumeProfile(
       rows
     );
 
+
   if (
     !profile
   ) {
+
     return;
   }
+
 
   const maxProfile =
     Math.max(
@@ -2449,32 +3525,40 @@ async function updateVisibleRange(
       1
     );
 
+
   let priceLow =
     Math.min(
       ...rows.map(
-        r => r.low
+        row =>
+          row.low
       )
     );
+
 
   let priceHigh =
     Math.max(
       ...rows.map(
-        r => r.high
+        row =>
+          row.high
       )
     );
+
 
   const high52 =
     rows
       .map(
-        r => r.high52
+        row =>
+          row.high52
       )
       .filter(
         isFiniteNumber
       );
 
+
   if (
     high52.length
   ) {
+
     priceHigh =
       Math.max(
         priceHigh,
@@ -2482,31 +3566,39 @@ async function updateVisibleRange(
       );
   }
 
+
   const pricePadding =
     Math.max(
+
       (
         priceHigh -
         priceLow
-      ) *
+      )
+      *
       .045,
 
       profile.step
     );
 
+
   const maxVolume =
     Math.max(
       ...rows.map(
-        r => r.volume
+        row =>
+          row.volume
       ),
       1
     );
 
+
   const nRange =
     rangeIncludeZero(
       rows.map(
-        r => r.vcp26
+        row =>
+          row.vcp26
       )
     );
+
 
   const supplyRows =
     visibleSupplyRows(
@@ -2514,41 +3606,55 @@ async function updateVisibleRange(
       end
     );
 
+
   const shortRange =
     positiveRange(
+
       supplyRows.map(
-        r =>
-          r.publicShortRatio
+        row =>
+          row.publicShortRatio
       ),
+
       1
     );
+
 
   const loanRange =
     positiveLogRange(
+
       supplyRows.map(
-        r =>
-          r.loanRatio
+        row =>
+          row.loanRatio
       ),
+
       1
     );
 
+
   const marginRange =
     positiveRange(
+
       supplyRows.map(
-        r =>
-          r.marginRatio
+        row =>
+          row.marginRatio
       ),
+
       1
     );
+
 
   updatingRange =
     true;
 
+
   try {
 
     await Plotly.restyle(
+
       chart,
+
       {
+
         x:[
           profile.up
         ],
@@ -2565,6 +3671,7 @@ async function updateVisibleRange(
           profile.up
         ]
       },
+
       [
         PROFILE_UP_INDEX
       ]
@@ -2572,8 +3679,11 @@ async function updateVisibleRange(
 
 
     await Plotly.restyle(
+
       chart,
+
       {
+
         x:[
           profile.down
         ],
@@ -2590,6 +3700,7 @@ async function updateVisibleRange(
           profile.down
         ]
       },
+
       [
         PROFILE_DOWN_INDEX
       ]
@@ -2597,11 +3708,11 @@ async function updateVisibleRange(
 
 
     const relayout = {
+
       "xaxis2.range":
         [
           maxProfile *
           3.5,
-
           0
         ],
 
@@ -2634,6 +3745,7 @@ async function updateVisibleRange(
     if (
       showVolumePane
     ) {
+
       relayout[
         "yaxis2.range"
       ] =
@@ -2654,6 +3766,7 @@ async function updateVisibleRange(
     currentRangeStart =
       start;
 
+
     currentRangeEnd =
       end;
 
@@ -2663,11 +3776,16 @@ async function updateVisibleRange(
         "profileInfo"
       )
       .textContent =
-        `価格帯別出来高：` +
-        `${start} ～ ${end} ／ ` +
-        `${rows.length}営業日 ／ ` +
-        `${profile.bins}価格帯 ／ ` +
-        `終値方式 ／ ` +
+        `価格帯別出来高：`
+        +
+        `${start} ～ ${end} ／ `
+        +
+        `${rows.length}営業日 ／ `
+        +
+        `${profile.bins}価格帯 ／ `
+        +
+        `終値方式 ／ `
+        +
         `左＝下落（赤）、右＝上昇（青）`;
 
   } finally {
@@ -2677,28 +3795,31 @@ async function updateVisibleRange(
   }
 }
 
-
 /*
 ==============================================================
-summary
+Summary
 ==============================================================
 */
 
 function updateSummary() {
+
   if (
     !currentStock
   ) {
     return;
   }
 
+
   const stockRows =
     currentStock.data;
+
 
   const latest =
     stockRows[
       stockRows.length -
       1
     ];
+
 
   const latestSupply =
     currentSupplyDaily.length
@@ -2711,27 +3832,30 @@ function updateSummary() {
 
   const buyCount =
     stockRows.filter(
-      r =>
-        r.strongBuySignal
+      row =>
+        row.buySignal
     ).length;
+
 
   const sellCount =
     stockRows.filter(
-      r =>
-        r.strongSellSignal
+      row =>
+        row.sellSignal
     ).length;
 
 
   let signal =
     "シグナルなし";
 
+
   let signalClass =
     "";
 
 
   if (
-    latest.strongBuySignal
+    latest.buySignal
   ) {
+
     signal =
       "▲ BUY";
 
@@ -2741,8 +3865,9 @@ function updateSummary() {
 
 
   if (
-    latest.strongSellSignal
+    latest.sellSignal
   ) {
+
     signal =
       "▼ SELL";
 
@@ -2761,87 +3886,166 @@ function updateSummary() {
         <span class="summary-label">
           終値
         </span>
+
         <strong>
-          ${formatNumber(latest.close,2)}
+          ${formatNumber(
+            latest.close,
+            2
+          )}
         </strong>
       </div>
+
 
       <div>
         <span class="summary-label">
           52週高値
         </span>
-        ${formatNumber(latest.high52,2)}
+
+        ${formatNumber(
+          latest.high52,
+          2
+        )}
       </div>
+
 
       <div>
         <span class="summary-label">
           RS20
         </span>
+
         ${
-          isFiniteNumber(latest.rs20)
-            ? `${(latest.rs20*100).toFixed(2)}%`
+          isFiniteNumber(
+            latest.rs20
+          )
+            ? `${(
+                latest.rs20 *
+                100
+              ).toFixed(
+                2
+              )}%`
             : "-"
         }
       </div>
+
 
       <div>
         <span class="summary-label">
           RS60
         </span>
+
         ${
-          isFiniteNumber(latest.rs60)
-            ? `${(latest.rs60*100).toFixed(2)}%`
+          isFiniteNumber(
+            latest.rs60
+          )
+            ? `${(
+                latest.rs60 *
+                100
+              ).toFixed(
+                2
+              )}%`
             : "-"
         }
       </div>
+
 
       <div>
         <span class="summary-label">
           Trend
         </span>
+
         <strong>
-          ${formatNumber(latest.trendLine,3)}
+          ${formatNumber(
+            latest.trendLine,
+            3
+          )}
         </strong>
       </div>
+
 
       <div>
         <span class="summary-label">
           Setup
         </span>
+
         <strong>
-          ${formatNumber(latest.setupLine,3)}
+          ${formatNumber(
+            latest.setupLine,
+            3
+          )}
         </strong>
       </div>
+
 
       <div>
         <span class="summary-label">
           Trigger
         </span>
+
         <strong>
-          ${formatNumber(latest.triggerLine,3)}
+          ${formatNumber(
+            latest.triggerLine,
+            3
+          )}
         </strong>
       </div>
+
 
       <div class="${signalClass}">
         ${signal}
       </div>
 
+
       <div>
         <span class="summary-label">
           VCP N
         </span>
+
         <strong>
-          ${formatNumber(latest.vcp26,6)}
+          ${formatNumber(
+            latest.vcp26,
+            6
+          )}
         </strong>
       </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP 5MA
+        </span>
+
+        ${formatNumber(
+          latest.vcp26Ma5,
+          6
+        )}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP 25MA
+        </span>
+
+        ${formatNumber(
+          latest.vcp26Ma25,
+          6
+        )}
+      </div>
+
 
       <div>
         <span class="summary-label">
           公表空売り
         </span>
+
         ${
-          latestSupply?.publicShortRatio === null ||
-          latestSupply?.publicShortRatio === undefined
+          latestSupply
+            ?.publicShortRatio ===
+            null
+          ||
+          latestSupply
+            ?.publicShortRatio ===
+            undefined
             ? "-"
             : `${formatNumber(
                 latestSupply.publicShortRatio,
@@ -2850,13 +4054,20 @@ function updateSummary() {
         }
       </div>
 
+
       <div>
         <span class="summary-label">
           貸借倍率
         </span>
+
         ${
-          latestSupply?.loanRatio === null ||
-          latestSupply?.loanRatio === undefined
+          latestSupply
+            ?.loanRatio ===
+            null
+          ||
+          latestSupply
+            ?.loanRatio ===
+            undefined
             ? "-"
             : `${formatNumber(
                 latestSupply.loanRatio,
@@ -2865,13 +4076,20 @@ function updateSummary() {
         }
       </div>
 
+
       <div>
         <span class="summary-label">
           信用倍率
         </span>
+
         ${
-          latestSupply?.marginRatio === null ||
-          latestSupply?.marginRatio === undefined
+          latestSupply
+            ?.marginRatio ===
+            null
+          ||
+          latestSupply
+            ?.marginRatio ===
+            undefined
             ? "-"
             : `${formatNumber(
                 latestSupply.marginRatio,
@@ -2880,20 +4098,318 @@ function updateSummary() {
         }
       </div>
 
+
       <div>
         <span class="summary-label">
           BUY
         </span>
+
         ${buyCount}
       </div>
+
 
       <div>
         <span class="summary-label">
           SELL
         </span>
+
         ${sellCount}
       </div>
       `;
+}
+
+
+/*
+==============================================================
+Signal Sidebar
+==============================================================
+*/
+
+function updateSignalSidebar() {
+
+  const container =
+    document.getElementById(
+      "signalSidebarBody"
+    );
+
+
+  if (
+    !currentSignalResult
+    ||
+    !currentStock
+  ) {
+
+    container.textContent =
+      "シグナルなし";
+
+    return;
+  }
+
+
+  const result =
+    currentSignalResult;
+
+
+  const latest =
+    currentStock.data[
+      currentStock.data.length -
+      1
+    ];
+
+
+  const latestTrade =
+    result.trades.length
+      ? result.trades[
+          result.trades.length -
+          1
+        ]
+      : null;
+
+
+  const stateText =
+    result.inPosition
+      ? "LONG"
+      : "FLAT";
+
+
+  const stateClass =
+    result.inPosition
+      ? "long"
+      : "flat";
+
+
+  const latestBuy =
+    result.latestBuy;
+
+
+  const latestSell =
+    result.latestSell;
+
+
+  let tradeHtml =
+    "";
+
+
+  if (
+    latestTrade
+  ) {
+
+    const returnValue =
+      latestTrade.returnPct;
+
+
+    const returnClass =
+      isFiniteNumber(
+        returnValue
+      )
+        ? (
+            returnValue >= 0
+              ? "signal-return-positive"
+              : "signal-return-negative"
+          )
+        : "";
+
+
+    tradeHtml =
+      `
+      <div class="signal-section">
+
+        <div class="signal-section-title">
+          CURRENT / LAST TRADE
+        </div>
+
+        <div class="signal-main-value">
+          ${
+            latestTrade.status ===
+            "OPEN"
+              ? "OPEN"
+              : "CLOSED"
+          }
+        </div>
+
+        <div class="signal-sub-value">
+          ${latestTrade.entryDate}
+          /
+          ${formatNumber(
+            latestTrade.entryPrice,
+            2
+          )}
+        </div>
+
+        ${
+          latestTrade.exitDate
+            ? `
+              <div class="signal-sub-value">
+                →
+                ${latestTrade.exitDate}
+                /
+                ${formatNumber(
+                  latestTrade.exitPrice,
+                  2
+                )}
+              </div>
+            `
+            : ""
+        }
+
+        <div class="${returnClass}">
+          ${
+            isFiniteNumber(
+              returnValue
+            )
+              ? `${returnValue >= 0 ? "+" : ""}${returnValue.toFixed(2)}%`
+              : "-"
+          }
+        </div>
+
+      </div>
+      `;
+  }
+
+
+  container.innerHTML =
+    `
+    <div class="signal-state ${stateClass}">
+      ${stateText}
+    </div>
+
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LATEST
+      </div>
+
+      <div class="signal-main-value">
+        ${
+          latest.buySignal
+            ? "▲ BUY"
+            : latest.sellSignal
+              ? "▼ SELL"
+              : "—"
+        }
+      </div>
+
+      <div class="signal-sub-value">
+        ${latest.date}
+      </div>
+
+    </div>
+
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LAST BUY
+      </div>
+
+      <div class="signal-main-value">
+        ${
+          latestBuy
+            ? formatNumber(
+                latestBuy.price,
+                2
+              )
+            : "-"
+        }
+      </div>
+
+      <div class="signal-sub-value">
+        ${
+          latestBuy?.date ??
+          "-"
+        }
+      </div>
+
+    </div>
+
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LAST SELL
+      </div>
+
+      <div class="signal-main-value">
+        ${
+          latestSell
+            ? formatNumber(
+                latestSell.price,
+                2
+              )
+            : "-"
+        }
+      </div>
+
+      <div class="signal-sub-value">
+        ${
+          latestSell?.date ??
+          "-"
+        }
+      </div>
+
+    </div>
+
+
+    ${tradeHtml}
+
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        CURRENT FACTORS
+      </div>
+
+      <div class="signal-sub-value">
+        Trigger
+        ${formatNumber(
+          latest.triggerLine,
+          3
+        )}
+      </div>
+
+      <div class="signal-sub-value">
+        Setup
+        ${formatNumber(
+          latest.setupLine,
+          3
+        )}
+      </div>
+
+      <div class="signal-sub-value">
+        Trend
+        ${formatNumber(
+          latest.trendLine,
+          3
+        )}
+      </div>
+
+      <div class="signal-sub-value">
+        VCP N
+        ${formatNumber(
+          latest.vcp26,
+          4
+        )}
+      </div>
+
+      <div class="signal-sub-value">
+        VCP 5MA
+        ${formatNumber(
+          latest.vcp26Ma5,
+          4
+        )}
+      </div>
+
+      <div class="signal-sub-value">
+        VCP 25MA
+        ${formatNumber(
+          latest.vcp26Ma25,
+          4
+        )}
+      </div>
+
+    </div>
+    `;
 }
 
 
@@ -2904,25 +4420,32 @@ function updateSummary() {
 */
 
 function getFavorites() {
+
   try {
+
     return JSON.parse(
       localStorage.getItem(
         "stockFavorites"
-      ) ||
+      )
+      ||
       "[]"
     );
+
   } catch {
+
     return [];
   }
 }
 
 
 function updateFavoriteButton() {
+
   document
     .getElementById(
       "favoriteButton"
     )
     .textContent =
+
       getFavorites()
         .includes(
           currentCode
@@ -2933,16 +4456,18 @@ function updateFavoriteButton() {
 
 
 function toggleFavorite() {
+
   let favorites =
     getFavorites();
+
 
   favorites =
     favorites.includes(
       currentCode
     )
       ? favorites.filter(
-          c =>
-            c !==
+          code =>
+            code !==
             currentCode
         )
       : [
@@ -2950,12 +4475,14 @@ function toggleFavorite() {
           currentCode
         ];
 
+
   localStorage.setItem(
     "stockFavorites",
     JSON.stringify(
       favorites
     )
   );
+
 
   updateFavoriteButton();
 }
@@ -2968,23 +4495,32 @@ Hover縦線
 */
 
 function installHoverLine() {
+
   chart.on(
     "plotly_hover",
+
     event => {
+
       const point =
         event?.points?.[0];
 
+
       if (
-        !point ||
+        !point
+        ||
         point.x ===
         undefined
       ) {
+
         return;
       }
 
+
       Plotly.relayout(
         chart,
+
         {
+
           "shapes[0].x0":
             point.x,
 
@@ -2998,12 +4534,17 @@ function installHoverLine() {
     }
   );
 
+
   chart.on(
     "plotly_unhover",
+
     () => {
+
       Plotly.relayout(
         chart,
+
         {
+
           "shapes[0].visible":
             false
         }
@@ -3020,21 +4561,28 @@ Chart
 */
 
 async function drawChart() {
+
   if (
     !currentStock
   ) {
+
     return;
   }
+
 
   const rows =
     currentStock.data;
 
+
   const dates =
     rows.map(
-      r => r.date
+      row =>
+        row.date
     );
 
+
   const {
+
     start:
       initialStart,
 
@@ -3067,9 +4615,9 @@ async function drawChart() {
 
   const dailyColors =
     rows.map(
-      r =>
-        r.close >=
-        r.open
+      row =>
+        row.close >=
+        row.open
           ? BLUE
           : RED
     );
@@ -3077,29 +4625,30 @@ async function drawChart() {
 
   const buyRows =
     rows.filter(
-      r =>
-        r.strongBuySignal
+      row =>
+        row.buySignal
     );
 
 
   const sellRows =
     rows.filter(
-      r =>
-        r.strongSellSignal
+      row =>
+        row.sellSignal
     );
 
 
   const supplyDates =
     currentSupplyDaily.map(
-      r => r.date
+      row =>
+        row.date
     );
 
 
   const shortHover =
     currentSupplyDaily.map(
-      r =>
+      row =>
         shortInstitutionText(
-          r.publicShortInstitutions
+          row.publicShortInstitutions
         )
     );
 
@@ -3113,6 +4662,13 @@ async function drawChart() {
 
 
   const traces = [
+
+    /*
+    ==========================================================
+    Price
+    ==========================================================
+    */
+
     {
       type:
         "candlestick",
@@ -3125,22 +4681,26 @@ async function drawChart() {
 
       open:
         rows.map(
-          r => r.open
+          row =>
+            row.open
         ),
 
       high:
         rows.map(
-          r => r.high
+          row =>
+            row.high
         ),
 
       low:
         rows.map(
-          r => r.low
+          row =>
+            row.low
         ),
 
       close:
         rows.map(
-          r => r.close
+          row =>
+            row.close
         ),
 
       xaxis:
@@ -3150,6 +4710,7 @@ async function drawChart() {
         "y",
 
       increasing:{
+
         line:{
           color:
             BLUE
@@ -3160,6 +4721,7 @@ async function drawChart() {
       },
 
       decreasing:{
+
         line:{
           color:
             RED
@@ -3172,6 +4734,7 @@ async function drawChart() {
       hoverinfo:
         "skip"
     },
+
 
     {
       type:
@@ -3188,16 +4751,18 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.close
+          row =>
+            row.close
         ),
 
       customdata:
         rows.map(
-          r => [
-            r.open,
-            r.high,
-            r.low,
-            r.close
+          row => [
+
+            row.open,
+            row.high,
+            row.low,
+            row.close
           ]
         ),
 
@@ -3211,6 +4776,7 @@ async function drawChart() {
         false,
 
       marker:{
+
         size:
           12,
 
@@ -3219,13 +4785,19 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "日付 %{x|%Y-%m-%d}<br>" +
-        "始 %{customdata[0]:,.0f}<br>" +
-        "高 %{customdata[1]:,.0f}<br>" +
-        "安 %{customdata[2]:,.0f}<br>" +
-        "終 %{customdata[3]:,.0f}" +
+        "日付 %{x|%Y-%m-%d}<br>"
+        +
+        "始 %{customdata[0]:,.0f}<br>"
+        +
+        "高 %{customdata[1]:,.0f}<br>"
+        +
+        "安 %{customdata[2]:,.0f}<br>"
+        +
+        "終 %{customdata[3]:,.0f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3242,7 +4814,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.ma5
+          row =>
+            row.ma5
         ),
 
       xaxis:
@@ -3252,6 +4825,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1.4,
 
@@ -3259,6 +4833,7 @@ async function drawChart() {
           ORANGE
       }
     },
+
 
     {
       type:
@@ -3275,7 +4850,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.ma25
+          row =>
+            row.ma25
         ),
 
       xaxis:
@@ -3285,6 +4861,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1.4,
 
@@ -3292,6 +4869,7 @@ async function drawChart() {
           PURPLE
       }
     },
+
 
     {
       type:
@@ -3308,7 +4886,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.ma50
+          row =>
+            row.ma50
         ),
 
       xaxis:
@@ -3318,6 +4897,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1.4,
 
@@ -3325,6 +4905,7 @@ async function drawChart() {
           GREEN
       }
     },
+
 
     {
       type:
@@ -3341,7 +4922,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.highMa5
+          row =>
+            row.highMa5
         ),
 
       xaxis:
@@ -3351,6 +4933,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1,
 
@@ -3364,6 +4947,7 @@ async function drawChart() {
       visible:
         "legendonly"
     },
+
 
     {
       type:
@@ -3380,7 +4964,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.lowMa5
+          row =>
+            row.lowMa5
         ),
 
       xaxis:
@@ -3390,6 +4975,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1,
 
@@ -3403,6 +4989,7 @@ async function drawChart() {
       visible:
         "legendonly"
     },
+
 
     {
       type:
@@ -3419,7 +5006,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.high52
+          row =>
+            row.high52
         ),
 
       xaxis:
@@ -3429,6 +5017,7 @@ async function drawChart() {
         "y",
 
       line:{
+
         width:
           1.5,
 
@@ -3440,9 +5029,19 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "52週高値 %{y:,.0f}" +
+        "52週高値 %{y:,.0f}"
+        +
         "<extra></extra>"
     },
+
+
+    /*
+    ==========================================================
+    Volume Profile
+
+    index 8 / 9
+    ==========================================================
+    */
 
     {
       type:
@@ -3473,15 +5072,19 @@ async function drawChart() {
         "y",
 
       marker:{
+
         color:
           "rgba(25,118,210,0.50)"
       },
 
       hovertemplate:
-        "価格 %{y:,.0f}円<br>" +
-        "上昇出来高 %{customdata:,.0f}" +
+        "価格 %{y:,.0f}円<br>"
+        +
+        "上昇出来高 %{customdata:,.0f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3512,15 +5115,25 @@ async function drawChart() {
         "y",
 
       marker:{
+
         color:
           "rgba(211,47,47,0.50)"
       },
 
       hovertemplate:
-        "価格 %{y:,.0f}円<br>" +
-        "下落出来高 %{customdata:,.0f}" +
+        "価格 %{y:,.0f}円<br>"
+        +
+        "下落出来高 %{customdata:,.0f}"
+        +
         "<extra></extra>"
     },
+
+
+    /*
+    ==========================================================
+    Volume
+    ==========================================================
+    */
 
     {
       type:
@@ -3534,7 +5147,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.volume
+          row =>
+            row.volume
         ),
 
       xaxis:
@@ -3547,15 +5161,25 @@ async function drawChart() {
         showVolumePane,
 
       marker:{
+
         color:
           dailyColors
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "出来高 %{y:,.0f}" +
+        "%{x}<br>"
+        +
+        "出来高 %{y:,.0f}"
+        +
         "<extra></extra>"
     },
+
+
+    /*
+    ==========================================================
+    VCP
+    ==========================================================
+    */
 
     {
       type:
@@ -3569,7 +5193,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.vcp26
+          row =>
+            row.vcp26
         ),
 
       xaxis:
@@ -3579,15 +5204,19 @@ async function drawChart() {
         "y3",
 
       marker:{
+
         color:
           BLUE
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "VCP N %{y:.6f}" +
+        "%{x}<br>"
+        +
+        "VCP N %{y:.6f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3604,7 +5233,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.vcp26Ma5
+          row =>
+            row.vcp26Ma5
         ),
 
       xaxis:
@@ -3614,6 +5244,7 @@ async function drawChart() {
         "y3",
 
       line:{
+
         width:
           2,
 
@@ -3622,10 +5253,13 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "VCP 5MA %{y:.6f}" +
+        "%{x}<br>"
+        +
+        "VCP 5MA %{y:.6f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3642,7 +5276,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r => r.vcp26Ma25
+          row =>
+            row.vcp26Ma25
         ),
 
       xaxis:
@@ -3652,6 +5287,7 @@ async function drawChart() {
         "y3",
 
       line:{
+
         width:
           2,
 
@@ -3660,10 +5296,19 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "VCP 25MA %{y:.6f}" +
+        "%{x}<br>"
+        +
+        "VCP 25MA %{y:.6f}"
+        +
         "<extra></extra>"
     },
+
+
+    /*
+    ==========================================================
+    Trend / Setup / Trigger
+    ==========================================================
+    */
 
     {
       type:
@@ -3680,8 +5325,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r =>
-            r.trendLine
+          row =>
+            row.trendLine
         ),
 
       xaxis:
@@ -3691,6 +5336,7 @@ async function drawChart() {
         "y4",
 
       line:{
+
         width:
           2.2,
 
@@ -3699,10 +5345,13 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "Trend %{y:.3f}" +
+        "%{x}<br>"
+        +
+        "Trend %{y:.3f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3719,8 +5368,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r =>
-            r.setupLine
+          row =>
+            row.setupLine
         ),
 
       xaxis:
@@ -3730,18 +5379,22 @@ async function drawChart() {
         "y4",
 
       line:{
+
         width:
-          2.0,
+          2,
 
         color:
           PURPLE
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "Setup %{y:.3f}" +
+        "%{x}<br>"
+        +
+        "Setup %{y:.3f}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3758,8 +5411,8 @@ async function drawChart() {
 
       y:
         rows.map(
-          r =>
-            r.triggerLine
+          row =>
+            row.triggerLine
         ),
 
       xaxis:
@@ -3769,18 +5422,27 @@ async function drawChart() {
         "y4",
 
       line:{
+
         width:
-          2.0,
+          2,
 
         color:
           ORANGE
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "Trigger %{y:.3f}" +
+        "%{x}<br>"
+        +
+        "Trigger %{y:.3f}"
+        +
         "<extra></extra>"
     },
+
+    /*
+    ==========================================================
+    需給
+    ==========================================================
+    */
 
     {
       type:
@@ -3794,8 +5456,8 @@ async function drawChart() {
 
       y:
         currentSupplyDaily.map(
-          r =>
-            r.publicShortRatio
+          row =>
+            row.publicShortRatio
         ),
 
       customdata:
@@ -3808,16 +5470,21 @@ async function drawChart() {
         "y5",
 
       marker:{
+
         color:
           "rgba(90,90,90,0.38)"
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "公表空売り %{y:.2f}%<br>" +
-        "%{customdata}" +
+        "%{x}<br>"
+        +
+        "公表空売り %{y:.2f}%<br>"
+        +
+        "%{customdata}"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3834,8 +5501,8 @@ async function drawChart() {
 
       y:
         currentSupplyDaily.map(
-          r =>
-            r.loanRatio
+          row =>
+            row.loanRatio
         ),
 
       xaxis:
@@ -3845,6 +5512,7 @@ async function drawChart() {
         "y6",
 
       line:{
+
         width:
           2,
 
@@ -3856,6 +5524,7 @@ async function drawChart() {
       },
 
       marker:{
+
         size:
           4,
 
@@ -3867,10 +5536,13 @@ async function drawChart() {
         false,
 
       hovertemplate:
-        "%{x}<br>" +
-        "貸借倍率 %{y:.2f}倍" +
+        "%{x}<br>"
+        +
+        "貸借倍率 %{y:.2f}倍"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3887,8 +5559,8 @@ async function drawChart() {
 
       y:
         currentSupplyDaily.map(
-          r =>
-            r.marginRatio
+          row =>
+            row.marginRatio
         ),
 
       xaxis:
@@ -3898,6 +5570,7 @@ async function drawChart() {
         "y7",
 
       line:{
+
         width:
           2,
 
@@ -3912,10 +5585,19 @@ async function drawChart() {
       },
 
       hovertemplate:
-        "%{x}<br>" +
-        "信用倍率 %{y:.2f}倍" +
+        "%{x}<br>"
+        +
+        "信用倍率 %{y:.2f}倍"
+        +
         "<extra></extra>"
     },
+
+
+    /*
+    ==========================================================
+    BUY / SELL markers
+    ==========================================================
+    */
 
     {
       type:
@@ -3929,14 +5611,14 @@ async function drawChart() {
 
       x:
         buyRows.map(
-          r =>
-            r.date
+          row =>
+            row.date
         ),
 
       y:
         buyRows.map(
-          r =>
-            r.low *
+          row =>
+            row.low *
             .985
         ),
 
@@ -3947,6 +5629,7 @@ async function drawChart() {
         "y",
 
       marker:{
+
         symbol:
           "triangle-up",
 
@@ -3957,6 +5640,7 @@ async function drawChart() {
           BLUE,
 
         line:{
+
           color:
             "#fff",
 
@@ -3969,10 +5653,13 @@ async function drawChart() {
         false,
 
       hovertemplate:
-        "%{x}<br>" +
-        "BUY ▲" +
+        "%{x}<br>"
+        +
+        "BUY ▲"
+        +
         "<extra></extra>"
     },
+
 
     {
       type:
@@ -3986,14 +5673,14 @@ async function drawChart() {
 
       x:
         sellRows.map(
-          r =>
-            r.date
+          row =>
+            row.date
         ),
 
       y:
         sellRows.map(
-          r =>
-            r.high *
+          row =>
+            row.high *
             1.015
         ),
 
@@ -4004,6 +5691,7 @@ async function drawChart() {
         "y",
 
       marker:{
+
         symbol:
           "triangle-down",
 
@@ -4014,6 +5702,7 @@ async function drawChart() {
           RED,
 
         line:{
+
           color:
             "#fff",
 
@@ -4026,12 +5715,21 @@ async function drawChart() {
         false,
 
       hovertemplate:
-        "%{x}<br>" +
-        "SELL ▼" +
+        "%{x}<br>"
+        +
+        "SELL ▼"
+        +
         "<extra></extra>"
     }
+
   ];
 
+
+/*
+==============================================================
+初期レンジ
+==============================================================
+*/
 
   const initialSupply =
     visibleSupplyRows(
@@ -4043,43 +5741,56 @@ async function drawChart() {
   const nRange =
     rangeIncludeZero(
       initialRows.map(
-        r =>
-          r.vcp26
+        row =>
+          row.vcp26
       )
     );
 
 
   const shortRange =
     positiveRange(
+
       initialSupply.map(
-        r =>
-          r.publicShortRatio
+        row =>
+          row.publicShortRatio
       ),
+
       1
     );
 
 
   const loanRange =
     positiveLogRange(
+
       initialSupply.map(
-        r =>
-          r.loanRatio
+        row =>
+          row.loanRatio
       ),
+
       1
     );
 
 
   const marginRange =
     positiveRange(
+
       initialSupply.map(
-        r =>
-          r.marginRatio
+        row =>
+          row.marginRatio
       ),
+
       1
     );
 
 
+/*
+==============================================================
+Layout
+==============================================================
+*/
+
   const layout = {
+
     height:
       pane.height,
 
@@ -4093,6 +5804,7 @@ async function drawChart() {
       "#fff",
 
     margin:{
+
       l:
         72,
 
@@ -4119,6 +5831,7 @@ async function drawChart() {
       "stack",
 
     legend:{
+
       orientation:
         "h",
 
@@ -4129,12 +5842,15 @@ async function drawChart() {
         1.045,
 
       font:{
+
         size:
           11
       }
     },
 
+
     shapes:[
+
       {
         type:
           "line",
@@ -4164,6 +5880,7 @@ async function drawChart() {
           "above",
 
         line:{
+
           color:
             "rgba(60,60,60,0.65)",
 
@@ -4174,6 +5891,7 @@ async function drawChart() {
             "dot"
         }
       },
+
 
       {
         type:
@@ -4198,6 +5916,7 @@ async function drawChart() {
           0,
 
         line:{
+
           color:
             "rgba(0,0,0,0.45)",
 
@@ -4210,11 +5929,12 @@ async function drawChart() {
 
     /*
     ==========================================================
-    X軸
+    X axes
     ==========================================================
     */
 
     xaxis:{
+
       type:
         "date",
 
@@ -4244,6 +5964,7 @@ async function drawChart() {
         false,
 
       rangeslider:{
+
         visible:
           true,
 
@@ -4261,6 +5982,7 @@ async function drawChart() {
       },
 
       rangebreaks:[
+
         {
           bounds:[
             "sat",
@@ -4272,6 +5994,7 @@ async function drawChart() {
 
 
     xaxis2:{
+
       type:
         "linear",
 
@@ -4287,7 +6010,6 @@ async function drawChart() {
       range:[
         maxProfile *
         3.5,
-
         0
       ],
 
@@ -4309,6 +6031,7 @@ async function drawChart() {
 
 
     xaxis3:{
+
       type:
         "date",
 
@@ -4339,6 +6062,7 @@ async function drawChart() {
         false,
 
       rangeslider:{
+
         visible:
           false
       }
@@ -4346,6 +6070,7 @@ async function drawChart() {
 
 
     xaxis4:{
+
       type:
         "date",
 
@@ -4373,6 +6098,7 @@ async function drawChart() {
         false,
 
       rangeslider:{
+
         visible:
           false
       }
@@ -4380,6 +6106,7 @@ async function drawChart() {
 
 
     xaxis5:{
+
       type:
         "date",
 
@@ -4407,6 +6134,7 @@ async function drawChart() {
         false,
 
       rangeslider:{
+
         visible:
           false
       }
@@ -4414,6 +6142,7 @@ async function drawChart() {
 
 
     xaxis6:{
+
       type:
         "date",
 
@@ -4441,6 +6170,7 @@ async function drawChart() {
         false,
 
       rangeslider:{
+
         visible:
           false
       }
@@ -4449,11 +6179,12 @@ async function drawChart() {
 
     /*
     ==========================================================
-    Y軸
+    Y axes
     ==========================================================
     */
 
     yaxis:{
+
       domain:
         pane.priceDomain,
 
@@ -4461,6 +6192,7 @@ async function drawChart() {
         "right",
 
       title:{
+
         text:
           "株価"
       },
@@ -4480,6 +6212,7 @@ async function drawChart() {
 
 
     yaxis2:{
+
       domain:
         pane.volumeDomain,
 
@@ -4490,6 +6223,7 @@ async function drawChart() {
         showVolumePane,
 
       title:{
+
         text:
           "出来高"
       },
@@ -4512,6 +6246,7 @@ async function drawChart() {
 
 
     yaxis3:{
+
       domain:
         pane.vcpDomain,
 
@@ -4519,6 +6254,7 @@ async function drawChart() {
         "right",
 
       title:{
+
         text:
           "VCP N"
       },
@@ -4546,13 +6282,8 @@ async function drawChart() {
     },
 
 
-    /*
-    ==========================================================
-    Trend / Setup / Trigger
-    ==========================================================
-    */
-
     yaxis4:{
+
       domain:
         pane.signalDomain,
 
@@ -4560,6 +6291,7 @@ async function drawChart() {
         "right",
 
       title:{
+
         text:
           "Trend / Setup / Trigger"
       },
@@ -4595,13 +6327,8 @@ async function drawChart() {
     },
 
 
-    /*
-    ==========================================================
-    需給
-    ==========================================================
-    */
-
     yaxis5:{
+
       domain:
         pane.supplyDomain,
 
@@ -4609,10 +6336,12 @@ async function drawChart() {
         "right",
 
       title:{
+
         text:
           "公表空売り %",
 
         font:{
+
           color:
             GRAY
         }
@@ -4640,6 +6369,7 @@ async function drawChart() {
         false,
 
       tickfont:{
+
         color:
           GRAY
       }
@@ -4647,6 +6377,7 @@ async function drawChart() {
 
 
     yaxis6:{
+
       domain:
         pane.supplyDomain,
 
@@ -4663,10 +6394,12 @@ async function drawChart() {
         "left",
 
       title:{
+
         text:
           "貸借倍率（対数）",
 
         font:{
+
           color:
             BLUE
         }
@@ -4679,6 +6412,7 @@ async function drawChart() {
         false,
 
       minor:{
+
         showgrid:
           false
       },
@@ -4690,6 +6424,7 @@ async function drawChart() {
         false,
 
       tickfont:{
+
         color:
           BLUE
       }
@@ -4697,6 +6432,7 @@ async function drawChart() {
 
 
     yaxis7:{
+
       domain:
         pane.supplyDomain,
 
@@ -4713,10 +6449,12 @@ async function drawChart() {
         .94,
 
       title:{
+
         text:
           "信用倍率",
 
         font:{
+
           color:
             RED
         }
@@ -4738,6 +6476,7 @@ async function drawChart() {
         false,
 
       tickfont:{
+
         color:
           RED
       }
@@ -4745,12 +6484,19 @@ async function drawChart() {
   };
 
 
+/*
+==============================================================
+Plot
+==============================================================
+*/
+
   Plotly.purge(
     chart
   );
 
 
   await Plotly.newPlot(
+
     chart,
 
     traces,
@@ -4758,6 +6504,7 @@ async function drawChart() {
     layout,
 
     {
+
       responsive:
         true,
 
@@ -4783,13 +6530,17 @@ async function drawChart() {
 
 
   chart.on(
+
     "plotly_relayout",
+
     event => {
 
       if (
-        updatingRange ||
+        updatingRange
+        ||
         !currentStock
       ) {
+
         return;
       }
 
@@ -4807,10 +6558,13 @@ async function drawChart() {
 
 
       if (
-        start &&
+        start
+        &&
         end
       ) {
+
         updateVisibleRange(
+
           String(
             start
           ).slice(
@@ -4834,6 +6588,7 @@ async function drawChart() {
         ] ===
         true
       ) {
+
         updateVisibleRange(
           currentStock.startDate,
           currentStock.endDate
@@ -4843,34 +6598,30 @@ async function drawChart() {
   );
 }
 
+
 /*
 ==============================================================
-TOPIX取得
-
-/api/topix
+TOPIX
 ==============================================================
 */
 
 async function fetchTopix() {
-  /*
-   * 一度取得したTOPIXは
-   * 同じページセッション中では再取得しない。
-   */
+
   if (
     currentTopix
   ) {
+
     return currentTopix;
   }
 
-  /*
-   * 同時に複数銘柄読み込みが走っても
-   * TOPIX APIは1回だけ叩く。
-   */
+
   if (
     topixPromise
   ) {
+
     return topixPromise;
   }
+
 
   topixPromise =
     (
@@ -4885,31 +6636,35 @@ async function fetchTopix() {
             }
           );
 
+
         if (
           !response.ok
         ) {
+
           throw new Error(
             `TOPIX API HTTP ${response.status}`
           );
         }
 
+
         const data =
           await response.json();
+
 
         if (
           !Array.isArray(
             data?.data
-          ) ||
+          )
+          ||
           !data.data.length
         ) {
+
           throw new Error(
             "TOPIXデータがありません"
           );
         }
 
-        /*
-         * 念のため日付順に並べる。
-         */
+
         data.data.sort(
           (
             a,
@@ -4920,8 +6675,10 @@ async function fetchTopix() {
             )
         );
 
+
         currentTopix =
           data;
+
 
         console.log(
           "TOPIX loaded:",
@@ -4937,9 +6694,11 @@ async function fetchTopix() {
           }
         );
 
+
         return currentTopix;
       }
     )();
+
 
   try {
 
@@ -4949,10 +6708,6 @@ async function fetchTopix() {
     error
   ) {
 
-    /*
-     * 失敗した場合は、
-     * 次回読み込み時に再試行できるようにする。
-     */
     topixPromise =
       null;
 
@@ -4963,38 +6718,46 @@ async function fetchTopix() {
 
 /*
 ==============================================================
-需給取得
+Supply
 ==============================================================
 */
 
 async function fetchSupply(
   code
 ) {
+
   try {
 
     const response =
       await fetch(
+
         `/api/supply/${code}`,
+
         {
           cache:
             "no-store"
         }
       );
 
+
     if (
       response.status ===
       404
     ) {
+
       return null;
     }
+
 
     if (
       !response.ok
     ) {
+
       throw new Error(
         `HTTP ${response.status}`
       );
     }
+
 
     return response.json();
 
@@ -5007,6 +6770,7 @@ async function fetchSupply(
       error
     );
 
+
     return null;
   }
 }
@@ -5014,52 +6778,58 @@ async function fetchSupply(
 
 /*
 ==============================================================
-銘柄読み込み
+Load Stock
 ==============================================================
 */
 
 async function loadStock(
   code
 ) {
+
   code =
     code
       .trim()
       .toUpperCase();
+
 
   if (
     !/^[0-9A-Z]{4}$/.test(
       code
     )
   ) {
+
     throw new Error(
       "東証銘柄コードを4文字で入力してください"
     );
   }
+
 
   const status =
     document.getElementById(
       "status"
     );
 
+
   status.classList.remove(
     "error"
   );
 
+
   status.textContent =
     `${code} の株価・TOPIXを読み込み中...`;
 
+
   currentRangeStart =
     null;
+
 
   currentRangeEnd =
     null;
 
 
-  /*
-   * ==========================================================
-   * 需給とTOPIXは並列開始
-   * ==========================================================
-   */
+  currentSignalResult =
+    null;
+
 
   const supplyPromise =
     fetchSupply(
@@ -5071,15 +6841,11 @@ async function loadStock(
     fetchTopix();
 
 
-  /*
-   * ==========================================================
-   * 個別株取得
-   * ==========================================================
-   */
-
   const stockResponse =
     await fetch(
+
       `/api/stock/${code}`,
+
       {
         cache:
           "no-store"
@@ -5095,10 +6861,12 @@ async function loadStock(
       stockResponse.status ===
       404
     ) {
+
       throw new Error(
         `${code} の株価データはR2にありません`
       );
     }
+
 
     throw new Error(
       `株価API HTTP ${stockResponse.status}`
@@ -5113,25 +6881,19 @@ async function loadStock(
   if (
     !Array.isArray(
       stockData.data
-    ) ||
+    )
+    ||
     !stockData.data.length
   ) {
+
     throw new Error(
       "株価データがありません"
     );
   }
 
 
-  /*
-   * ==========================================================
-   * TOPIXを待つ
-   *
-   * Trend計算に必須なので、
-   * 株価描画前にここだけ待つ。
-   * ==========================================================
-   */
-
   let topixData;
+
 
   try {
 
@@ -5147,47 +6909,35 @@ async function loadStock(
       error
     );
 
+
     throw new Error(
       `TOPIXの取得に失敗しました：${error.message}`
     );
   }
 
 
-  /*
-   * ==========================================================
-   * 現在銘柄設定
-   * ==========================================================
-   */
-
   currentStock =
     stockData;
 
+
   currentSupply =
     null;
+
 
   currentCode =
     code;
 
 
   /*
-   * ==========================================================
    * 指標計算
    *
-   * ここでTOPIXを渡す。
-   * ==========================================================
+   * 最後にSignalEngine.evaluate()も実行される。
    */
-
   prepareIndicators(
     currentStock.data,
     topixData.data
   );
 
-
-  /*
-   * ==========================================================
-   * 需給は後から入れる
-   * ==========================================================
-   */
 
   currentSupplyDaily =
     buildSupplyDaily(
@@ -5217,11 +6967,17 @@ async function loadStock(
       "signalInfo"
     )
     .textContent =
-      `Trend / Setup / Trigger：` +
-      `TOPIX ${topixData.startDate ?? "?"} ～ ` +
-      `${topixData.endDate ?? "?"} ／ ` +
-      `${formatNumber(topixData.rowCount)}営業日 ／ ` +
-      `RS20・RS60使用`;
+      `Trend / Setup / Trigger：`
+      +
+      `TOPIX ${topixData.startDate ?? "?"} ～ `
+      +
+      `${topixData.endDate ?? "?"} ／ `
+      +
+      `${formatNumber(topixData.rowCount)}営業日 ／ `
+      +
+      `BUY＝Trigger > Setup > Trend > 0 ／ `
+      +
+      `SELL＝VCP5MA < VCP25MA ＆ VCPN < 0 ＆ Trend < 5日前Trend`;
 
 
   document
@@ -5235,45 +6991,38 @@ async function loadStock(
   updateFavoriteButton();
 
 
-  /*
-   * ==========================================================
-   * 株価＋TOPIX指標は先に表示
-   * ==========================================================
-   */
-
   await drawChart();
 
 
   updateSummary();
 
 
+  updateSignalSidebar();
+
+
   status.textContent =
-    `株価：${currentStock.startDate} ～ ` +
-    `${currentStock.endDate} ／ ` +
-    `${formatNumber(currentStock.rowCount)}営業日 ／ ` +
-    `TOPIX：${topixData.startDate} ～ ` +
-    `${topixData.endDate} ／ ` +
+    `株価：${currentStock.startDate} ～ `
+    +
+    `${currentStock.endDate} ／ `
+    +
+    `${formatNumber(currentStock.rowCount)}営業日 ／ `
+    +
+    `TOPIX：${topixData.startDate} ～ `
+    +
+    `${topixData.endDate} ／ `
+    +
     `需給を読み込み中...`;
 
-
-  /*
-   * ==========================================================
-   * 需給待ち
-   * ==========================================================
-   */
 
   const supplyData =
     await supplyPromise;
 
 
-  /*
-   * 読み込み中に別銘柄へ変更されたら
-   * 古い需給データを反映しない。
-   */
   if (
     currentCode !==
     code
   ) {
+
     return;
   }
 
@@ -5284,6 +7033,7 @@ async function loadStock(
 
   currentSupplyDaily =
     buildSupplyDaily(
+
       currentStock.data,
 
       Array.isArray(
@@ -5298,8 +7048,9 @@ async function loadStock(
     currentSupply?.rows?.length
   ) {
 
-    const cov =
-      currentSupply.coverage ||
+    const coverage =
+      currentSupply.coverage
+      ||
       {};
 
 
@@ -5308,10 +7059,14 @@ async function loadStock(
         "supplyInfo"
       )
       .textContent =
-        `需給：` +
-        `公表空売り［${coverageLabel(cov.publicShort)}］ ／ ` +
-        `貸借倍率［${coverageLabel(cov.loanRatio)}］ ／ ` +
-        `信用倍率［${coverageLabel(cov.marginRatio)}］ ／ ` +
+        `需給：`
+        +
+        `公表空売り［${coverageLabel(coverage.publicShort)}］ ／ `
+        +
+        `貸借倍率［${coverageLabel(coverage.loanRatio)}］ ／ `
+        +
+        `信用倍率［${coverageLabel(coverage.marginRatio)}］ ／ `
+        +
         `最終更新 ${currentSupply.updatedAt ?? "-"}`;
 
   } else {
@@ -5321,16 +7076,11 @@ async function loadStock(
         "supplyInfo"
       )
       .textContent =
-        "需給データはまだR2にありません。" +
-        "株価・VCP・Trend/Setup/Triggerは通常表示します。";
+        "需給データはまだR2にありません。"
+        +
+        "株価・VCP・Trend/Setup/Trigger・売買シグナルは通常表示します。";
   }
 
-
-  /*
-   * ==========================================================
-   * 需給追加後に再描画
-   * ==========================================================
-   */
 
   await drawChart();
 
@@ -5338,97 +7088,123 @@ async function loadStock(
   updateSummary();
 
 
+  updateSignalSidebar();
+
+
   status.textContent =
-    `株価：${currentStock.startDate} ～ ` +
-    `${currentStock.endDate} ／ ` +
-    `${formatNumber(currentStock.rowCount)}営業日 ／ ` +
-    `TOPIX：${topixData.startDate} ～ ` +
+    `株価：${currentStock.startDate} ～ `
+    +
+    `${currentStock.endDate} ／ `
+    +
+    `${formatNumber(currentStock.rowCount)}営業日 ／ `
+    +
+    `TOPIX：${topixData.startDate} ～ `
+    +
     `${topixData.endDate}`;
 }
 
 
 /*
 ==============================================================
-期間変更
+Period
 ==============================================================
 */
 
 async function setPeriod(
   period
 ) {
+
   if (
     !currentStock
   ) {
+
     return;
   }
+
 
   const end =
     parseDate(
       currentStock.endDate
     );
 
+
   let start =
     new Date(
       end
     );
+
 
   switch (
     period
   ) {
 
     case "3m":
+
       start.setMonth(
         start.getMonth() -
         3
       );
+
       break;
 
 
     case "6m":
+
       start.setMonth(
         start.getMonth() -
         6
       );
+
       break;
 
 
     case "1y":
+
       start.setFullYear(
         start.getFullYear() -
         1
       );
+
       break;
 
 
     case "3y":
+
       start.setFullYear(
         start.getFullYear() -
         3
       );
+
       break;
 
 
     case "5y":
+
       start.setFullYear(
         start.getFullYear() -
         5
       );
+
       break;
 
 
     case "10y":
+
       start.setFullYear(
         start.getFullYear() -
         10
       );
+
       break;
 
 
     case "all":
+
       start =
         parseDate(
           currentStock.startDate
         );
+
       break;
   }
 
@@ -5443,6 +7219,7 @@ async function setPeriod(
     startText <
     currentStock.startDate
   ) {
+
     startText =
       currentStock.startDate;
   }
@@ -5455,12 +7232,15 @@ async function setPeriod(
   currentRangeStart =
     startText;
 
+
   currentRangeEnd =
     endText;
 
 
   await Plotly.relayout(
+
     chart,
+
     {
       "xaxis.range":[
         startText,
@@ -5488,7 +7268,9 @@ document
     "loadButton"
   )
   .addEventListener(
+
     "click",
+
     async () => {
 
       try {
@@ -5510,12 +7292,15 @@ document
             "status"
           );
 
+
         status.classList.add(
           "error"
         );
 
+
         status.textContent =
-          error.message ??
+          error.message
+          ??
           String(
             error
           );
@@ -5529,13 +7314,16 @@ document
     "stockCode"
   )
   .addEventListener(
+
     "keydown",
+
     event => {
 
       if (
         event.key ===
         "Enter"
       ) {
+
         document
           .getElementById(
             "loadButton"
@@ -5551,10 +7339,13 @@ document
     "[data-period]"
   )
   .forEach(
+
     button => {
 
       button.addEventListener(
+
         "click",
+
         async () => {
 
           document
@@ -5562,6 +7353,7 @@ document
               "[data-period]"
             )
             .forEach(
+
               item =>
                 item
                   .classList
@@ -5592,21 +7384,27 @@ document
     "profileBins"
   )
   .addEventListener(
+
     "change",
+
     async () => {
 
       if (
         !currentStock
       ) {
+
         return;
       }
 
 
       await updateVisibleRange(
-        currentRangeStart ??
+
+        currentRangeStart
+        ??
         currentStock.startDate,
 
-        currentRangeEnd ??
+        currentRangeEnd
+        ??
         currentStock.endDate
       );
     }
@@ -5618,7 +7416,9 @@ document
     "showVolumePane"
   )
   .addEventListener(
+
     "change",
+
     async event => {
 
       showVolumePane =
@@ -5632,6 +7432,8 @@ document
         await drawChart();
 
         updateSummary();
+
+        updateSignalSidebar();
       }
     }
   );
@@ -5652,12 +7454,15 @@ document
     "saveImage"
   )
   .addEventListener(
+
     "click",
+
     async () => {
 
       if (
         !currentStock
       ) {
+
         return;
       }
 
@@ -5667,13 +7472,15 @@ document
 
 
       await Plotly.downloadImage(
+
         chart,
+
         {
           format:
             "png",
 
           filename:
-            `${currentCode}_${currentStock.endDate}_VCP_RS`,
+            `${currentCode}_${currentStock.endDate}_VCP_SIGNAL`,
 
           width:
             1800,
@@ -5692,7 +7499,7 @@ document
 
 /*
 ==============================================================
-初期状態
+Initial state
 ==============================================================
 */
 
@@ -5708,14 +7515,11 @@ showVolumePane =
   false;
 
 
-/*
- * TOPIXは初回銘柄読み込み時に
- * fetchTopix()で取得される。
- */
 loadStock(
   "9984"
 )
   .catch(
+
     error => {
 
       const status =
@@ -5730,7 +7534,8 @@ loadStock(
 
 
       status.textContent =
-        error.message ??
+        error.message
+        ??
         String(
           error
         );
@@ -5738,5 +7543,6 @@ loadStock(
   );
 
 </script>
+
 </body>
 </html>
