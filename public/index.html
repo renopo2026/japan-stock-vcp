@@ -572,6 +572,22 @@
       font-size: 11px;
     }
 
+
+    /* Stock tags */
+    .tag-toolbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .tag-menu-wrap { position:relative; }
+    .tag-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); width:240px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 5px 18px rgba(0,0,0,.16); z-index:5000; }
+    .tag-menu.open { display:block; }
+    .tag-menu-title { margin-bottom:9px; color:#666; font-size:11px; font-weight:700; letter-spacing:.03em; }
+    .tag-category-title { margin-top:10px; margin-bottom:5px; padding-top:8px; border-top:1px solid #eee; color:#888; font-size:10px; font-weight:700; }
+    .tag-category-title:first-child { margin-top:0; padding-top:0; border-top:0; }
+    .tag-checkbox-label { display:flex; align-items:center; gap:7px; padding:5px 3px; font-size:12px; cursor:pointer; user-select:none; }
+    .tag-checkbox-label:hover { background:#f6f6f6; }
+    .tag-checkbox-label input { margin:0; width:15px; height:15px; }
+    #tagButton.has-tags { background:#222; border-color:#222; color:#fff; }
+    #tagFilter { min-width:105px; }
+    #tagStockList { min-width:150px; }
+
     @media (
       max-width: 1100px
     ) {
@@ -628,13 +644,27 @@
 
       <div>
 
-        <button id="favoriteButton">
-          ☆ お気に入り
-        </button>
+        <div class="tag-toolbar">
 
-        <button id="saveImage">
-          PNG保存
-        </button>
+          <div class="tag-menu-wrap">
+            <button id="tagButton">タグ</button>
+            <div id="tagMenu" class="tag-menu">
+              <div class="tag-menu-title">この銘柄のタグ</div>
+              <div id="tagCheckboxes"></div>
+            </div>
+          </div>
+
+          <select id="tagFilter" title="タグから銘柄を絞り込み">
+            <option value="">タグ一覧</option>
+          </select>
+
+          <select id="tagStockList" title="登録銘柄">
+            <option value="">登録銘柄</option>
+          </select>
+
+          <button id="saveImage">PNG保存</button>
+
+        </div>
 
       </div>
 
@@ -2897,74 +2927,150 @@ function updateSignalSidebar() {
 }
 
 
-function getFavorites() {
+const STOCK_TAGS = {
+  "投資判断": ["長期", "気になる", "監視", "除外", "組入除外", "イベント"],
+  "テーマ": ["半導体", "AI", "防衛", "銀行", "電力"]
+};
 
+const STOCK_TAG_STORAGE_KEY = "stockTagsV1";
+
+function getTagDatabase() {
   try {
-
-    return JSON.parse(
-      localStorage.getItem(
-        "stockFavorites"
-      )
-      ||
-      "[]"
-    );
-
-  } catch {
-
-    return [];
+    const raw = localStorage.getItem(STOCK_TAG_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.warn("タグデータ読込失敗:", error);
+    return {};
   }
 }
 
-
-function updateFavoriteButton() {
-
-  document
-    .getElementById(
-      "favoriteButton"
-    )
-    .textContent =
-
-      getFavorites()
-        .includes(
-          currentCode
-        )
-          ? "★ お気に入り"
-          : "☆ お気に入り";
+function saveTagDatabase(database) {
+  localStorage.setItem(STOCK_TAG_STORAGE_KEY, JSON.stringify(database));
 }
 
-
-function toggleFavorite() {
-
-  let favorites =
-    getFavorites();
-
-
-  favorites =
-    favorites.includes(
-      currentCode
-    )
-      ? favorites.filter(
-          code =>
-            code !==
-            currentCode
-        )
-      : [
-          ...favorites,
-          currentCode
-        ];
-
-
-  localStorage.setItem(
-    "stockFavorites",
-    JSON.stringify(
-      favorites
-    )
-  );
-
-
-  updateFavoriteButton();
+function getStockTags(code) {
+  const database = getTagDatabase();
+  const item = database[code];
+  if (!item) return [];
+  if (Array.isArray(item)) return item;
+  return Array.isArray(item.tags) ? item.tags : [];
 }
 
+function setStockTags(code, tags) {
+  const database = getTagDatabase();
+  const uniqueTags = [...new Set(tags)];
+  if (!uniqueTags.length) {
+    delete database[code];
+    saveTagDatabase(database);
+    updateTagUi();
+    return;
+  }
+  database[code] = {
+    code,
+    name: currentStock?.name ?? "",
+    tags: uniqueTags,
+    updatedAt: new Date().toISOString()
+  };
+  saveTagDatabase(database);
+  updateTagUi();
+}
+
+function toggleStockTag(tag) {
+  const current = getStockTags(currentCode);
+  const next = current.includes(tag)
+    ? current.filter(item => item !== tag)
+    : [...current, tag];
+  setStockTags(currentCode, next);
+}
+
+function renderTagCheckboxes() {
+  const container = document.getElementById("tagCheckboxes");
+  if (!container) return;
+  const selected = new Set(getStockTags(currentCode));
+  let html = "";
+  for (const [category, tags] of Object.entries(STOCK_TAGS)) {
+    html += `<div class="tag-category-title">${category}</div>`;
+    for (const tag of tags) {
+      html += `
+        <label class="tag-checkbox-label">
+          <input type="checkbox" class="stock-tag-checkbox" value="${tag}" ${selected.has(tag) ? "checked" : ""}>
+          <span>${tag}</span>
+        </label>`;
+    }
+  }
+  container.innerHTML = html;
+  container.querySelectorAll(".stock-tag-checkbox").forEach(checkbox => {
+    checkbox.addEventListener("change", () => toggleStockTag(checkbox.value));
+  });
+}
+
+function updateTagButton() {
+  const button = document.getElementById("tagButton");
+  if (!button) return;
+  const tags = getStockTags(currentCode);
+  button.textContent = tags.length ? `タグ (${tags.length})` : "タグ";
+  button.classList.toggle("has-tags", tags.length > 0);
+}
+
+function populateTagFilter() {
+  const select = document.getElementById("tagFilter");
+  if (!select) return;
+  const previousValue = select.value;
+  let html = `<option value="">タグ一覧</option><option value="__ALL__">すべての登録銘柄</option>`;
+  for (const [category, tags] of Object.entries(STOCK_TAGS)) {
+    html += `<optgroup label="${category}">`;
+    for (const tag of tags) html += `<option value="${tag}">${tag}</option>`;
+    html += `</optgroup>`;
+  }
+  select.innerHTML = html;
+  const allowed = ["", "__ALL__", ...Object.values(STOCK_TAGS).flat()];
+  if (allowed.includes(previousValue)) select.value = previousValue;
+}
+
+function updateTagStockList() {
+  const filter = document.getElementById("tagFilter");
+  const select = document.getElementById("tagStockList");
+  if (!filter || !select) return;
+  const selectedTag = filter.value;
+  let entries = Object.entries(getTagDatabase());
+  if (selectedTag === "") {
+    select.innerHTML = `<option value="">登録銘柄</option>`;
+    return;
+  }
+  if (selectedTag !== "__ALL__") {
+    entries = entries.filter(([, item]) => {
+      const tags = Array.isArray(item) ? item : item?.tags;
+      return Array.isArray(tags) && tags.includes(selectedTag);
+    });
+  }
+  entries.sort(([a], [b]) => a.localeCompare(b));
+  let html = `<option value="">${selectedTag === "__ALL__" ? `登録銘柄 (${entries.length})` : `${selectedTag} (${entries.length})`}</option>`;
+  for (const [code, item] of entries) {
+    const name = Array.isArray(item) ? "" : (item?.name ?? "");
+    html += `<option value="${code}">${code}${name ? ` ${name}` : ""}</option>`;
+  }
+  select.innerHTML = html;
+}
+
+function updateTagUi() {
+  updateTagButton();
+  renderTagCheckboxes();
+  populateTagFilter();
+  updateTagStockList();
+}
+
+function toggleTagMenu() {
+  const menu = document.getElementById("tagMenu");
+  if (!menu) return;
+  renderTagCheckboxes();
+  menu.classList.toggle("open");
+}
+
+function closeTagMenu() {
+  document.getElementById("tagMenu")?.classList.remove("open");
+}
 
 /*
 ==============================================================
@@ -5523,7 +5629,7 @@ async function loadStock(
       "需給データを読み込み中...";
 
 
-  updateFavoriteButton();
+  updateTagUi();
 
 
   await drawChart();
@@ -5976,15 +6082,38 @@ document
   );
 
 
-document
-  .getElementById(
-    "favoriteButton"
-  )
-  .addEventListener(
-    "click",
-    toggleFavorite
-  );
+/*
+==============================================================
+Tag events
+==============================================================
+*/
 
+document.getElementById("tagButton").addEventListener("click", event => {
+  event.stopPropagation();
+  toggleTagMenu();
+});
+
+document.getElementById("tagMenu").addEventListener("click", event => {
+  event.stopPropagation();
+});
+
+document.addEventListener("click", () => closeTagMenu());
+
+document.getElementById("tagFilter").addEventListener("change", () => {
+  updateTagStockList();
+});
+
+document.getElementById("tagStockList").addEventListener("change", async event => {
+  const code = event.target.value;
+  if (!code) return;
+  try {
+    await loadStock(code);
+  } catch (error) {
+    const status = document.getElementById("status");
+    status.classList.add("error");
+    status.textContent = error.message ?? String(error);
+  }
+});
 
 document
   .getElementById(
