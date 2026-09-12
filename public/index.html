@@ -443,6 +443,135 @@
       line-height: 1.4;
     }
 
+    /*
+    ==========================================================
+    VCP occurrence selector / Trading record
+    ==========================================================
+    */
+
+    .signal-occurrence-group {
+      margin-top: 12px;
+      padding: 9px 10px;
+      background: #f7f7f7;
+      border-radius: 7px;
+    }
+
+    .signal-occurrence-title {
+      margin-bottom: 7px;
+      color: #666;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .signal-radio-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-right: 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .signal-radio-label input {
+      margin: 0;
+      padding: 0;
+    }
+
+    .trade-records {
+      width: 100%;
+    }
+
+    .trade-records > summary {
+      cursor: pointer;
+      color: #666;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      user-select: none;
+    }
+
+    .trade-record-list {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .trade-record-card {
+      padding: 9px;
+      border: 1px solid #e6e6e6;
+      border-radius: 7px;
+      background: #fafafa;
+      font-size: 11px;
+    }
+
+    .trade-record-head,
+    .trade-record-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .trade-record-line {
+      margin-top: 5px;
+      color: #777;
+    }
+
+    .trade-record-line strong {
+      color: #333;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .trade-record-status {
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .trade-record-status.open {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .trade-record-status.closed {
+      background: #eeeeee;
+      color: #555;
+    }
+
+    .trade-record-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 9px;
+      margin-top: 8px;
+    }
+
+    .trade-record-grid > div {
+      display: flex;
+      justify-content: space-between;
+      gap: 5px;
+    }
+
+    .trade-record-grid span {
+      color: #888;
+    }
+
+    .trade-record-foot {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #e6e6e6;
+      color: #888;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .trade-record-empty {
+      margin-top: 8px;
+      color: #888;
+      font-size: 11px;
+    }
+
     @media (
       max-width: 1100px
     ) {
@@ -467,7 +596,6 @@
 
   </style>
 </head>
-
 
 <body>
 
@@ -813,6 +941,15 @@ let currentVcpSellThreshold =
 
 
 /*
+ * BUY後、VCP N < threshold を
+ * 何回観測した時点からSELL判定を許可するか。
+ * 1 = 1回目、2 = 2回目。
+ */
+let currentVcpHitOccurrence =
+  1;
+
+
+/*
 ==============================================================
 Trace indexes
 
@@ -1012,10 +1149,9 @@ function getChartPaddedEndDate() {
 }
 
 
-
 /*
 ==============================================================
-Indicators are loaded from indicators.js
+Signal recalculation
 ==============================================================
 */
 
@@ -1035,17 +1171,15 @@ async function recalculateSignals() {
       currentStock.data,
 
       {
-
         vcpSellThreshold:
-          currentVcpSellThreshold
+          currentVcpSellThreshold,
+
+        vcpHitOccurrence:
+          currentVcpHitOccurrence
       }
     );
 
 
-  /*
-   * BUY / SELLマーカーも変わるので
-   * チャート再描画。
-   */
   await drawChart();
 
 
@@ -1058,10 +1192,9 @@ async function recalculateSignals() {
 
 /*
 ==============================================================
-VCP SELL threshold slider
+Volume-by-Price
 ==============================================================
 */
-
 
 function calculateVolumeProfile(
   rows
@@ -1246,7 +1379,6 @@ function calculateVolumeProfile(
     step
   };
 }
-
 
 /*
 ==============================================================
@@ -2333,7 +2465,6 @@ async function updateVisibleRange(
   }
 }
 
-
 /*
 ==============================================================
 Summary
@@ -2588,6 +2719,17 @@ function updateSummary() {
 
       <div>
         <span class="summary-label">
+          VCP判定
+        </span>
+
+        <strong>
+          ${currentVcpHitOccurrence}回目
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
           公表空売り
         </span>
 
@@ -2675,8 +2817,6 @@ function updateSummary() {
 /*
 ==============================================================
 Signal Sidebar
-
-表示・スライダー操作は signal-sidebar.js に分離。
 ==============================================================
 */
 
@@ -2720,6 +2860,9 @@ function updateSignalSidebar() {
     threshold:
       currentVcpSellThreshold,
 
+    occurrence:
+      currentVcpHitOccurrence,
+
     formatNumber,
 
     onThresholdChange:
@@ -2730,10 +2873,26 @@ function updateSignalSidebar() {
 
 
         await recalculateSignals();
+      },
+
+    onOccurrenceChange:
+      async value => {
+
+        currentVcpHitOccurrence =
+          value;
+
+
+        await recalculateSignals();
       }
   });
 }
 
+
+/*
+==============================================================
+Favorites
+==============================================================
+*/
 
 function getFavorites() {
 
@@ -3730,7 +3889,6 @@ async function drawChart() {
         +
         "<extra></extra>"
     },
-
 
     {
       type:
@@ -5031,7 +5189,6 @@ async function fetchSupply(
   }
 }
 
-
 /*
 ==============================================================
 Load Stock
@@ -5184,6 +5341,9 @@ async function loadStock(
     code;
 
 
+  /*
+   * 指標計算
+   */
   if (
     !window.Indicators
     ||
@@ -5203,6 +5363,9 @@ async function loadStock(
   );
 
 
+  /*
+   * 売買シグナル計算
+   */
   if (
     !window.SignalEngine
     ||
@@ -5223,7 +5386,10 @@ async function loadStock(
 
       {
         vcpSellThreshold:
-          currentVcpSellThreshold
+          currentVcpSellThreshold,
+
+        vcpHitOccurrence:
+          currentVcpHitOccurrence
       }
     );
 
@@ -5268,7 +5434,9 @@ async function loadStock(
       +
       `SELL＝VCP5MA < VCP25MA ＆ `
       +
-      `VCPN < ${currentVcpSellThreshold.toFixed(2)} ＆ `
+      `VCPN < ${currentVcpSellThreshold.toFixed(2)} をBUY後`
+      +
+      `${currentVcpHitOccurrence}回以上観測 ＆ `
       +
       `Trend < 5日前Trend`;
 
@@ -5792,6 +5960,12 @@ document
     }
   );
 
+
+/*
+==============================================================
+Initial state
+==============================================================
+*/
 
 document
   .getElementById(
