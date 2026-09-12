@@ -292,9 +292,12 @@ Signal Sidebar
               </div>
 
               <div class="trade-record-foot">
-                VCP判定：${trade.vcpHitOccurrenceSetting ?? occurrence}回目
-                ／
-                判定時カウント：${trade.vcpHitCountAtExit ?? 0}
+                SELLモード：${trade.vcpHitOccurrenceSetting ?? occurrence}回目
+                ${
+                  (trade.vcpHitOccurrenceSetting ?? occurrence) === 2
+                    ? `／ 1回目警戒：${trade.sellWarningDate ?? "-"} ／ 0回復：${trade.zeroRecoveryDate ?? "-"}`
+                    : "／ 完全SELL条件で決済"
+                }
               </div>
             </div>
           `;
@@ -568,7 +571,7 @@ Signal Sidebar
           <span class="signal-metric-label">
             Avg Capture (Winners)
             ${helpIcon(
-              "利益が出た決済済みトレードだけを対象に、Capture Ratioの平均を計算します。負けトレードはこの平均には含めません。"
+              "利益が出たCLOSEDトレードだけを対象にしたCapture Ratioの平均です。負けトレード由来の極端なマイナス値は平均に入れません。"
             )}
           </span>
           <span class="signal-metric-value">
@@ -584,7 +587,7 @@ Signal Sidebar
           <span class="signal-metric-label">
             Median Capture
             ${helpIcon(
-              "利益が出た決済済みトレードだけを対象にしたCapture Ratioの中央値です。極端な値の影響を受けにくい指標です。"
+              "利益が出たCLOSEDトレードのCapture Ratioを小さい順に並べた中央値です。外れ値の影響を受けにくく、典型的な利益捕捉率を見るのに向いています。"
             )}
           </span>
           <span class="signal-metric-value">
@@ -596,10 +599,8 @@ Signal Sidebar
           </span>
         </div>
 
-        <div class="signal-sub-value">
-          Capture集計対象：
-          利益トレード
-          ${summary.captureSampleCount ?? 0}件
+        <div class="signal-threshold-note">
+          Capture集計対象：利益トレード ${summary.captureSampleCount ?? 0}件
         </div>
       </div>
 
@@ -609,10 +610,11 @@ Signal Sidebar
           VCP SELL SETTINGS
         </div>
 
-        <div class="signal-main-value">
-          <span id="vcpThresholdCondition">
-            VCP N < ${threshold.toFixed(2)}
-          </span>
+        <div
+          id="vcpThresholdValue"
+          class="signal-main-value"
+        >
+          ${threshold.toFixed(2)}
         </div>
 
         <input
@@ -622,80 +624,60 @@ Signal Sidebar
           min="-1"
           max="0"
           step="0.01"
-          value="${threshold.toFixed(2)}"
+          value="${threshold}"
+          aria-label="VCP SELL threshold"
         >
 
         <div class="signal-slider-scale">
           <span>-1.00</span>
-
-          <strong id="vcpThresholdValue">
-            ${threshold.toFixed(2)}
-          </strong>
-
           <span>0.00</span>
         </div>
 
-        <div class="signal-threshold-note">
-          SELL判定に使うVCP Nの閾値。
-          0.00にすると
-          「BUY後にVCP N &lt; 0となった日」
-          をカウントします。
-        </div>
-
-
         <div class="signal-occurrence-group">
-
           <div class="signal-occurrence-title">
-            BUY後に
-            <strong>VCP N &lt; ${threshold.toFixed(2)}</strong>
-            を何回観測してからSELL判定を許可するか
+            SELLタイミング
           </div>
 
           <label class="signal-radio-label">
-
             <input
               type="radio"
               name="vcpHitOccurrence"
               value="1"
-              ${
-                normalizedOccurrence === 1
-                  ? "checked"
-                  : ""
-              }
+              ${normalizedOccurrence === 1 ? "checked" : ""}
             >
-
             1回目
-
           </label>
 
           <label class="signal-radio-label">
-
             <input
               type="radio"
               name="vcpHitOccurrence"
               value="2"
-              ${
-                normalizedOccurrence === 2
-                  ? "checked"
-                  : ""
-              }
+              ${normalizedOccurrence === 2 ? "checked" : ""}
             >
-
             2回目
-
           </label>
-
         </div>
 
-
         <div class="signal-threshold-note">
-          現在のSELL条件：
-          VCP5MA &lt; VCP25MA
+          1回目：
+          <br>
+          VCP 5MA &lt; VCP 25MA
           ＆
-          VCP N &lt; ${threshold.toFixed(2)}
-          をBUY後${normalizedOccurrence}回以上観測
+          <span id="vcpThresholdCondition">
+            VCP N &lt; ${threshold.toFixed(2)}
+          </span>
           ＆
-          Trend &lt; 5日前Trend
+          Trend t &lt; Trend t-5
+          が全部成立した日にSELL。
+          <br><br>
+          2回目：
+          <br>
+          上の完全SELL条件が1回成立した後も保有し、
+          VCP Nが一度0以上へ回復してから、
+          再び0未満へクロスした日にSELL。
+          <br><br>
+          スライダー選択中は ← / → キーで0.01ずつ変更できます。
         </div>
       </div>
 
@@ -704,19 +686,17 @@ Signal Sidebar
         <div class="signal-section-title">
           LATEST SIGNAL
         </div>
-
         <div class="signal-main-value">
           ${
             latest.buySignal
               ? "▲ BUY"
               : latest.sellSignal
                 ? "▼ SELL"
-                : "-"
+                : "—"
           }
         </div>
-
         <div class="signal-sub-value">
-          ${latest.date ?? "-"}
+          ${latest.date}
         </div>
       </div>
 
@@ -725,24 +705,11 @@ Signal Sidebar
         <div class="signal-section-title">
           LAST BUY
         </div>
-
         <div class="signal-main-value">
-          ${
-            latestBuy
-              ? latestBuy.date
-              : "-"
-          }
+          ${latestBuy ? numberText(latestBuy.price, 2) : "-"}
         </div>
-
         <div class="signal-sub-value">
-          ${
-            latestBuy
-              ? `@ ${numberText(
-                  latestBuy.price,
-                  2
-                )}`
-              : "BUY履歴なし"
-          }
+          ${latestBuy?.date ?? "-"}
         </div>
       </div>
 
@@ -751,24 +718,11 @@ Signal Sidebar
         <div class="signal-section-title">
           LAST SELL
         </div>
-
         <div class="signal-main-value">
-          ${
-            latestSell
-              ? latestSell.date
-              : "-"
-          }
+          ${latestSell ? numberText(latestSell.price, 2) : "-"}
         </div>
-
         <div class="signal-sub-value">
-          ${
-            latestSell
-              ? `@ ${numberText(
-                  latestSell.price,
-                  2
-                )}`
-              : "SELL履歴なし"
-          }
+          ${latestSell?.date ?? "-"}
         </div>
       </div>
 
@@ -782,160 +736,56 @@ Signal Sidebar
 
 
       <div class="signal-section">
-
         <div class="signal-section-title">
           CURRENT FACTORS
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            Trend
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.trendLine,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">Trigger</span>
+          <span class="signal-metric-value">${numberText(latest.triggerLine, 3)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            Setup
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.setupLine,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">Setup</span>
+          <span class="signal-metric-value">${numberText(latest.setupLine, 3)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            Trigger
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.triggerLine,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">Trend</span>
+          <span class="signal-metric-value">${numberText(latest.trendLine, 3)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            52W
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factor52,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">VCP N</span>
+          <span class="signal-metric-value">${numberText(latest.vcp26, 4)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            VCP
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factorVcp,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">VCP 5MA</span>
+          <span class="signal-metric-value">${numberText(latest.vcp26Ma5, 4)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            RCI
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factorRci,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">VCP 25MA</span>
+          <span class="signal-metric-value">${numberText(latest.vcp26Ma25, 4)}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            Volume
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factorVol,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">1回目SELL警戒</span>
+          <span class="signal-metric-value">${result.sellWarningArmed ? "ON" : "OFF"}</span>
         </div>
 
         <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            RS
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factorRs,
-              3
-            )}
-          </span>
+          <span class="signal-metric-label">VCP N 0回復</span>
+          <span class="signal-metric-value">${result.zeroRecoverySeen ? "済" : "未"}</span>
         </div>
-
-        <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            RCI slope
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.factorRciSlope,
-              3
-            )}
-          </span>
-        </div>
-
-        <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            VCP N
-          </span>
-
-          <span class="signal-metric-value">
-            ${numberText(
-              latest.vcp26,
-              6
-            )}
-          </span>
-        </div>
-
-        <div class="signal-metric-row">
-          <span class="signal-metric-label">
-            VCP hit count
-          </span>
-
-          <span class="signal-metric-value">
-            ${latest.vcpHitCountAfterBuy ?? 0}
-          </span>
-        </div>
-
       </div>
     `;
-
 
     installThresholdSlider({
       threshold,
       onThresholdChange
     });
-
 
     installOccurrenceRadios({
       occurrence: normalizedOccurrence,
@@ -949,4 +799,3 @@ Signal Sidebar
   };
 
 })();
-        
