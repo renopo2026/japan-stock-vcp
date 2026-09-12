@@ -597,6 +597,7 @@
   </style>
 </head>
 
+
 <body>
 
 <div class="app">
@@ -1149,9 +1150,10 @@ function getChartPaddedEndDate() {
 }
 
 
+
 /*
 ==============================================================
-Signal recalculation
+Indicators are loaded from indicators.js
 ==============================================================
 */
 
@@ -1171,6 +1173,7 @@ async function recalculateSignals() {
       currentStock.data,
 
       {
+
         vcpSellThreshold:
           currentVcpSellThreshold,
 
@@ -1180,6 +1183,10 @@ async function recalculateSignals() {
     );
 
 
+  /*
+   * BUY / SELLマーカーも変わるので
+   * チャート再描画。
+   */
   await drawChart();
 
 
@@ -1192,9 +1199,10 @@ async function recalculateSignals() {
 
 /*
 ==============================================================
-Volume-by-Price
+VCP SELL threshold slider
 ==============================================================
 */
+
 
 function calculateVolumeProfile(
   rows
@@ -1379,6 +1387,7 @@ function calculateVolumeProfile(
     step
   };
 }
+
 
 /*
 ==============================================================
@@ -2719,17 +2728,6 @@ function updateSummary() {
 
       <div>
         <span class="summary-label">
-          VCP判定
-        </span>
-
-        <strong>
-          ${currentVcpHitOccurrence}回目
-        </strong>
-      </div>
-
-
-      <div>
-        <span class="summary-label">
           公表空売り
         </span>
 
@@ -2820,6 +2818,15 @@ Signal Sidebar
 ==============================================================
 */
 
+
+/*
+==============================================================
+Signal Sidebar
+
+表示・スライダー操作は signal-sidebar.js に分離。
+==============================================================
+*/
+
 function updateSignalSidebar() {
 
   if (
@@ -2879,7 +2886,9 @@ function updateSignalSidebar() {
       async value => {
 
         currentVcpHitOccurrence =
-          value;
+          value === 2
+            ? 2
+            : 1;
 
 
         await recalculateSignals();
@@ -2887,12 +2896,6 @@ function updateSignalSidebar() {
   });
 }
 
-
-/*
-==============================================================
-Favorites
-==============================================================
-*/
 
 function getFavorites() {
 
@@ -3145,6 +3148,12 @@ async function drawChart() {
 
 
   const traces = [
+
+    /*
+    ==========================================================
+    Price
+    ==========================================================
+    */
 
     {
       type:
@@ -3513,6 +3522,12 @@ async function drawChart() {
     },
 
 
+    /*
+    ==========================================================
+    Volume Profile
+    ==========================================================
+    */
+
     {
       type:
         "bar",
@@ -3599,6 +3614,12 @@ async function drawChart() {
     },
 
 
+    /*
+    ==========================================================
+    Volume
+    ==========================================================
+    */
+
     {
       type:
         "bar",
@@ -3638,6 +3659,12 @@ async function drawChart() {
         "<extra></extra>"
     },
 
+
+    /*
+    ==========================================================
+    VCP
+    ==========================================================
+    */
 
     {
       type:
@@ -3761,6 +3788,12 @@ async function drawChart() {
         "<extra></extra>"
     },
 
+
+    /*
+    ==========================================================
+    Trend / Setup / Trigger
+    ==========================================================
+    */
 
     {
       type:
@@ -3889,6 +3922,12 @@ async function drawChart() {
         +
         "<extra></extra>"
     },
+
+        /*
+    ==========================================================
+    Supply
+    ==========================================================
+    */
 
     {
       type:
@@ -4039,6 +4078,12 @@ async function drawChart() {
     },
 
 
+    /*
+    ==========================================================
+    BUY / SELL markers
+    ==========================================================
+    */
+
     {
       type:
         "scatter",
@@ -4165,6 +4210,12 @@ async function drawChart() {
   ];
 
 
+/*
+==============================================================
+Initial ranges
+==============================================================
+*/
+
   const initialSupply =
     visibleSupplyRows(
       initialStart,
@@ -4216,6 +4267,12 @@ async function drawChart() {
       1
     );
 
+
+/*
+==============================================================
+Layout
+==============================================================
+*/
 
   const layout = {
 
@@ -4354,6 +4411,12 @@ async function drawChart() {
       }
     ],
 
+
+    /*
+    ==========================================================
+    X axes
+    ==========================================================
+    */
 
     xaxis:{
 
@@ -4599,6 +4662,12 @@ async function drawChart() {
       }
     },
 
+
+    /*
+    ==========================================================
+    Y axes
+    ==========================================================
+    */
 
     yaxis:{
 
@@ -4901,6 +4970,12 @@ async function drawChart() {
   };
 
 
+/*
+==============================================================
+Plot
+==============================================================
+*/
+
   Plotly.purge(
     chart
   );
@@ -5189,6 +5264,7 @@ async function fetchSupply(
   }
 }
 
+
 /*
 ==============================================================
 Load Stock
@@ -5432,13 +5508,11 @@ async function loadStock(
       +
       `BUY＝Trigger > Setup > Trend > 0 ／ `
       +
-      `SELL＝VCP5MA < VCP25MA ＆ `
-      +
-      `VCPN < ${currentVcpSellThreshold.toFixed(2)} をBUY後`
-      +
-      `${currentVcpHitOccurrence}回以上観測 ＆ `
-      +
-      `Trend < 5日前Trend`;
+      (
+        currentVcpHitOccurrence === 1
+          ? `SELL(1回目)＝VCP5MA < VCP25MA ＆ VCPN < ${currentVcpSellThreshold.toFixed(2)} ＆ Trend < 5日前Trend`
+          : `SELL(2回目)＝完全SELL条件成立後、VCPNが0以上へ回復し、その後0未満へ再クロス`
+      );
 
 
   document
