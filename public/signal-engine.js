@@ -8,17 +8,24 @@ BUY
 SELL
   VCP 5MA < VCP 25MA
   AND
-  VCP N < vcpSellThreshold
+  VCP N < vcpSellThreshold を
+  BUY後に指定回数観測
   AND
   Trend_t < Trend_t-5
 
 SELLはBUY後だけ有効。
 
+vcpHitOccurrence
+  1 = 1回目
+  2 = 2回目
+
 バックテスト統計:
   Total Return
+  Closed Return
   MFE
   MAE
-  Capture Ratio
+  Avg Capture (Winners)
+  Median Capture
   Win Rate
 ==============================================================
 */
@@ -28,7 +35,10 @@ SELLはBUY後だけ有効。
   const DEFAULT_OPTIONS = {
 
     vcpSellThreshold:
-      -0.08
+      -0.08,
+
+    vcpHitOccurrence:
+      1
   };
 
 
@@ -82,7 +92,15 @@ SELLはBUY後だけ有効。
   }
 
 
-  function isSellCondition(
+  /*
+  ============================================================
+  Base SELL conditions
+
+  VCPの「何回目か」は別で管理する。
+  ============================================================
+  */
+
+  function getBaseSellConditions(
     rows,
     index,
     options
@@ -93,7 +111,20 @@ SELLはBUY後だけ有効。
       5
     ) {
 
-      return false;
+      return {
+
+        valid:
+          false,
+
+        vcpMaCross:
+          false,
+
+        vcpThreshold:
+          false,
+
+        trendDecline:
+          false
+      };
     }
 
 
@@ -120,26 +151,57 @@ SELLはBUY後だけ有効。
       )
     ) {
 
-      return false;
+      return {
+
+        valid:
+          false,
+
+        vcpMaCross:
+          false,
+
+        vcpThreshold:
+          false,
+
+        trendDecline:
+          false
+      };
     }
 
 
-    return (
+    const vcpMaCross =
       row.vcp26Ma5 <
-      row.vcp26Ma25
+      row.vcp26Ma25;
 
-      &&
 
+    const vcpThreshold =
       row.vcp26 <
-      options.vcpSellThreshold
+      options.vcpSellThreshold;
 
-      &&
 
+    const trendDecline =
       row.trendLine <
-      row5.trendLine
-    );
+      row5.trendLine;
+
+
+    return {
+
+      valid:
+        true,
+
+      vcpMaCross,
+
+      vcpThreshold,
+
+      trendDecline
+    };
   }
 
+
+  /*
+  ============================================================
+  Trade statistics
+  ============================================================
+  */
 
   function calculateTradeStats(
     rows,
@@ -172,6 +234,13 @@ SELLはBUY後だけ有効。
     ) {
 
       return {
+
+        highestPrice:
+          null,
+
+        lowestPrice:
+          null,
+
         mfePct:
           null,
 
@@ -305,6 +374,79 @@ SELLはBUY後だけ有効。
   }
 
 
+  /*
+  ============================================================
+  Median helper
+  ============================================================
+  */
+
+  function median(
+    values
+  ) {
+
+    const valid =
+      values
+        .filter(
+          isFiniteNumber
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a -
+            b
+        );
+
+
+    if (
+      !valid.length
+    ) {
+
+      return null;
+    }
+
+
+    const middle =
+      Math.floor(
+        valid.length /
+        2
+      );
+
+
+    if (
+      valid.length %
+      2 ===
+      1
+    ) {
+
+      return valid[
+        middle
+      ];
+    }
+
+
+    return (
+      valid[
+        middle -
+        1
+      ]
+      +
+      valid[
+        middle
+      ]
+    )
+    /
+    2;
+  }
+
+
+  /*
+  ============================================================
+  Summary
+  ============================================================
+  */
+
   function calculateSummary(
     trades
   ) {
@@ -329,6 +471,12 @@ SELLはBUY後だけ有効。
 
         averageCaptureRatio:
           null,
+
+        medianCaptureRatio:
+          null,
+
+        captureSampleCount:
+          0,
 
         closedTrades:
           0,
@@ -366,7 +514,10 @@ SELLはBUY後だけ有効。
       [];
 
 
-    const captureValues =
+    /*
+     * Captureは利益が出たCLOSEDトレードだけ。
+     */
+    const captureWinnerValues =
       [];
 
 
@@ -452,11 +603,18 @@ SELLはBUY後だけ有効。
         "CLOSED"
         &&
         isFiniteNumber(
+          trade.returnPct
+        )
+        &&
+        trade.returnPct >
+        0
+        &&
+        isFiniteNumber(
           trade.captureRatio
         )
       ) {
 
-        captureValues.push(
+        captureWinnerValues.push(
           trade.captureRatio
         );
       }
@@ -523,8 +681,18 @@ SELLはBUY後だけ有効。
 
       averageCaptureRatio:
         average(
-          captureValues
+          captureWinnerValues
         ),
+
+
+      medianCaptureRatio:
+        median(
+          captureWinnerValues
+        ),
+
+
+      captureSampleCount:
+        captureWinnerValues.length,
 
 
       closedTrades,
@@ -545,6 +713,11 @@ SELLはBUY後だけ有効。
     };
   }
 
+   /*
+  ============================================================
+  Main evaluation
+  ============================================================
+  */
 
   function evaluate(
     rows,
@@ -554,43 +727,28 @@ SELLはBUY後だけ有効。
     const options = {
 
       ...DEFAULT_OPTIONS,
-
       ...userOptions
+
     };
 
 
-    let inPosition =
-      false;
-
-
-    let currentTrade =
-      null;
-
-
-    const buySignals =
-      [];
-
-
-    const sellSignals =
-      [];
-
-
-    const trades =
-      [];
+    options.vcpHitOccurrence =
+      Math.max(
+        1,
+        Math.round(
+          Number(
+            options.vcpHitOccurrence
+          )
+          ||
+          1
+        )
+      );
 
 
     for (
       const row
       of rows
     ) {
-
-      row.buyCondition =
-        false;
-
-
-      row.sellCondition =
-        false;
-
 
       row.buySignal =
         false;
@@ -600,16 +758,48 @@ SELLはBUY後だけ有効。
         false;
 
 
-      row.positionState =
-        false;
+      row.vcpHitCountAfterBuy =
+        0;
+
+
+      row.sellComponents =
+        null;
     }
+
+
+    const trades =
+      [];
+
+
+    const signals =
+      [];
+
+
+    let position =
+      "FLAT";
+
+
+    let activeTrade =
+      null;
+
+
+    let vcpHitCountAfterBuy =
+      0;
+
+
+    let lastBuy =
+      null;
+
+
+    let lastSell =
+      null;
 
 
     for (
       let i = 0;
 
       i <
-      rows.length;
+        rows.length;
 
       i++
     ) {
@@ -618,74 +808,46 @@ SELLはBUY後だけ有効。
         rows[i];
 
 
-      row.buyCondition =
-        isBuyCondition(
-          row
-        );
-
-
-      row.sellCondition =
-        isSellCondition(
-          rows,
-          i,
-          options
-        );
-
+      /*
+      ========================================================
+      FLAT
+      ========================================================
+      */
 
       if (
-        !inPosition
+        position ===
+        "FLAT"
       ) {
 
         if (
-          row.buyCondition
+          isBuyCondition(
+            row
+          )
         ) {
 
           row.buySignal =
             true;
 
 
-          row.positionState =
-            true;
+          position =
+            "LONG";
 
 
-          inPosition =
-            true;
+          vcpHitCountAfterBuy =
+            0;
 
 
-          const signal = {
+          row.vcpHitCountAfterBuy =
+            0;
 
-            type:
-              "BUY",
 
-            date:
-              row.date,
+          activeTrade = {
 
-            price:
-              row.close,
+            status:
+              "OPEN",
 
-            index:
+            entryIndex:
               i,
-
-            trigger:
-              row.triggerLine,
-
-            setup:
-              row.setupLine,
-
-            trend:
-              row.trendLine,
-
-            vcpN:
-              row.vcp26
-          };
-
-
-          buySignals.push(
-            signal
-          );
-
-
-          currentTrade = {
 
             entryDate:
               row.date,
@@ -693,8 +855,8 @@ SELLはBUY後だけ有効。
             entryPrice:
               row.close,
 
-            entryIndex:
-              i,
+            exitIndex:
+              null,
 
             exitDate:
               null,
@@ -702,30 +864,68 @@ SELLはBUY後だけ有効。
             exitPrice:
               null,
 
-            exitIndex:
-              null,
+            currentIndex:
+              i,
 
             currentDate:
-              null,
+              row.date,
 
             currentPrice:
-              null,
+              row.close,
 
             returnPct:
+              0,
+
+            vcpSellThreshold:
+              options.vcpSellThreshold,
+
+            vcpHitOccurrenceSetting:
+              options.vcpHitOccurrence,
+
+            vcpHitCountAtExit:
               null,
 
-            mfePct:
-              null,
-
-            maePct:
-              null,
-
-            captureRatio:
-              null,
-
-            status:
-              "OPEN"
+            sellComponents:
+              null
           };
+
+
+          trades.push(
+            activeTrade
+          );
+
+
+          const signal = {
+
+            type:
+              "BUY",
+
+            index:
+              i,
+
+            date:
+              row.date,
+
+            price:
+              row.close
+          };
+
+
+          signals.push(
+            signal
+          );
+
+
+          lastBuy =
+            signal;
+
+
+          /*
+           * BUY当日は
+           * VCP threshold hit の
+           * カウント対象にしない。
+           */
+          continue;
         }
 
 
@@ -733,170 +933,270 @@ SELLはBUY後だけ有効。
       }
 
 
-      row.positionState =
-        true;
+      /*
+      ========================================================
+      LONG
+      ========================================================
+      */
+
+      activeTrade.currentIndex =
+        i;
+
+
+      activeTrade.currentDate =
+        row.date;
+
+
+      activeTrade.currentPrice =
+        row.close;
 
 
       if (
-        row.sellCondition
+        isFiniteNumber(
+          activeTrade.entryPrice
+        )
+        &&
+        isFiniteNumber(
+          row.close
+        )
       ) {
 
-        row.sellSignal =
-          true;
-
-
-        sellSignals.push({
-
-          type:
-            "SELL",
-
-          date:
-            row.date,
-
-          price:
-            row.close,
-
-          index:
-            i,
-
-          trend:
-            row.trendLine,
-
-          trend5:
-            rows[
-              i -
-              5
-            ]?.trendLine
-            ??
-            null,
-
-          vcpN:
-            row.vcp26,
-
-          vcpThreshold:
-            options.vcpSellThreshold
-        });
-
-
-        if (
-          currentTrade
-        ) {
-
-          currentTrade.exitDate =
-            row.date;
-
-
-          currentTrade.exitPrice =
-            row.close;
-
-
-          currentTrade.exitIndex =
-            i;
-
-
-          currentTrade.returnPct =
-            (
-              row.close /
-              currentTrade.entryPrice -
-              1
-            ) *
-            100;
-
-
-          currentTrade.status =
-            "CLOSED";
-
-
-          const stats =
-            calculateTradeStats(
-              rows,
-              currentTrade
-            );
-
-
-          Object.assign(
-            currentTrade,
-            stats
-          );
-
-
-          trades.push(
-            currentTrade
-          );
-        }
-
-
-        currentTrade =
-          null;
-
-
-        inPosition =
-          false;
-
-
-        row.positionState =
-          false;
+        activeTrade.returnPct =
+          (
+            row.close /
+            activeTrade.entryPrice -
+            1
+          )
+          *
+          100;
       }
+
+
+      const base =
+        getBaseSellConditions(
+          rows,
+          i,
+          options
+        );
+
+
+      /*
+       * BUY後の日で、
+       *
+       * VCP N < threshold
+       *
+       * になった営業日を数える。
+       *
+       * 「クロスした回数」ではなく
+       * 「条件を満たした日数」。
+       */
+      if (
+        base.valid
+        &&
+        base.vcpThreshold
+      ) {
+
+        vcpHitCountAfterBuy++;
+      }
+
+
+      row.vcpHitCountAfterBuy =
+        vcpHitCountAfterBuy;
+
+
+      const vcpOccurrenceOk =
+        vcpHitCountAfterBuy >=
+        options.vcpHitOccurrence;
+
+
+      row.sellComponents = {
+
+        valid:
+          base.valid,
+
+        vcpMaCross:
+          base.vcpMaCross,
+
+        vcpThresholdHit:
+          base.vcpThreshold,
+
+        vcpOccurrenceOk,
+
+        trendDecline:
+          base.trendDecline,
+
+        vcpHitCount:
+          vcpHitCountAfterBuy,
+
+        vcpHitOccurrence:
+          options.vcpHitOccurrence,
+
+        vcpSellThreshold:
+          options.vcpSellThreshold
+      };
+
+
+      const sell =
+        (
+          base.valid
+
+          &&
+
+          base.vcpMaCross
+
+          &&
+
+          base.vcpThreshold
+
+          &&
+
+          vcpOccurrenceOk
+
+          &&
+
+          base.trendDecline
+        );
+
+
+      if (
+        !sell
+      ) {
+
+        continue;
+      }
+
+
+      /*
+      ========================================================
+      SELL
+      ========================================================
+      */
+
+      row.sellSignal =
+        true;
+
+
+      activeTrade.status =
+        "CLOSED";
+
+
+      activeTrade.exitIndex =
+        i;
+
+
+      activeTrade.exitDate =
+        row.date;
+
+
+      activeTrade.exitPrice =
+        row.close;
+
+
+      activeTrade.currentIndex =
+        i;
+
+
+      activeTrade.currentDate =
+        row.date;
+
+
+      activeTrade.currentPrice =
+        row.close;
+
+
+      activeTrade.returnPct =
+        (
+          activeTrade.exitPrice /
+          activeTrade.entryPrice -
+          1
+        )
+        *
+        100;
+
+
+      activeTrade.vcpHitCountAtExit =
+        vcpHitCountAfterBuy;
+
+
+      activeTrade.sellComponents =
+        {
+          ...row.sellComponents
+        };
+
+
+      const signal = {
+
+        type:
+          "SELL",
+
+        index:
+          i,
+
+        date:
+          row.date,
+
+        price:
+          row.close,
+
+        vcpHitOccurrence:
+          options.vcpHitOccurrence,
+
+        vcpHitCount:
+          vcpHitCountAfterBuy,
+
+        vcpSellThreshold:
+          options.vcpSellThreshold,
+
+        sellComponents:
+          {
+            ...row.sellComponents
+          }
+      };
+
+
+      signals.push(
+        signal
+      );
+
+
+      lastSell =
+        signal;
+
+
+      position =
+        "FLAT";
+
+
+      activeTrade =
+        null;
+
+
+      vcpHitCountAfterBuy =
+        0;
     }
 
 
-    if (
-      currentTrade
+    /*
+    ==========================================================
+    Trade stats
+    ==========================================================
+    */
+
+    for (
+      const trade
+      of trades
     ) {
-
-      const latest =
-        rows[
-          rows.length -
-          1
-        ];
-
-
-      currentTrade.currentDate =
-        latest?.date
-        ??
-        null;
-
-
-      currentTrade.currentPrice =
-        latest?.close
-        ??
-        null;
-
-
-      currentTrade.returnPct =
-        (
-          isFiniteNumber(
-            latest?.close
-          )
-          &&
-          isFiniteNumber(
-            currentTrade.entryPrice
-          )
-        )
-          ? (
-              latest.close /
-              currentTrade.entryPrice -
-              1
-            ) *
-            100
-          : null;
-
 
       const stats =
         calculateTradeStats(
           rows,
-          currentTrade
+          trade
         );
 
 
       Object.assign(
-        currentTrade,
+        trade,
         stats
-      );
-
-
-      trades.push(
-        currentTrade
       );
     }
 
@@ -907,46 +1207,177 @@ SELLはBUY後だけ有効。
       );
 
 
+    /*
+    ==========================================================
+    Current state
+    ==========================================================
+    */
+
+    const latest =
+      rows.length
+        ? rows[
+            rows.length -
+            1
+          ]
+        : null;
+
+
+    const currentTrade =
+      trades.length
+        &&
+        trades[
+          trades.length -
+          1
+        ].status ===
+        "OPEN"
+
+        ? trades[
+            trades.length -
+            1
+          ]
+
+        : null;
+
+
     return {
 
       options,
 
-      buySignals,
+      state:
+        position,
 
-      sellSignals,
+      latest,
+
+      signals,
 
       trades,
 
-      summary,
+      currentTrade,
 
-      inPosition,
+      lastBuy,
 
-      latestBuy:
-        buySignals.length
-          ? buySignals[
-              buySignals.length -
-              1
-            ]
-          : null,
+      lastSell,
 
-      latestSell:
-        sellSignals.length
-          ? sellSignals[
-              sellSignals.length -
-              1
-            ]
-          : null
+      summary
     };
   }
 
+ /*
+==============================================================
+Public API
+==============================================================
+*/
 
-  window.SignalEngine = {
+window.SignalEngine = {
 
-    evaluate,
+  evaluate,
 
-    isBuyCondition,
+  isBuyCondition,
 
-    isSellCondition
-  };
+  getSellComponents(
+    rows,
+    index,
+    options = {},
+    vcpHitCount = 0
+  ) {
+
+    const mergedOptions = {
+
+      ...DEFAULT_OPTIONS,
+      ...options
+
+    };
+
+
+    mergedOptions.vcpHitOccurrence =
+      Math.max(
+        1,
+        Math.round(
+          Number(
+            mergedOptions.vcpHitOccurrence
+          )
+          ||
+          1
+        )
+      );
+
+
+    const base =
+      getBaseSellConditions(
+        rows,
+        index,
+        mergedOptions
+      );
+
+
+    const vcpOccurrenceOk =
+      vcpHitCount >=
+      mergedOptions.vcpHitOccurrence;
+
+
+    return {
+
+      valid:
+        base.valid,
+
+      vcpMaCross:
+        base.vcpMaCross,
+
+      vcpThresholdHit:
+        base.vcpThreshold,
+
+      vcpOccurrenceOk,
+
+      trendDecline:
+        base.trendDecline,
+
+      vcpHitCount,
+
+      vcpHitOccurrence:
+        mergedOptions.vcpHitOccurrence,
+
+      vcpSellThreshold:
+        mergedOptions.vcpSellThreshold
+    };
+  },
+
+
+  isSellCondition(
+    rows,
+    index,
+    options = {},
+    vcpHitCount = 0
+  ) {
+
+    const components =
+      this.getSellComponents(
+        rows,
+        index,
+        options,
+        vcpHitCount
+      );
+
+
+    return (
+      components.valid
+
+      &&
+
+      components.vcpMaCross
+
+      &&
+
+      components.vcpThresholdHit
+
+      &&
+
+      components.vcpOccurrenceOk
+
+      &&
+
+      components.trendDecline
+    );
+  }
+};
 
 })();
