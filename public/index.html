@@ -344,6 +344,81 @@
       font-weight: 700;
     }
 
+
+    /*
+    ==========================================================
+    Metric help tooltip
+    ==========================================================
+    */
+
+    .info-help {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 14px;
+      height: 14px;
+
+      margin-left: 4px;
+
+      border: 1px solid #aaa;
+      border-radius: 50%;
+
+      color: #777;
+
+      font-size: 9px;
+      font-weight: 700;
+
+      cursor: help;
+      vertical-align: 1px;
+    }
+
+    .info-help-tooltip {
+      visibility: hidden;
+      opacity: 0;
+
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+
+      width: 240px;
+
+      padding: 8px 10px;
+
+      background: #222;
+      color: #fff;
+
+      border-radius: 6px;
+
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.45;
+      text-align: left;
+
+      z-index: 1000;
+
+      pointer-events: none;
+
+      transition:
+        opacity .12s ease;
+    }
+
+    .info-help:hover
+    .info-help-tooltip,
+    .info-help:focus
+    .info-help-tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+
+
+    /*
+    ==========================================================
+    VCP threshold slider
+    ==========================================================
+    */
+
     .signal-slider {
       width: 100%;
 
@@ -373,6 +448,7 @@
 
       line-height: 1.4;
     }
+
 
     @media (
       max-width: 1100px
@@ -874,6 +950,79 @@ function dateString(
       2,
       "0"
     )}`
+  );
+}
+
+
+/*
+==============================================================
+Chart right padding
+
+株価の最終日より右側に12営業日分の余白を作る。
+価格帯別出来高と最新ローソク足が重なりにくくなる。
+==============================================================
+*/
+
+function addBusinessDays(
+  dateText,
+  businessDays
+) {
+
+  const date =
+    parseDate(
+      dateText
+    );
+
+
+  let added =
+    0;
+
+
+  while (
+    added <
+    businessDays
+  ) {
+
+    date.setDate(
+      date.getDate() +
+      1
+    );
+
+
+    const day =
+      date.getDay();
+
+
+    if (
+      day !== 0
+      &&
+      day !== 6
+    ) {
+
+      added++;
+    }
+  }
+
+
+  return dateString(
+    date
+  );
+}
+
+
+function getChartPaddedEndDate() {
+
+  if (
+    !currentStock?.endDate
+  ) {
+
+    return null;
+  }
+
+
+  return addBusinessDays(
+    currentStock.endDate,
+    12
   );
 }
 
@@ -1576,7 +1725,6 @@ function calculateAtr(
     period
   );
 }
-
 
 /*
 ==============================================================
@@ -2443,6 +2591,7 @@ function prepareIndicators(
     }
   }
 
+
   /*
   ============================================================
   Rolling Z-score
@@ -2687,10 +2836,6 @@ async function recalculateSignals() {
     );
 
 
-  /*
-   * BUY / SELLマーカーも変わるので
-   * チャート再描画。
-   */
   await drawChart();
 
 
@@ -2704,6 +2849,13 @@ async function recalculateSignals() {
 /*
 ==============================================================
 VCP SELL threshold slider
+
+・マウス操作
+・← / → キーで0.01刻み
+
+range input は step="0.01" なので
+通常のArrowLeft / ArrowRightでも0.01ずつ動く。
+ここでは再計算まで確実に行う。
 ==============================================================
 */
 
@@ -2723,17 +2875,8 @@ function installVcpThresholdSlider() {
   }
 
 
-  slider.addEventListener(
-
-    "input",
-
-    event => {
-
-      const value =
-        Number(
-          event.target.value
-        );
-
+  const applySliderValue =
+    value => {
 
       if (
         !Number.isFinite(
@@ -2745,8 +2888,33 @@ function installVcpThresholdSlider() {
       }
 
 
+      /*
+       * 小数誤差を避ける。
+       */
+      const normalized =
+        Math.round(
+          value *
+          100
+        )
+        /
+        100;
+
+
       currentVcpSellThreshold =
-        value;
+        Math.max(
+          -1,
+
+          Math.min(
+            0,
+            normalized
+          )
+        );
+
+
+      slider.value =
+        currentVcpSellThreshold.toFixed(
+          2
+        );
 
 
       const valueLabel =
@@ -2760,7 +2928,7 @@ function installVcpThresholdSlider() {
       ) {
 
         valueLabel.textContent =
-          value.toFixed(
+          currentVcpSellThreshold.toFixed(
             2
           );
       }
@@ -2777,14 +2945,10 @@ function installVcpThresholdSlider() {
       ) {
 
         conditionLabel.textContent =
-          `VCP N < ${value.toFixed(2)}`;
+          `VCP N < ${currentVcpSellThreshold.toFixed(2)}`;
       }
 
 
-      /*
-       * スライダー連続操作時に
-       * 毎フレームPlotlyを描き直さない。
-       */
       clearTimeout(
         signalSliderTimer
       );
@@ -2801,6 +2965,70 @@ function installVcpThresholdSlider() {
 
           120
         );
+    };
+
+
+  slider.addEventListener(
+
+    "input",
+
+    event => {
+
+      const value =
+        Number(
+          event.target.value
+        );
+
+
+      applySliderValue(
+        value
+      );
+    }
+  );
+
+
+  slider.addEventListener(
+
+    "keydown",
+
+    event => {
+
+      if (
+        event.key !==
+        "ArrowLeft"
+        &&
+        event.key !==
+        "ArrowRight"
+      ) {
+
+        return;
+      }
+
+
+      /*
+       * ブラウザ標準range操作と
+       * 二重に値が変化しないようにする。
+       */
+      event.preventDefault();
+
+
+      const direction =
+        event.key ===
+        "ArrowRight"
+          ? 1
+          : -1;
+
+
+      const nextValue =
+        currentVcpSellThreshold
+        +
+        direction *
+        0.01;
+
+
+      applySliderValue(
+        nextValue
+      );
     }
   );
 }
@@ -3296,7 +3524,6 @@ function visibleSupplyRows(
     );
 }
 
-
 /*
 ==============================================================
 Axis range helpers
@@ -3305,8 +3532,7 @@ Axis range helpers
 
 function rangeIncludeZero(
   values,
-  paddingRatio =
-    .10
+  paddingRatio = .10
 ) {
 
   const valid =
@@ -3375,8 +3601,7 @@ function rangeIncludeZero(
 
 function positiveRange(
   values,
-  fallback =
-    1
+  fallback = 1
 ) {
 
   const valid =
@@ -3416,10 +3641,8 @@ function positiveRange(
 
 function positiveLogRange(
   values,
-  fallbackMin =
-    .1,
-  fallbackMax =
-    1
+  fallbackMin = .1,
+  fallbackMax = 1
 ) {
 
   const valid =
@@ -3472,7 +3695,6 @@ function positiveLogRange(
       Math.max(
         min /
         1.5,
-
         .000001
       );
 
@@ -3486,7 +3708,6 @@ function positiveLogRange(
       Math.max(
         min *
         .85,
-
         .000001
       );
 
@@ -3609,6 +3830,8 @@ function getPaneLayout() {
 /*
 ==============================================================
 Initial display range
+
+右側に12営業日分の余白を含める。
 ==============================================================
 */
 
@@ -3671,7 +3894,7 @@ function getInitialDisplayRange() {
       startText,
 
     end:
-      currentStock.endDate
+      getChartPaddedEndDate()
   };
 }
 
@@ -3775,10 +3998,21 @@ async function updateVisibleRange(
   }
 
 
+  /*
+   * endには右側の余白日が入る場合があるが、
+   * 実データはcurrentStock.endDateまで。
+   */
+  const dataEnd =
+    end >
+    currentStock.endDate
+      ? currentStock.endDate
+      : end;
+
+
   const rows =
     visibleStockRows(
       start,
-      end
+      dataEnd
     );
 
 
@@ -3888,7 +4122,7 @@ async function updateVisibleRange(
   const supplyRows =
     visibleSupplyRows(
       start,
-      end
+      dataEnd
     );
 
 
@@ -3994,11 +4228,20 @@ async function updateVisibleRange(
 
     const relayout = {
 
+      /*
+       * 株価側X軸の右端に
+       * 12営業日分の空白を確保。
+       */
+      "xaxis.range":
+        [
+          start,
+          end
+        ],
+
       "xaxis2.range":
         [
           maxProfile *
           3.5,
-
           0
         ],
 
@@ -4065,7 +4308,7 @@ async function updateVisibleRange(
       .textContent =
         `価格帯別出来高：`
         +
-        `${start} ～ ${end} ／ `
+        `${start} ～ ${dataEnd} ／ `
         +
         `${rows.length}営業日 ／ `
         +
@@ -4081,6 +4324,7 @@ async function updateVisibleRange(
       false;
   }
 }
+
 
 /*
 ==============================================================
@@ -4538,6 +4782,26 @@ function updateSignalSidebar() {
   }
 
 
+  function helpIcon(
+    text
+  ) {
+
+    return `
+      <span
+        class="info-help"
+        tabindex="0"
+        aria-label="${text}"
+      >
+        i
+
+        <span class="info-help-tooltip">
+          ${text}
+        </span>
+      </span>
+    `;
+  }
+
+
   let tradeHtml =
     "";
 
@@ -4607,6 +4871,9 @@ function updateSignalSidebar() {
 
           <span class="signal-metric-label">
             Return
+            ${helpIcon(
+              "このトレード単体の損益率です。BUY価格からSELL価格までの変化率を表示します。OPEN中の場合は現在の終値までの含み損益です。"
+            )}
           </span>
 
           <span class="signal-metric-value ${pctClass(
@@ -4624,6 +4891,9 @@ function updateSignalSidebar() {
 
           <span class="signal-metric-label">
             MFE
+            ${helpIcon(
+              "Maximum Favorable Excursion。BUY後からSELLまでの間に、最大でどれだけ含み益が出たかを示します。日中高値ベースで計算します。"
+            )}
           </span>
 
           <span class="signal-metric-value">
@@ -4639,6 +4909,9 @@ function updateSignalSidebar() {
 
           <span class="signal-metric-label">
             MAE
+            ${helpIcon(
+              "Maximum Adverse Excursion。BUY後からSELLまでの間に、最大でどれだけ含み損が出たかを示します。日中安値ベースで計算します。"
+            )}
           </span>
 
           <span class="signal-metric-value">
@@ -4654,6 +4927,9 @@ function updateSignalSidebar() {
 
           <span class="signal-metric-label">
             Capture Ratio
+            ${helpIcon(
+              "BUY後に得られた最大含み益のうち、最終的にどれだけを実現利益として残せたかを示します。100%なら最大高値付近で決済、0%なら最大含み益をほぼ全て失って買値付近で決済、マイナスなら買値より下で決済しています。"
+            )}
           </span>
 
           <span class="signal-metric-value">
@@ -4697,6 +4973,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           Total Return
+          ${helpIcon(
+            "全トレードのリターンを順番に複利でつないだ総リターンです。現在OPEN中のポジションがある場合は、その時価評価損益も含みます。"
+          )}
         </span>
 
         <span class="signal-metric-value ${pctClass(
@@ -4714,6 +4993,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           Closed Return
+          ${helpIcon(
+            "決済済みトレードだけを複利でつないだ総リターンです。現在OPEN中のポジションは含みません。"
+          )}
         </span>
 
         <span class="signal-metric-value ${pctClass(
@@ -4731,6 +5013,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           Closed Trades
+          ${helpIcon(
+            "BUYとSELLが両方成立し、決済まで完了したトレードの回数です。OPEN中のポジションは数えません。"
+          )}
         </span>
 
         <span class="signal-metric-value">
@@ -4744,6 +5029,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           Win Rate
+          ${helpIcon(
+            "決済済みトレードのうち、Returnがプラスになったトレードの割合です。"
+          )}
         </span>
 
         <span class="signal-metric-value">
@@ -4778,6 +5066,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           MFE
+          ${helpIcon(
+            "各トレードのMaximum Favorable Excursionの平均です。BUY後に平均して最大何％まで含み益が伸びたかを示します。"
+          )}
         </span>
 
         <span class="signal-metric-value">
@@ -4793,6 +5084,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           MAE
+          ${helpIcon(
+            "各トレードのMaximum Adverse Excursionの平均です。BUY後に平均して最大何％まで逆行したかを示します。"
+          )}
         </span>
 
         <span class="signal-metric-value">
@@ -4808,6 +5102,9 @@ function updateSignalSidebar() {
 
         <span class="signal-metric-label">
           Capture Ratio
+          ${helpIcon(
+            "決済済みトレードについて、最大含み益のうち最終的に何％を利益として残せたかの平均です。大きなトレンドをどれだけ取り切れているかを見る指標です。"
+          )}
         </span>
 
         <span class="signal-metric-value">
@@ -4856,6 +5153,7 @@ function updateSignalSidebar() {
         max="0"
         step="0.01"
         value="${currentVcpSellThreshold}"
+        aria-label="VCP SELL threshold"
       >
 
 
@@ -4899,6 +5197,12 @@ function updateSignalSidebar() {
         <br>
 
         Trend t &lt; Trend t-5
+
+        <br><br>
+
+        スライダーを選択した状態で
+        ← / → キーを押すと
+        0.01ずつ変更できます。
 
       </div>
 
@@ -5268,7 +5572,6 @@ function installHoverLine() {
     }
   );
 }
-
 
 /*
 ==============================================================
@@ -6161,7 +6464,8 @@ async function drawChart() {
         "<extra></extra>"
     },
 
-        /*
+
+    /*
     ==========================================================
     Supply
     ==========================================================
@@ -7322,7 +7626,6 @@ Plot
   );
 }
 
-
 /*
 ==============================================================
 TOPIX
@@ -7954,8 +8257,11 @@ async function setPeriod(
   }
 
 
+  /*
+   * 右側12営業日分の余白を含める。
+   */
   const endText =
-    currentStock.endDate;
+    getChartPaddedEndDate();
 
 
   currentRangeStart =
@@ -8134,7 +8440,7 @@ document
 
         currentRangeEnd
         ??
-        currentStock.endDate
+        getChartPaddedEndDate()
       );
     }
   );
