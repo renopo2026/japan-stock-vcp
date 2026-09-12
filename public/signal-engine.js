@@ -1,1035 +1,8281 @@
-/*
-==============================================================
-Signal Engine
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-BUY
-  Trigger > Setup > Trend > 0
+  <title>
+    Japan Stock VCP
+  </title>
 
-SELL
-  VCP 5MA < VCP 25MA
-  AND
-  VCP N < vcpSellThreshold
-  AND
-  Trend_t < Trend_t-5
+  <script
+    src="https://cdn.plot.ly/plotly-3.7.0.min.js"
+    charset="utf-8"
+  ></script>
 
-SELLはBUY後だけ有効。
+  <script src="/signal-engine.js"></script>
 
-バックテスト統計:
-  Total Return
-  MFE
-  MAE
-  Capture Ratio
-  Win Rate
-==============================================================
-*/
+  <style>
 
-(function () {
-
-  const DEFAULT_OPTIONS = {
-
-    /*
-     * SELL条件のVCP N閾値
-     */
-    vcpSellThreshold:
-      -0.08
-  };
-
-
-  function isFiniteNumber(
-    value
-  ) {
-
-    return (
-      typeof value ===
-      "number"
-      &&
-      Number.isFinite(
-        value
-      )
-    );
-  }
-
-
-  /*
-  ============================================================
-  BUY
-  ============================================================
-  */
-
-  function isBuyCondition(
-    row
-  ) {
-
-    if (
-      ![
-        row.triggerLine,
-        row.setupLine,
-        row.trendLine
-      ].every(
-        isFiniteNumber
-      )
-    ) {
-
-      return false;
+    * {
+      box-sizing: border-box;
     }
 
+    body {
+      margin: 0;
+      background: #f3f4f6;
+      color: #202124;
 
-    return (
-      row.triggerLine >
-      row.setupLine
-
-      &&
-
-      row.setupLine >
-      row.trendLine
-
-      &&
-
-      row.trendLine >
-      0
-    );
-  }
-
-
-  /*
-  ============================================================
-  SELL
-  ============================================================
-  */
-
-  function isSellCondition(
-    rows,
-    index,
-    options
-  ) {
-
-    if (
-      index <
-      5
-    ) {
-
-      return false;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
     }
 
-
-    const row =
-      rows[index];
-
-
-    const row5 =
-      rows[
-        index -
-        5
-      ];
-
-
-    if (
-      ![
-        row.vcp26,
-        row.vcp26Ma5,
-        row.vcp26Ma25,
-        row.trendLine,
-        row5.trendLine
-      ].every(
-        isFiniteNumber
-      )
-    ) {
-
-      return false;
+    .app {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 14px;
     }
 
+    .header,
+    .chart-card {
+      background: #fff;
 
-    return (
-      row.vcp26Ma5 <
-      row.vcp26Ma25
+      border-radius: 10px;
 
-      &&
-
-      row.vcp26 <
-      options.vcpSellThreshold
-
-      &&
-
-      row.trendLine <
-      row5.trendLine
-    );
-  }
-
-
-  /*
-  ============================================================
-  1トレードのMFE / MAE / Capture Ratio
-  ============================================================
-  */
-
-  function calculateTradeStats(
-    rows,
-    trade
-  ) {
-
-    const start =
-      trade.entryIndex;
-
-
-    const end =
-      trade.exitIndex ??
-      (
-        rows.length -
-        1
-      );
-
-
-    if (
-      start === null
-      ||
-      start === undefined
-      ||
-      end <
-      start
-      ||
-      !isFiniteNumber(
-        trade.entryPrice
-      )
-    ) {
-
-      return {
-        mfePct:
-          null,
-
-        maePct:
-          null,
-
-        captureRatio:
-          null
-      };
+      box-shadow:
+        0 1px 4px
+        rgba(0,0,0,.08);
     }
 
-
-    let highest =
-      trade.entryPrice;
-
-
-    let lowest =
-      trade.entryPrice;
-
-
-    for (
-      let i =
-        start;
-
-      i <=
-        end;
-
-      i++
-    ) {
-
-      const row =
-        rows[i];
-
-
-      /*
-       * MFEは日中高値を使用
-       */
-      if (
-        isFiniteNumber(
-          row.high
-        )
-      ) {
-
-        highest =
-          Math.max(
-            highest,
-            row.high
-          );
-      }
-
-
-      /*
-       * MAEは日中安値を使用
-       */
-      if (
-        isFiniteNumber(
-          row.low
-        )
-      ) {
-
-        lowest =
-          Math.min(
-            lowest,
-            row.low
-          );
-      }
+    .header {
+      padding: 15px 18px;
+      margin-bottom: 10px;
     }
 
-
-    const mfePct =
-      (
-        highest /
-        trade.entryPrice -
-        1
-      ) *
-      100;
-
-
-    const maePct =
-      (
-        lowest /
-        trade.entryPrice -
-        1
-      ) *
-      100;
-
-
-    const effectiveExitPrice =
-      trade.status ===
-      "OPEN"
-        ? trade.currentPrice
-        : trade.exitPrice;
-
-
-    let captureRatio =
-      null;
-
-
-    /*
-     * 最大含み益が存在する場合だけ
-     * Capture Ratioを計算。
-     */
-    if (
-      isFiniteNumber(
-        effectiveExitPrice
-      )
-      &&
-      highest >
-      trade.entryPrice
-    ) {
-
-      captureRatio =
-        (
-          effectiveExitPrice -
-          trade.entryPrice
-        )
-        /
-        (
-          highest -
-          trade.entryPrice
-        )
-        *
-        100;
+    .chart-card {
+      padding: 5px;
     }
 
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
-    return {
+      gap: 10px;
 
-      highestPrice:
-        highest,
-
-      lowestPrice:
-        lowest,
-
-      mfePct,
-
-      maePct,
-
-      captureRatio
-    };
-  }
-
-
-  /*
-  ============================================================
-  Strategy Summary
-  ============================================================
-  */
-
-  function calculateSummary(
-    trades
-  ) {
-
-    if (
-      !trades.length
-    ) {
-
-      return {
-
-        totalReturnPct:
-          0,
-
-        closedTotalReturnPct:
-          0,
-
-        averageMfePct:
-          null,
-
-        averageMaePct:
-          null,
-
-        averageCaptureRatio:
-          null,
-
-        closedTrades:
-          0,
-
-        winningTrades:
-          0,
-
-        winRate:
-          null
-      };
+      flex-wrap: wrap;
     }
 
-
-    /*
-     * Total Return
-     *
-     * トレードが重複しないため、
-     * 各リターンを複利で接続する。
-     */
-    let totalEquity =
-      1;
-
-
-    let closedEquity =
-      1;
-
-
-    let closedTrades =
-      0;
-
-
-    let winningTrades =
-      0;
-
-
-    const mfeValues =
-      [];
-
-
-    const maeValues =
-      [];
-
-
-    const captureValues =
-      [];
-
-
-    for (
-      const trade
-      of trades
-    ) {
-
-      if (
-        isFiniteNumber(
-          trade.returnPct
-        )
-      ) {
-
-        totalEquity *=
-          (
-            1 +
-            trade.returnPct /
-            100
-          );
-      }
-
-
-      if (
-        trade.status ===
-        "CLOSED"
-      ) {
-
-        closedTrades++;
-
-
-        if (
-          isFiniteNumber(
-            trade.returnPct
-          )
-        ) {
-
-          closedEquity *=
-            (
-              1 +
-              trade.returnPct /
-              100
-            );
-
-
-          if (
-            trade.returnPct >
-            0
-          ) {
-
-            winningTrades++;
-          }
-        }
-      }
-
-
-      if (
-        isFiniteNumber(
-          trade.mfePct
-        )
-      ) {
-
-        mfeValues.push(
-          trade.mfePct
-        );
-      }
-
-
-      if (
-        isFiniteNumber(
-          trade.maePct
-        )
-      ) {
-
-        maeValues.push(
-          trade.maePct
-        );
-      }
-
-
-      /*
-       * Capture Ratio平均は
-       * CLOSEDだけを対象にする。
-       *
-       * OPENトレードはまだ途中なので
-       * 平均値に混ぜない。
-       */
-      if (
-        trade.status ===
-        "CLOSED"
-        &&
-        isFiniteNumber(
-          trade.captureRatio
-        )
-      ) {
-
-        captureValues.push(
-          trade.captureRatio
-        );
-      }
+    h1 {
+      margin: 0;
+      font-size: 23px;
     }
 
+    #stockTitle {
+      margin-top: 6px;
 
-    const average =
-      values => {
-
-        if (
-          !values.length
-        ) {
-
-          return null;
-        }
-
-
-        return (
-          values.reduce(
-            (
-              sum,
-              value
-            ) =>
-              sum +
-              value,
-
-            0
-          )
-          /
-          values.length
-        );
-      };
-
-
-    return {
-
-      /*
-       * OPENポジションの現在損益も含む
-       */
-      totalReturnPct:
-        (
-          totalEquity -
-          1
-        ) *
-        100,
-
-
-      /*
-       * 決済済みのみ
-       */
-      closedTotalReturnPct:
-        (
-          closedEquity -
-          1
-        ) *
-        100,
-
-
-      averageMfePct:
-        average(
-          mfeValues
-        ),
-
-
-      averageMaePct:
-        average(
-          maeValues
-        ),
-
-
-      averageCaptureRatio:
-        average(
-          captureValues
-        ),
-
-
-      closedTrades,
-
-
-      winningTrades,
-
-
-      winRate:
-        closedTrades >
-        0
-          ? (
-              winningTrades /
-              closedTrades *
-              100
-            )
-          : null
-    };
-  }
-
-
-  /*
-  ============================================================
-  Evaluate
-  ============================================================
-  */
-
-  function evaluate(
-    rows,
-    userOptions = {}
-  ) {
-
-    const options = {
-
-      ...DEFAULT_OPTIONS,
-
-      ...userOptions
-    };
-
-
-    let inPosition =
-      false;
-
-
-    let currentTrade =
-      null;
-
-
-    const buySignals =
-      [];
-
-
-    const sellSignals =
-      [];
-
-
-    const trades =
-      [];
-
-
-    /*
-     * 前回計算をリセット
-     */
-    for (
-      const row
-      of rows
-    ) {
-
-      row.buyCondition =
-        false;
-
-
-      row.sellCondition =
-        false;
-
-
-      row.buySignal =
-        false;
-
-
-      row.sellSignal =
-        false;
-
-
-      row.positionState =
-        false;
+      font-size: 18px;
+      font-weight: 600;
     }
 
+    .controls {
+      margin-top: 13px;
 
-    for (
-      let i = 0;
+      display: flex;
+      align-items: center;
 
-      i <
-      rows.length;
+      gap: 8px;
 
-      i++
-    ) {
+      flex-wrap: wrap;
+    }
 
-      const row =
-        rows[i];
+    input,
+    select,
+    button {
+      padding: 7px 9px;
 
+      border: 1px solid #bbb;
+      border-radius: 5px;
 
-      row.buyCondition =
-        isBuyCondition(
-          row
-        );
+      background: #fff;
 
+      font-size: 14px;
+    }
 
-      row.sellCondition =
-        isSellCondition(
-          rows,
-          i,
-          options
-        );
+    #stockCode {
+      width: 110px;
+      font-size: 16px;
+    }
 
+    button {
+      cursor: pointer;
+      padding: 7px 12px;
+    }
 
-      /*
-      ========================================================
-      FLAT
-      ========================================================
-      */
+    button:hover {
+      background: #f2f2f2;
+    }
 
-      if (
-        !inPosition
-      ) {
+    button.active {
+      color: #fff;
+      background: #222;
+      border-color: #222;
+    }
 
-        if (
-          row.buyCondition
-        ) {
+    .period-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
 
-          row.buySignal =
-            true;
+    .checkbox-control {
+      display: inline-flex;
+      align-items: center;
 
+      gap: 5px;
 
-          row.positionState =
-            true;
+      padding: 6px 9px;
 
+      border: 1px solid #ccc;
+      border-radius: 5px;
 
-          inPosition =
-            true;
+      background: #fafafa;
 
+      cursor: pointer;
+      user-select: none;
 
-          const signal = {
+      font-size: 14px;
+    }
 
-            type:
-              "BUY",
+    .checkbox-control input {
+      margin: 0;
 
-            date:
-              row.date,
+      width: 16px;
+      height: 16px;
 
-            price:
-              row.close,
+      cursor: pointer;
+    }
 
-            index:
-              i,
+    .status {
+      margin-top: 9px;
 
-            trigger:
-              row.triggerLine,
+      font-size: 13px;
+      color: #666;
+    }
 
-            setup:
-              row.setupLine,
+    .error {
+      color: #c62828;
+      font-weight: 600;
+    }
 
-            trend:
-              row.trendLine,
+    .summary {
+      margin-top: 8px;
 
-            vcpN:
-              row.vcp26
-          };
+      display: flex;
+      flex-wrap: wrap;
 
+      gap: 15px;
 
-          buySignals.push(
-            signal
-          );
+      font-size: 13px;
+    }
 
-
-          currentTrade = {
-
-            entryDate:
-              row.date,
-
-            entryPrice:
-              row.close,
-
-            entryIndex:
-              i,
-
-            exitDate:
-              null,
-
-            exitPrice:
-              null,
-
-            exitIndex:
-              null,
-
-            currentDate:
-              null,
-
-            currentPrice:
-              null,
-
-            returnPct:
-              null,
-
-            mfePct:
-              null,
-
-            maePct:
-              null,
-
-            captureRatio:
-              null,
-
-            status:
-              "OPEN"
-          };
-        }
-
-
-        continue;
-      }
-
-
-      /*
-      ========================================================
-      LONG
-      ========================================================
-      */
-
-      row.positionState =
-        true;
-
-
-      if (
-        row.sellCondition
-      ) {
-
-        row.sellSignal =
-          true;
-
-
-        sellSignals.push({
-
-          type:
-            "SELL",
-
-          date:
-            row.date,
-
-          price:
-            row.close,
-
-          index:
-            i,
-
-          trend:
-            row.trendLine,
-
-          trend5:
-            rows[
-              i -
-              5
-            ]?.trendLine
-            ??
-            null,
-
-          vcpN:
-            row.vcp26,
-
-          vcpThreshold:
-            options.vcpSellThreshold
-        });
-
-
-        if (
-          currentTrade
-        ) {
-
-          currentTrade.exitDate =
-            row.date;
-
-
-          currentTrade.exitPrice =
-            row.close;
-
-
-          currentTrade.exitIndex =
-            i;
-
-
-          currentTrade.returnPct =
-            (
-              row.close /
-              currentTrade.entryPrice -
-              1
-            ) *
-            100;
-
-
-          currentTrade.status =
-            "CLOSED";
-
-
-          const stats =
-            calculateTradeStats(
-              rows,
-              currentTrade
-            );
-
-
-          Object.assign(
-            currentTrade,
-            stats
-          );
-
-
-          trades.push(
-            currentTrade
-          );
-        }
-
-
-        currentTrade =
-          null;
-
-
-        inPosition =
-          false;
-
-
-        row.positionState =
-          false;
-      }
+    .summary-label {
+      color: #777;
+    }
+
+    .buy {
+      color: #1565c0;
+      font-weight: 700;
+    }
+
+    .sell {
+      color: #c62828;
+      font-weight: 700;
+    }
+
+    #chart {
+      width: 100%;
+      height: 1230px;
+    }
+
+    .info {
+      padding: 3px 12px 8px;
+
+      color: #666;
+      font-size: 12px;
     }
 
 
     /*
     ==========================================================
-    OPEN trade
+    Chart workspace
+    ==========================================================
+    */
+
+    .chart-workspace {
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1fr)
+        280px;
+
+      gap: 10px;
+
+      align-items: start;
+    }
+
+
+    /*
+    ==========================================================
+    Signal sidebar
+    ==========================================================
+    */
+
+    .signal-sidebar {
+      position: sticky;
+      top: 10px;
+
+      background: #fff;
+
+      border-radius: 10px;
+
+      box-shadow:
+        0 1px 4px
+        rgba(0,0,0,.08);
+
+      padding: 15px;
+
+      min-height: 300px;
+    }
+
+    .signal-sidebar-title {
+      font-size: 13px;
+      font-weight: 700;
+
+      color: #666;
+
+      letter-spacing: .08em;
+
+      margin-bottom: 14px;
+    }
+
+    .signal-state {
+      font-size: 25px;
+      font-weight: 800;
+
+      margin-bottom: 16px;
+    }
+
+    .signal-state.long {
+      color: #1976d2;
+    }
+
+    .signal-state.flat {
+      color: #777;
+    }
+
+    .signal-section {
+      padding: 11px 0;
+
+      border-top:
+        1px solid #eee;
+    }
+
+    .signal-section-title {
+      color: #777;
+
+      font-size: 11px;
+      font-weight: 600;
+
+      margin-bottom: 7px;
+    }
+
+    .signal-main-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .signal-sub-value {
+      font-size: 12px;
+
+      color: #666;
+
+      margin-top: 5px;
+
+      line-height: 1.45;
+    }
+
+    .signal-metric-row {
+      display: flex;
+
+      justify-content: space-between;
+      align-items: baseline;
+
+      gap: 10px;
+
+      margin-top: 6px;
+
+      font-size: 12px;
+    }
+
+    .signal-metric-label {
+      color: #777;
+    }
+
+    .signal-metric-value {
+      font-weight: 700;
+
+      text-align: right;
+    }
+
+    .signal-return-positive {
+      color: #1976d2;
+      font-weight: 700;
+    }
+
+    .signal-return-negative {
+      color: #d32f2f;
+      font-weight: 700;
+    }
+
+    .signal-slider {
+      width: 100%;
+
+      margin-top: 12px;
+
+      cursor: pointer;
+    }
+
+    .signal-slider-scale {
+      display: flex;
+
+      justify-content: space-between;
+
+      margin-top: 1px;
+
+      color: #888;
+
+      font-size: 10px;
+    }
+
+    .signal-threshold-note {
+      margin-top: 8px;
+
+      color: #777;
+
+      font-size: 11px;
+
+      line-height: 1.4;
+    }
+
+    @media (
+      max-width: 1100px
+    ) {
+
+      .chart-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .signal-sidebar {
+        position: static;
+      }
+    }
+
+    @media (
+      max-width: 800px
+    ) {
+
+      #chart {
+        height: 900px;
+      }
+    }
+
+  </style>
+</head>
+
+
+<body>
+
+<div class="app">
+
+
+  <!-- =====================================================
+       Header
+       ===================================================== -->
+
+  <div class="header">
+
+
+    <div class="title-row">
+
+
+      <div>
+
+        <h1>
+          Japan Stock VCP
+        </h1>
+
+        <div id="stockTitle">
+          読み込み中...
+        </div>
+
+      </div>
+
+
+      <div>
+
+        <button id="favoriteButton">
+          ☆ お気に入り
+        </button>
+
+        <button id="saveImage">
+          PNG保存
+        </button>
+
+      </div>
+
+
+    </div>
+
+
+    <div class="controls">
+
+
+      <input
+        id="stockCode"
+        value="9984"
+        maxlength="4"
+        placeholder="9984"
+      >
+
+
+      <button id="loadButton">
+        読み込む
+      </button>
+
+
+      <div class="period-buttons">
+
+        <button data-period="3m">
+          3M
+        </button>
+
+        <button data-period="6m">
+          6M
+        </button>
+
+        <button
+          data-period="1y"
+          class="active"
+        >
+          1Y
+        </button>
+
+        <button data-period="3y">
+          3Y
+        </button>
+
+        <button data-period="5y">
+          5Y
+        </button>
+
+        <button data-period="10y">
+          10Y
+        </button>
+
+        <button data-period="all">
+          ALL
+        </button>
+
+      </div>
+
+
+      <label>
+
+        価格帯
+
+        <select id="profileBins">
+
+          <option value="20">
+            20
+          </option>
+
+          <option value="30">
+            30
+          </option>
+
+          <option
+            value="50"
+            selected
+          >
+            50
+          </option>
+
+          <option value="75">
+            75
+          </option>
+
+          <option value="100">
+            100
+          </option>
+
+        </select>
+
+      </label>
+
+
+      <label class="checkbox-control">
+
+        <input
+          type="checkbox"
+          id="showVolumePane"
+        >
+
+        出来高ペイン
+
+      </label>
+
+
+    </div>
+
+
+    <div
+      id="status"
+      class="status"
+    >
+      読み込み中...
+    </div>
+
+
+    <div
+      id="summary"
+      class="summary"
+    ></div>
+
+
+  </div>
+
+
+  <!-- =====================================================
+       Chart + sidebar
+       ===================================================== -->
+
+  <div class="chart-workspace">
+
+
+    <div class="chart-card">
+
+
+      <div id="chart"></div>
+
+
+      <div
+        id="profileInfo"
+        class="info"
+      >
+        価格帯別出来高を計算中...
+      </div>
+
+
+      <div
+        id="vcpInfo"
+        class="info"
+      >
+        VCP：青棒＝N（26日上昇VCP合計 − 26日下落VCP合計）、
+        オレンジ＝5MA、
+        紫＝25MA、
+        黒太線＝0。
+      </div>
+
+
+      <div
+        id="signalInfo"
+        class="info"
+      >
+        Trend / Setup / Trigger：
+        TOPIX相対強度を読み込み中...
+      </div>
+
+
+      <div
+        id="supplyInfo"
+        class="info"
+      >
+        需給データを確認中...
+      </div>
+
+
+    </div>
+
+
+    <aside
+      id="signalSidebar"
+      class="signal-sidebar"
+    >
+
+      <div class="signal-sidebar-title">
+        SIGNAL / BACKTEST
+      </div>
+
+
+      <div id="signalSidebarBody">
+        計算中...
+      </div>
+
+
+    </aside>
+
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+/*
+==============================================================
+Colors
+==============================================================
+*/
+
+const BLUE =
+  "#1976d2";
+
+
+const RED =
+  "#d32f2f";
+
+
+const ORANGE =
+  "#ef6c00";
+
+
+const PURPLE =
+  "#7b1fa2";
+
+
+const GREEN =
+  "#388e3c";
+
+
+const BLACK =
+  "#111111";
+
+
+const GRAY =
+  "#616161";
+
+
+/*
+==============================================================
+Global state
+==============================================================
+*/
+
+const chart =
+  document.getElementById(
+    "chart"
+  );
+
+
+let currentStock =
+  null;
+
+
+let currentTopix =
+  null;
+
+
+let topixPromise =
+  null;
+
+
+let currentSignalResult =
+  null;
+
+
+let currentSupply =
+  null;
+
+
+let currentSupplyDaily =
+  [];
+
+
+let currentCode =
+  "9984";
+
+
+let currentRangeStart =
+  null;
+
+
+let currentRangeEnd =
+  null;
+
+
+let updatingRange =
+  false;
+
+
+let showVolumePane =
+  false;
+
+
+/*
+ * SELL条件
+ *
+ * VCP N < この値
+ *
+ * スライダー範囲:
+ * -1.00 ～ 0.00
+ */
+let currentVcpSellThreshold =
+  -0.08;
+
+
+/*
+ * スライダーを連続操作した際の
+ * 再描画回数を抑える。
+ */
+let signalSliderTimer =
+  null;
+
+
+/*
+==============================================================
+Trace indexes
+
+価格帯別出来高は
+Plotly.restyle()で更新するため固定。
+==============================================================
+*/
+
+const PROFILE_UP_INDEX =
+  8;
+
+
+const PROFILE_DOWN_INDEX =
+  9;
+
+
+/*
+==============================================================
+Utility
+==============================================================
+*/
+
+function isFiniteNumber(
+  value
+) {
+
+  return (
+    typeof value ===
+    "number"
+    &&
+    Number.isFinite(
+      value
+    )
+  );
+}
+
+
+function toNumber(
+  value
+) {
+
+  if (
+    value === null
+    ||
+    value === undefined
+    ||
+    value === ""
+  ) {
+
+    return null;
+  }
+
+
+  const number =
+    Number(
+      value
+    );
+
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : null;
+}
+
+
+function formatNumber(
+  value,
+  digits = 0
+) {
+
+  const number =
+    toNumber(
+      value
+    );
+
+
+  return number ===
+    null
+      ? "-"
+      : number.toLocaleString(
+          "ja-JP",
+          {
+            maximumFractionDigits:
+              digits
+          }
+        );
+}
+
+
+function parseDate(
+  text
+) {
+
+  return new Date(
+    `${text}T00:00:00`
+  );
+}
+
+
+function dateString(
+  date
+) {
+
+  return (
+    `${date.getFullYear()}-`
+    +
+    `${String(
+      date.getMonth() +
+      1
+    ).padStart(
+      2,
+      "0"
+    )}-`
+    +
+    `${String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    )}`
+  );
+}
+
+
+function percentileInc(
+  values,
+  p
+) {
+
+  if (
+    !values.length
+    ||
+    !values.every(
+      isFiniteNumber
+    )
+  ) {
+
+    return null;
+  }
+
+
+  const sorted =
+    [
+      ...values
+    ].sort(
+      (
+        a,
+        b
+      ) =>
+        a -
+        b
+    );
+
+
+  if (
+    sorted.length ===
+    1
+  ) {
+
+    return sorted[0];
+  }
+
+
+  const rank =
+    p *
+    (
+      sorted.length -
+      1
+    );
+
+
+  const lower =
+    Math.floor(
+      rank
+    );
+
+
+  const upper =
+    Math.ceil(
+      rank
+    );
+
+
+  if (
+    lower ===
+    upper
+  ) {
+
+    return sorted[
+      lower
+    ];
+  }
+
+
+  const weight =
+    rank -
+    lower;
+
+
+  return (
+    sorted[lower] *
+    (
+      1 -
+      weight
+    )
+    +
+    sorted[upper] *
+    weight
+  );
+}
+
+
+/*
+==============================================================
+Simple Moving Average
+==============================================================
+*/
+
+function calculateSma(
+  rows,
+  key,
+  period
+) {
+
+  const result =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  for (
+    let i =
+      period -
+      1;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    const values =
+      rows
+        .slice(
+          i -
+          period +
+          1,
+
+          i +
+          1
+        )
+        .map(
+          row =>
+            row[key]
+        );
+
+
+    if (
+      values.every(
+        isFiniteNumber
+      )
+    ) {
+
+      result[i] =
+        values.reduce(
+          (
+            sum,
+            value
+          ) =>
+            sum +
+            value,
+
+          0
+        )
+        /
+        period;
+    }
+  }
+
+
+  return result;
+}
+
+
+function calculateSmaValues(
+  values,
+  period
+) {
+
+  const result =
+    new Array(
+      values.length
+    ).fill(
+      null
+    );
+
+
+  let sum =
+    0;
+
+
+  let validCount =
+    0;
+
+
+  for (
+    let i = 0;
+
+    i <
+      values.length;
+
+    i++
+  ) {
+
+    const value =
+      values[i];
+
+
+    if (
+      isFiniteNumber(
+        value
+      )
+    ) {
+
+      sum +=
+        value;
+
+      validCount++;
+    }
+
+
+    if (
+      i >=
+      period
+    ) {
+
+      const old =
+        values[
+          i -
+          period
+        ];
+
+
+      if (
+        isFiniteNumber(
+          old
+        )
+      ) {
+
+        sum -=
+          old;
+
+        validCount--;
+      }
+    }
+
+
+    if (
+      i >=
+      period -
+      1
+      &&
+      validCount ===
+      period
+    ) {
+
+      result[i] =
+        sum /
+        period;
+    }
+  }
+
+
+  return result;
+}
+
+
+/*
+==============================================================
+RCI
+==============================================================
+*/
+
+function calculateRci(
+  rows,
+  period
+) {
+
+  const result =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  for (
+    let i =
+      period -
+      1;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    const prices =
+      rows
+        .slice(
+          i -
+          period +
+          1,
+
+          i +
+          1
+        )
+        .map(
+          row =>
+            row.close
+        );
+
+
+    if (
+      !prices.every(
+        isFiniteNumber
+      )
+    ) {
+
+      continue;
+    }
+
+
+    const sorted =
+      prices
+        .map(
+          (
+            value,
+            index
+          ) => ({
+
+            value,
+            index
+
+          })
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a.value -
+            b.value
+        );
+
+
+    const priceRanks =
+      new Array(
+        period
+      );
+
+
+    for (
+      let p = 0;
+
+      p <
+      period;
+    ) {
+
+      let q =
+        p +
+        1;
+
+
+      while (
+        q <
+        period
+        &&
+        sorted[q].value ===
+        sorted[p].value
+      ) {
+
+        q++;
+      }
+
+
+      const averageRank =
+        (
+          (
+            p +
+            1
+          )
+          +
+          q
+        )
+        /
+        2;
+
+
+      for (
+        let k = p;
+
+        k <
+        q;
+
+        k++
+      ) {
+
+        priceRanks[
+          sorted[k].index
+        ] =
+          averageRank;
+      }
+
+
+      p =
+        q;
+    }
+
+
+    let sumD2 =
+      0;
+
+
+    for (
+      let j = 0;
+
+      j <
+      period;
+
+      j++
+    ) {
+
+      const timeRank =
+        j +
+        1;
+
+
+      const difference =
+        timeRank -
+        priceRanks[j];
+
+
+      sumD2 +=
+        difference *
+        difference;
+    }
+
+
+    result[i] =
+      (
+        1 -
+        (
+          6 *
+          sumD2
+        )
+        /
+        (
+          period *
+          (
+            period *
+            period -
+            1
+          )
+        )
+      )
+      *
+      100;
+  }
+
+
+  return result;
+}
+
+
+/*
+==============================================================
+Rolling Z-score
+==============================================================
+*/
+
+function calculateRollingZ(
+  values,
+  period = 252,
+  minValid = 60
+) {
+
+  const result =
+    new Array(
+      values.length
+    ).fill(
+      null
+    );
+
+
+  for (
+    let i = 0;
+
+    i <
+      values.length;
+
+    i++
+  ) {
+
+    const start =
+      Math.max(
+        0,
+
+        i -
+        period +
+        1
+      );
+
+
+    const window =
+      values
+        .slice(
+          start,
+
+          i +
+          1
+        )
+        .filter(
+          isFiniteNumber
+        );
+
+
+    if (
+      window.length <
+      Math.min(
+        minValid,
+        period
+      )
+    ) {
+
+      continue;
+    }
+
+
+    const mean =
+      window.reduce(
+        (
+          sum,
+          value
+        ) =>
+          sum +
+          value,
+
+        0
+      )
+      /
+      window.length;
+
+
+    const variance =
+      window.reduce(
+        (
+          sum,
+          value
+        ) =>
+          sum +
+          (
+            value -
+            mean
+          )
+          *
+          (
+            value -
+            mean
+          ),
+
+        0
+      )
+      /
+      window.length;
+
+
+    const sd =
+      Math.sqrt(
+        variance
+      );
+
+
+    if (
+      !(
+        sd >
+        0
+      )
+      ||
+      !isFiniteNumber(
+        values[i]
+      )
+    ) {
+
+      continue;
+    }
+
+
+    result[i] =
+      (
+        values[i] -
+        mean
+      )
+      /
+      sd;
+  }
+
+
+  return result;
+}
+
+
+function smoothZ(
+  z
+) {
+
+  return isFiniteNumber(
+    z
+  )
+    ? Math.tanh(
+        z /
+        2
+      )
+    : null;
+}
+
+
+/*
+==============================================================
+ATR
+==============================================================
+*/
+
+function calculateAtr(
+  rows,
+  period
+) {
+
+  const trueRange =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  for (
+    let i = 0;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    if (
+      !isFiniteNumber(
+        rows[i].high
+      )
+      ||
+      !isFiniteNumber(
+        rows[i].low
+      )
+    ) {
+
+      continue;
+    }
+
+
+    if (
+      i ===
+      0
+      ||
+      !isFiniteNumber(
+        rows[
+          i -
+          1
+        ].close
+      )
+    ) {
+
+      trueRange[i] =
+        rows[i].high -
+        rows[i].low;
+
+
+      continue;
+    }
+
+
+    trueRange[i] =
+      Math.max(
+
+        rows[i].high -
+        rows[i].low,
+
+        Math.abs(
+          rows[i].high -
+          rows[
+            i -
+            1
+          ].close
+        ),
+
+        Math.abs(
+          rows[i].low -
+          rows[
+            i -
+            1
+          ].close
+        )
+      );
+  }
+
+
+  return calculateSmaValues(
+    trueRange,
+    period
+  );
+}
+
+
+/*
+==============================================================
+Indicators
+
+ここでは指標だけを計算する。
+
+BUY / SELL判定は
+signal-engine.jsに任せる。
+==============================================================
+*/
+
+function prepareIndicators(
+  rows,
+  topixRows = []
+) {
+
+
+  /*
+  ============================================================
+  52週高値・既存VCP
+  ============================================================
+  */
+
+  for (
+    let i = 0;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+
+    /*
+     * 表示用52週高値
+     */
+    if (
+      i >=
+      251
+    ) {
+
+      let maxHigh =
+        -Infinity;
+
+
+      for (
+        let j =
+          i -
+          251;
+
+        j <=
+          i;
+
+        j++
+      ) {
+
+        maxHigh =
+          Math.max(
+            maxHigh,
+            rows[j].high
+          );
+      }
+
+
+      rows[i].high52 =
+        maxHigh;
+
+    } else {
+
+      rows[i].high52 =
+        null;
+    }
+
+
+    /*
+     * シグナル計算用52週高値
+     *
+     * 当日除外。
+     */
+    if (
+      i >=
+      252
+    ) {
+
+      let maxHighPrev =
+        -Infinity;
+
+
+      for (
+        let j =
+          i -
+          252;
+
+        j <=
+          i -
+          1;
+
+        j++
+      ) {
+
+        maxHighPrev =
+          Math.max(
+            maxHighPrev,
+            rows[j].high
+          );
+      }
+
+
+      rows[i].high52Prev =
+        maxHighPrev;
+
+    } else {
+
+      rows[i].high52Prev =
+        null;
+    }
+
+
+    /*
+     * 将来的なBUY条件変更用。
+     */
+    if (
+      i >=
+      20
+    ) {
+
+      let maxHigh20Prev =
+        -Infinity;
+
+
+      for (
+        let j =
+          i -
+          20;
+
+        j <=
+          i -
+          1;
+
+        j++
+      ) {
+
+        maxHigh20Prev =
+          Math.max(
+            maxHigh20Prev,
+            rows[j].high
+          );
+      }
+
+
+      rows[i].high20Prev =
+        maxHigh20Prev;
+
+    } else {
+
+      rows[i].high20Prev =
+        null;
+    }
+
+
+    if (
+      !isFiniteNumber(
+        rows[i].vcp26Delta5
+      )
+      &&
+      i >=
+      5
+      &&
+      isFiniteNumber(
+        rows[i].vcp26
+      )
+      &&
+      isFiniteNumber(
+        rows[
+          i -
+          5
+        ].vcp26
+      )
+    ) {
+
+      rows[i].vcp26Delta5 =
+        rows[i].vcp26 -
+        rows[
+          i -
+          5
+        ].vcp26;
+    }
+
+
+    if (
+      i >=
+      119
+    ) {
+
+      const values =
+        rows
+          .slice(
+            i -
+            119,
+
+            i +
+            1
+          )
+          .map(
+            row =>
+              row.vcp26Delta5
+          );
+
+
+      rows[i].deltaP10 =
+        percentileInc(
+          values,
+          .10
+        );
+
+
+      rows[i].deltaP90 =
+        percentileInc(
+          values,
+          .90
+        );
+
+    } else {
+
+      rows[i].deltaP10 =
+        null;
+
+
+      rows[i].deltaP90 =
+        null;
+    }
+
+
+    const contraction =
+      isFiniteNumber(
+        rows[i].dailyVcp
+      )
+      &&
+      isFiniteNumber(
+        rows[i].dailyVcpP10
+      )
+      &&
+      rows[i].dailyVcp <=
+      rows[i].dailyVcpP10;
+
+
+    /*
+     * 旧候補。
+     *
+     * 現在の売買シグナルには使用しない。
+     */
+    rows[i].buyCandidate =
+      contraction
+      &&
+      isFiniteNumber(
+        rows[i].vcp26Delta5
+      )
+      &&
+      isFiniteNumber(
+        rows[i].deltaP90
+      )
+      &&
+      rows[i].vcp26Delta5 >=
+      rows[i].deltaP90;
+
+
+    rows[i].sellCandidate =
+      contraction
+      &&
+      isFiniteNumber(
+        rows[i].vcp26Delta5
+      )
+      &&
+      isFiniteNumber(
+        rows[i].deltaP10
+      )
+      &&
+      rows[i].vcp26Delta5 <=
+      rows[i].deltaP10;
+  }
+
+
+  /*
+  ============================================================
+  VCP N 5MA / 25MA
+  ============================================================
+  */
+
+  const vcpMa5 =
+    calculateSma(
+      rows,
+      "vcp26",
+      5
+    );
+
+
+  const vcpMa25 =
+    calculateSma(
+      rows,
+      "vcp26",
+      25
+    );
+
+
+  for (
+    let i = 0;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    rows[i].vcp26Ma5 =
+      vcpMa5[i];
+
+
+    rows[i].vcp26Ma25 =
+      vcpMa25[i];
+  }
+
+
+  /*
+  ============================================================
+  Trend / Setup / Trigger
+  ============================================================
+  */
+
+  const topixCloseByDate =
+    new Map(
+
+      (
+        topixRows ||
+        []
+      )
+        .filter(
+          row =>
+            row?.date
+            &&
+            isFiniteNumber(
+              toNumber(
+                row.close
+              )
+            )
+        )
+        .map(
+          row => [
+
+            row.date,
+
+            toNumber(
+              row.close
+            )
+
+          ]
+        )
+    );
+
+
+  const atr10 =
+    calculateAtr(
+      rows,
+      10
+    );
+
+
+  const atr50 =
+    calculateAtr(
+      rows,
+      50
+    );
+
+
+  const volumes =
+    rows.map(
+      row =>
+        toNumber(
+          row.volume
+        )
+    );
+
+
+  const volMa10 =
+    calculateSmaValues(
+      volumes,
+      10
+    );
+
+
+  const volMa20 =
+    calculateSmaValues(
+      volumes,
+      20
+    );
+
+
+  const volMa50 =
+    calculateSmaValues(
+      volumes,
+      50
+    );
+
+
+  const rci9 =
+    calculateRci(
+      rows,
+      9
+    );
+
+
+  const rci26 =
+    calculateRci(
+      rows,
+      26
+    );
+
+
+  const x52 =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  const xVcp =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  const xRci =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  const xRciSlope =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  const xVol =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  const xRs =
+    new Array(
+      rows.length
+    ).fill(
+      null
+    );
+
+
+  for (
+    let i = 0;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+
+    rows[i].rci9 =
+      rci9[i];
+
+
+    rows[i].rci26 =
+      rci26[i];
+
+
+    /*
+    ==========================================================
+    52週高値Factor
     ==========================================================
     */
 
     if (
-      currentTrade
+      isFiniteNumber(
+        rows[i].close
+      )
+      &&
+      isFiniteNumber(
+        rows[i].high52Prev
+      )
+      &&
+      rows[i].close >
+      0
+      &&
+      rows[i].high52Prev >
+      0
     ) {
 
-      const latest =
-        rows[
-          rows.length -
-          1
-        ];
+      x52[i] =
+        Math.log(
 
-
-      currentTrade.currentDate =
-        latest?.date
-        ??
-        null;
-
-
-      currentTrade.currentPrice =
-        latest?.close
-        ??
-        null;
-
-
-      currentTrade.returnPct =
-        (
-          isFiniteNumber(
-            latest?.close
-          )
-          &&
-          isFiniteNumber(
-            currentTrade.entryPrice
-          )
-        )
-          ? (
-              latest.close /
-              currentTrade.entryPrice -
-              1
-            ) *
-            100
-          : null;
-
-
-      const stats =
-        calculateTradeStats(
-          rows,
-          currentTrade
+          rows[i].close
+          /
+          rows[i].high52Prev
         );
-
-
-      Object.assign(
-        currentTrade,
-        stats
-      );
-
-
-      trades.push(
-        currentTrade
-      );
     }
 
 
-    const summary =
-      calculateSummary(
-        trades
+    /*
+    ==========================================================
+    VCP Factor
+    ==========================================================
+    */
+
+    if (
+      isFiniteNumber(
+        atr10[i]
+      )
+      &&
+      isFiniteNumber(
+        atr50[i]
+      )
+      &&
+      atr10[i] >
+      0
+      &&
+      atr50[i] >
+      0
+      &&
+      i >=
+      1
+      &&
+      isFiniteNumber(
+        volMa10[
+          i -
+          1
+        ]
+      )
+      &&
+      isFiniteNumber(
+        volMa50[
+          i -
+          1
+        ]
+      )
+      &&
+      volMa10[
+        i -
+        1
+      ] >
+      0
+      &&
+      volMa50[
+        i -
+        1
+      ] >
+      0
+    ) {
+
+      const priceContraction =
+        -Math.log(
+
+          atr10[i]
+          /
+          atr50[i]
+        );
+
+
+      const volumeContraction =
+        -Math.log(
+
+          volMa10[
+            i -
+            1
+          ]
+          /
+          volMa50[
+            i -
+            1
+          ]
+        );
+
+
+      xVcp[i] =
+        (
+          priceContraction
+          +
+          volumeContraction
+        )
+        /
+        2;
+    }
+
+
+    /*
+    ==========================================================
+    RCI Factor
+    ==========================================================
+    */
+
+    if (
+      isFiniteNumber(
+        rci26[i]
+      )
+      &&
+      i >=
+      5
+      &&
+      isFiniteNumber(
+        rci9[i]
+      )
+      &&
+      isFiniteNumber(
+        rci9[
+          i -
+          5
+        ]
+      )
+    ) {
+
+      const slope =
+        (
+          rci9[i]
+          -
+          rci9[
+            i -
+            5
+          ]
+        )
+        /
+        200;
+
+
+      xRciSlope[i] =
+        slope;
+
+
+      xRci[i] =
+        0.6
+        *
+        (
+          rci26[i]
+          /
+          100
+        )
+        +
+        0.4
+        *
+        slope;
+    }
+
+
+    /*
+    ==========================================================
+    Volume Factor
+    ==========================================================
+    */
+
+    if (
+      i >=
+      1
+      &&
+      isFiniteNumber(
+        rows[i].volume
+      )
+      &&
+      rows[i].volume >
+      0
+      &&
+      isFiniteNumber(
+        volMa20[
+          i -
+          1
+        ]
+      )
+      &&
+      volMa20[
+        i -
+        1
+      ] >
+      0
+    ) {
+
+      xVol[i] =
+        Math.log(
+
+          rows[i].volume
+          /
+          volMa20[
+            i -
+            1
+          ]
+        );
+    }
+
+
+    /*
+    ==========================================================
+    TOPIX Relative Strength
+    ==========================================================
+    */
+
+    if (
+      i >=
+      60
+    ) {
+
+      const topixNow =
+        topixCloseByDate.get(
+          rows[i].date
+        );
+
+
+      const topix20 =
+        topixCloseByDate.get(
+          rows[
+            i -
+            20
+          ].date
+        );
+
+
+      const topix60 =
+        topixCloseByDate.get(
+          rows[
+            i -
+            60
+          ].date
+        );
+
+
+      if (
+        isFiniteNumber(
+          topixNow
+        )
+        &&
+        isFiniteNumber(
+          topix20
+        )
+        &&
+        isFiniteNumber(
+          topix60
+        )
+        &&
+        topixNow >
+        0
+        &&
+        topix20 >
+        0
+        &&
+        topix60 >
+        0
+        &&
+        isFiniteNumber(
+          rows[
+            i -
+            20
+          ].close
+        )
+        &&
+        isFiniteNumber(
+          rows[
+            i -
+            60
+          ].close
+        )
+        &&
+        rows[
+          i -
+          20
+        ].close >
+        0
+        &&
+        rows[
+          i -
+          60
+        ].close >
+        0
+      ) {
+
+        const stock20 =
+          rows[i].close
+          /
+          rows[
+            i -
+            20
+          ].close
+          -
+          1;
+
+
+        const stock60 =
+          rows[i].close
+          /
+          rows[
+            i -
+            60
+          ].close
+          -
+          1;
+
+
+        const topixReturn20 =
+          topixNow
+          /
+          topix20
+          -
+          1;
+
+
+        const topixReturn60 =
+          topixNow
+          /
+          topix60
+          -
+          1;
+
+
+        rows[i].rs20 =
+          stock20
+          -
+          topixReturn20;
+
+
+        rows[i].rs60 =
+          stock60
+          -
+          topixReturn60;
+
+
+        xRs[i] =
+          0.6 *
+          rows[i].rs20
+          +
+          0.4 *
+          rows[i].rs60;
+
+      } else {
+
+        rows[i].rs20 =
+          null;
+
+
+        rows[i].rs60 =
+          null;
+      }
+
+    } else {
+
+      rows[i].rs20 =
+        null;
+
+
+      rows[i].rs60 =
+        null;
+    }
+  }
+
+  /*
+  ============================================================
+  Rolling Z-score
+  ============================================================
+  */
+
+  const z52 =
+    calculateRollingZ(
+      x52
+    );
+
+
+  const zVcp =
+    calculateRollingZ(
+      xVcp
+    );
+
+
+  const zRci =
+    calculateRollingZ(
+      xRci
+    );
+
+
+  const zRciSlope =
+    calculateRollingZ(
+      xRciSlope
+    );
+
+
+  const zVol =
+    calculateRollingZ(
+      xVol
+    );
+
+
+  const zRs =
+    calculateRollingZ(
+      xRs
+    );
+
+
+  /*
+  ============================================================
+  Smooth transform
+  ============================================================
+  */
+
+  for (
+    let i = 0;
+
+    i <
+      rows.length;
+
+    i++
+  ) {
+
+    rows[i].factor52 =
+      smoothZ(
+        z52[i]
       );
 
 
+    rows[i].factorVcp =
+      smoothZ(
+        zVcp[i]
+      );
+
+
+    rows[i].factorRci =
+      smoothZ(
+        zRci[i]
+      );
+
+
+    rows[i].factorRciSlope =
+      smoothZ(
+        zRciSlope[i]
+      );
+
+
+    rows[i].factorVol =
+      smoothZ(
+        zVol[i]
+      );
+
+
+    rows[i].factorRs =
+      smoothZ(
+        zRs[i]
+      );
+
+
+    /*
+    ==========================================================
+    Trend
+    ==========================================================
+    */
+
+    rows[i].trendLine =
+      isFiniteNumber(
+        rows[i].factor52
+      )
+      &&
+      isFiniteNumber(
+        rows[i].factorRs
+      )
+        ? (
+            0.5 *
+            rows[i].factor52
+            +
+            0.5 *
+            rows[i].factorRs
+          )
+        : null;
+
+
+    /*
+    ==========================================================
+    Setup
+    ==========================================================
+    */
+
+    rows[i].setupLine =
+      isFiniteNumber(
+        rows[i].factorVcp
+      )
+      &&
+      isFiniteNumber(
+        rows[i].factorRci
+      )
+        ? (
+            0.6 *
+            rows[i].factorVcp
+            +
+            0.4 *
+            rows[i].factorRci
+          )
+        : null;
+
+
+    /*
+    ==========================================================
+    Trigger
+    ==========================================================
+    */
+
+    rows[i].triggerLine =
+      isFiniteNumber(
+        rows[i].factorVol
+      )
+      &&
+      isFiniteNumber(
+        rows[i].factorRciSlope
+      )
+        ? (
+            0.7 *
+            rows[i].factorVol
+            +
+            0.3 *
+            rows[i].factorRciSlope
+          )
+        : null;
+  }
+
+
+  /*
+  ============================================================
+  Signal Engine
+  ============================================================
+
+  BUY:
+    Trigger > Setup > Trend > 0
+
+  SELL:
+    VCP5MA < VCP25MA
+    AND
+    VCPN < currentVcpSellThreshold
+    AND
+    Trend_t < Trend_t-5
+  ============================================================
+  */
+
+  if (
+    !window.SignalEngine
+    ||
+    typeof window.SignalEngine.evaluate !==
+      "function"
+  ) {
+
+    throw new Error(
+      "signal-engine.js が読み込まれていません"
+    );
+  }
+
+
+  currentSignalResult =
+    window.SignalEngine.evaluate(
+
+      rows,
+
+      {
+
+        vcpSellThreshold:
+          currentVcpSellThreshold
+      }
+    );
+}
+
+
+/*
+==============================================================
+Signal recalculation
+
+VCP閾値変更時は、
+Trend等を再計算する必要はない。
+
+SignalEngineだけ再実行する。
+==============================================================
+*/
+
+async function recalculateSignals() {
+
+  if (
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  currentSignalResult =
+    window.SignalEngine.evaluate(
+
+      currentStock.data,
+
+      {
+
+        vcpSellThreshold:
+          currentVcpSellThreshold
+      }
+    );
+
+
+  /*
+   * BUY / SELLマーカーも変わるので
+   * チャート再描画。
+   */
+  await drawChart();
+
+
+  updateSummary();
+
+
+  updateSignalSidebar();
+}
+
+
+/*
+==============================================================
+VCP SELL threshold slider
+==============================================================
+*/
+
+function installVcpThresholdSlider() {
+
+  const slider =
+    document.getElementById(
+      "vcpSellThresholdSlider"
+    );
+
+
+  if (
+    !slider
+  ) {
+
+    return;
+  }
+
+
+  slider.addEventListener(
+
+    "input",
+
+    event => {
+
+      const value =
+        Number(
+          event.target.value
+        );
+
+
+      if (
+        !Number.isFinite(
+          value
+        )
+      ) {
+
+        return;
+      }
+
+
+      currentVcpSellThreshold =
+        value;
+
+
+      const valueLabel =
+        document.getElementById(
+          "vcpThresholdValue"
+        );
+
+
+      if (
+        valueLabel
+      ) {
+
+        valueLabel.textContent =
+          value.toFixed(
+            2
+          );
+      }
+
+
+      const conditionLabel =
+        document.getElementById(
+          "vcpThresholdCondition"
+        );
+
+
+      if (
+        conditionLabel
+      ) {
+
+        conditionLabel.textContent =
+          `VCP N < ${value.toFixed(2)}`;
+      }
+
+
+      /*
+       * スライダー連続操作時に
+       * 毎フレームPlotlyを描き直さない。
+       */
+      clearTimeout(
+        signalSliderTimer
+      );
+
+
+      signalSliderTimer =
+        setTimeout(
+
+          async () => {
+
+            await recalculateSignals();
+
+          },
+
+          120
+        );
+    }
+  );
+}
+
+
+/*
+==============================================================
+Volume-by-Price
+==============================================================
+*/
+
+function calculateVolumeProfile(
+  rows
+) {
+
+  if (
+    !rows.length
+  ) {
+
+    return null;
+  }
+
+
+  const bins =
+    Number(
+      document
+        .getElementById(
+          "profileBins"
+        )
+        .value
+    ) || 50;
+
+
+  const minPrice =
+    Math.min(
+      ...rows.map(
+        row =>
+          row.low
+      )
+    );
+
+
+  const maxPrice =
+    Math.max(
+      ...rows.map(
+        row =>
+          row.high
+      )
+    );
+
+
+  if (
+    !(
+      maxPrice >
+      minPrice
+    )
+  ) {
+
+    return null;
+  }
+
+
+  const step =
+    (
+      maxPrice -
+      minPrice
+    )
+    /
+    bins;
+
+
+  const up =
+    new Array(
+      bins
+    ).fill(
+      0
+    );
+
+
+  const down =
+    new Array(
+      bins
+    ).fill(
+      0
+    );
+
+
+  for (
+    const row
+    of rows
+  ) {
+
+    let index =
+      Math.floor(
+        (
+          row.close -
+          minPrice
+        )
+        /
+        step
+      );
+
+
+    if (
+      index ===
+      bins
+    ) {
+
+      index =
+        bins -
+        1;
+    }
+
+
+    index =
+      Math.max(
+        0,
+
+        Math.min(
+          bins -
+          1,
+          index
+        )
+      );
+
+
+    if (
+      row.close >=
+      row.open
+    ) {
+
+      up[index] +=
+        row.volume;
+
+    } else {
+
+      down[index] +=
+        row.volume;
+    }
+  }
+
+
+  const prices =
+    Array.from(
+
+      {
+        length:
+          bins
+      },
+
+      (
+        _,
+        index
+      ) =>
+        minPrice +
+        (
+          index +
+          .5
+        ) *
+        step
+    );
+
+
+  return {
+
+    bins,
+
+    prices,
+
+    widths:
+      prices.map(
+        () =>
+          step *
+          .90
+      ),
+
+    up,
+
+    down,
+
+    totals:
+      prices.map(
+        (
+          _,
+          index
+        ) =>
+          up[index]
+          +
+          down[index]
+      ),
+
+    step
+  };
+}
+
+
+/*
+==============================================================
+Supply daily
+==============================================================
+*/
+
+function buildSupplyDaily(
+  stockRows,
+  supplyRows
+) {
+
+  const source =
+    [
+      ...(
+        supplyRows ||
+        []
+      )
+    ].sort(
+      (
+        a,
+        b
+      ) =>
+        a.date.localeCompare(
+          b.date
+        )
+    );
+
+
+  const result =
+    [];
+
+
+  let sourceIndex =
+    0;
+
+
+  let publicShortRatio =
+    null;
+
+
+  let publicShortInstitutions =
+    [];
+
+
+  let loanRatio =
+    null;
+
+
+  let loanBalance =
+    null;
+
+
+  let stockLoanBalance =
+    null;
+
+
+  let marginRatio =
+    null;
+
+
+  let marginBuy =
+    null;
+
+
+  let marginSell =
+    null;
+
+
+  for (
+    const stockRow
+    of stockRows
+  ) {
+
+    while (
+      sourceIndex <
+      source.length
+      &&
+      source[
+        sourceIndex
+      ].date <=
+      stockRow.date
+    ) {
+
+      const row =
+        source[
+          sourceIndex
+        ];
+
+
+      if (
+        row.publicShortRatio !==
+        undefined
+        &&
+        row.publicShortRatio !==
+        null
+      ) {
+
+        publicShortRatio =
+          toNumber(
+            row.publicShortRatio
+          );
+
+
+        publicShortInstitutions =
+          Array.isArray(
+            row.publicShortInstitutions
+          )
+            ? row.publicShortInstitutions
+            : [];
+      }
+
+
+      if (
+        row.loanRatio !==
+        undefined
+      ) {
+
+        loanRatio =
+          toNumber(
+            row.loanRatio
+          );
+      }
+
+
+      if (
+        row.loanBalance !==
+        undefined
+      ) {
+
+        loanBalance =
+          toNumber(
+            row.loanBalance
+          );
+      }
+
+
+      if (
+        row.stockLoanBalance !==
+        undefined
+      ) {
+
+        stockLoanBalance =
+          toNumber(
+            row.stockLoanBalance
+          );
+      }
+
+
+      if (
+        row.marginRatio !==
+        undefined
+      ) {
+
+        marginRatio =
+          toNumber(
+            row.marginRatio
+          );
+      }
+
+
+      if (
+        row.marginBuy !==
+        undefined
+      ) {
+
+        marginBuy =
+          toNumber(
+            row.marginBuy
+          );
+      }
+
+
+      if (
+        row.marginSell !==
+        undefined
+      ) {
+
+        marginSell =
+          toNumber(
+            row.marginSell
+          );
+      }
+
+
+      sourceIndex++;
+    }
+
+
+    result.push({
+
+      date:
+        stockRow.date,
+
+      publicShortRatio,
+
+      publicShortInstitutions,
+
+      loanRatio,
+
+      loanBalance,
+
+      stockLoanBalance,
+
+      marginRatio,
+
+      marginBuy,
+
+      marginSell
+    });
+  }
+
+
+  return result;
+}
+
+
+function shortInstitutionText(
+  institutions
+) {
+
+  if (
+    !Array.isArray(
+      institutions
+    )
+    ||
+    !institutions.length
+  ) {
+
+    return "公表対象機関なし";
+  }
+
+
+  return institutions
+    .map(
+      item => {
+
+        const ratio =
+          toNumber(
+            item.ratio
+          );
+
+
+        return (
+          `${item.name ?? "Unknown"}`
+          +
+          `${
+            ratio !== null
+              ? ` ${ratio.toFixed(2)}%`
+              : ""
+          }`
+        );
+      }
+    )
+    .join(
+      "<br>"
+    );
+}
+
+
+/*
+==============================================================
+Visible rows
+==============================================================
+*/
+
+function visibleStockRows(
+  start,
+  end
+) {
+
+  return currentStock
+    ? currentStock.data.filter(
+        row =>
+          row.date >=
+          start
+          &&
+          row.date <=
+          end
+      )
+    : [];
+}
+
+
+function visibleSupplyRows(
+  start,
+  end
+) {
+
+  return currentSupplyDaily
+    .filter(
+      row =>
+        row.date >=
+        start
+        &&
+        row.date <=
+        end
+    );
+}
+
+
+/*
+==============================================================
+Axis range helpers
+==============================================================
+*/
+
+function rangeIncludeZero(
+  values,
+  paddingRatio =
+    .10
+) {
+
+  const valid =
+    values.filter(
+      isFiniteNumber
+    );
+
+
+  if (
+    !valid.length
+  ) {
+
+    return [
+      -.01,
+      .01
+    ];
+  }
+
+
+  let min =
+    Math.min(
+      0,
+      ...valid
+    );
+
+
+  let max =
+    Math.max(
+      0,
+      ...valid
+    );
+
+
+  let span =
+    max -
+    min;
+
+
+  if (
+    span ===
+    0
+  ) {
+
+    span =
+      Math.max(
+        Math.abs(
+          max
+        ),
+        .01
+      );
+  }
+
+
+  return [
+
+    min -
+    span *
+    paddingRatio,
+
+    max +
+    span *
+    paddingRatio
+  ];
+}
+
+
+function positiveRange(
+  values,
+  fallback =
+    1
+) {
+
+  const valid =
+    values.filter(
+      isFiniteNumber
+    );
+
+
+  if (
+    !valid.length
+  ) {
+
+    return [
+      0,
+      fallback
+    ];
+  }
+
+
+  return [
+
+    0,
+
+    Math.max(
+
+      Math.max(
+        ...valid
+      )
+      *
+      1.15,
+
+      fallback
+    )
+  ];
+}
+
+
+function positiveLogRange(
+  values,
+  fallbackMin =
+    .1,
+  fallbackMax =
+    1
+) {
+
+  const valid =
+    values.filter(
+      value =>
+        isFiniteNumber(
+          value
+        )
+        &&
+        value >
+        0
+    );
+
+
+  if (
+    !valid.length
+  ) {
+
+    return [
+
+      Math.log10(
+        fallbackMin
+      ),
+
+      Math.log10(
+        fallbackMax
+      )
+    ];
+  }
+
+
+  let min =
+    Math.min(
+      ...valid
+    );
+
+
+  let max =
+    Math.max(
+      ...valid
+    );
+
+
+  if (
+    min ===
+    max
+  ) {
+
+    min =
+      Math.max(
+        min /
+        1.5,
+
+        .000001
+      );
+
+
+    max *=
+      1.5;
+
+  } else {
+
+    min =
+      Math.max(
+        min *
+        .85,
+
+        .000001
+      );
+
+
+    max *=
+      1.15;
+  }
+
+
+  return [
+
+    Math.log10(
+      min
+    ),
+
+    Math.log10(
+      max
+    )
+  ];
+}
+
+
+function getSignalRange() {
+
+  return [
+    -1.05,
+    1.05
+  ];
+}
+
+
+/*
+==============================================================
+Pane layout
+==============================================================
+*/
+
+function getPaneLayout() {
+
+  if (
+    showVolumePane
+  ) {
+
     return {
 
-      options,
+      height:
+        1370,
 
-      buySignals,
+      priceDomain:
+        [
+          .72,
+          1
+        ],
 
-      sellSignals,
+      volumeDomain:
+        [
+          .62,
+          .675
+        ],
 
-      trades,
+      vcpDomain:
+        [
+          .43,
+          .57
+        ],
 
-      summary,
+      signalDomain:
+        [
+          .24,
+          .38
+        ],
 
-      inPosition,
-
-      latestBuy:
-        buySignals.length
-          ? buySignals[
-              buySignals.length -
-              1
-            ]
-          : null,
-
-      latestSell:
-        sellSignals.length
-          ? sellSignals[
-              sellSignals.length -
-              1
-            ]
-          : null
+      supplyDomain:
+        [
+          0,
+          .18
+        ]
     };
   }
 
 
-  window.SignalEngine = {
+  return {
 
-    evaluate,
+    height:
+      1230,
 
-    isBuyCondition,
+    priceDomain:
+      [
+        .65,
+        1
+      ],
 
-    isSellCondition
+    volumeDomain:
+      [
+        .615,
+        .616
+      ],
+
+    vcpDomain:
+      [
+        .43,
+        .59
+      ],
+
+    signalDomain:
+      [
+        .24,
+        .38
+      ],
+
+    supplyDomain:
+      [
+        0,
+        .18
+      ]
+  };
+}
+
+
+/*
+==============================================================
+Initial display range
+==============================================================
+*/
+
+function getInitialDisplayRange() {
+
+  if (
+    currentRangeStart
+    &&
+    currentRangeEnd
+  ) {
+
+    return {
+
+      start:
+        currentRangeStart,
+
+      end:
+        currentRangeEnd
+    };
+  }
+
+
+  const end =
+    parseDate(
+      currentStock.endDate
+    );
+
+
+  const start =
+    new Date(
+      end
+    );
+
+
+  start.setFullYear(
+    start.getFullYear() -
+    1
+  );
+
+
+  let startText =
+    dateString(
+      start
+    );
+
+
+  if (
+    startText <
+    currentStock.startDate
+  ) {
+
+    startText =
+      currentStock.startDate;
+  }
+
+
+  return {
+
+    start:
+      startText,
+
+    end:
+      currentStock.endDate
+  };
+}
+
+
+/*
+==============================================================
+Supply coverage label
+==============================================================
+*/
+
+function coverageLabel(
+  item
+) {
+
+  if (
+    !item
+  ) {
+
+    return "未取得";
+  }
+
+
+  const period =
+    item.startDate
+    ||
+    item.endDate
+      ? (
+          `${item.startDate ?? "?"}`
+          +
+          `〜`
+          +
+          `${item.endDate ?? "?"}`
+        )
+      : "期間不明";
+
+
+  switch (
+    item.status
+  ) {
+
+    case "ok":
+
+      return `${period}`;
+
+
+    case "partial":
+
+      return `一部取得 ${period}`;
+
+
+    case "no_events_in_coverage":
+
+      return (
+        `公表イベントなし`
+        +
+        `（0とは断定しない） `
+        +
+        `${period}`
+      );
+
+
+    case "unknown":
+
+      return `状態不明 ${period}`;
+
+
+    case "error":
+
+      return "取得失敗";
+
+
+    default:
+
+      return (
+        `${item.status ?? "不明"} `
+        +
+        `${period}`
+      );
+  }
+}
+
+
+/*
+==============================================================
+Visible range update
+==============================================================
+*/
+
+async function updateVisibleRange(
+  start,
+  end
+) {
+
+  if (
+    updatingRange
+    ||
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  const rows =
+    visibleStockRows(
+      start,
+      end
+    );
+
+
+  if (
+    !rows.length
+  ) {
+
+    return;
+  }
+
+
+  const profile =
+    calculateVolumeProfile(
+      rows
+    );
+
+
+  if (
+    !profile
+  ) {
+
+    return;
+  }
+
+
+  const maxProfile =
+    Math.max(
+      ...profile.totals,
+      1
+    );
+
+
+  let priceLow =
+    Math.min(
+      ...rows.map(
+        row =>
+          row.low
+      )
+    );
+
+
+  let priceHigh =
+    Math.max(
+      ...rows.map(
+        row =>
+          row.high
+      )
+    );
+
+
+  const high52 =
+    rows
+      .map(
+        row =>
+          row.high52
+      )
+      .filter(
+        isFiniteNumber
+      );
+
+
+  if (
+    high52.length
+  ) {
+
+    priceHigh =
+      Math.max(
+        priceHigh,
+        ...high52
+      );
+  }
+
+
+  const pricePadding =
+    Math.max(
+
+      (
+        priceHigh -
+        priceLow
+      )
+      *
+      .045,
+
+      profile.step
+    );
+
+
+  const maxVolume =
+    Math.max(
+      ...rows.map(
+        row =>
+          row.volume
+      ),
+      1
+    );
+
+
+  const nRange =
+    rangeIncludeZero(
+      rows.map(
+        row =>
+          row.vcp26
+      )
+    );
+
+
+  const supplyRows =
+    visibleSupplyRows(
+      start,
+      end
+    );
+
+
+  const shortRange =
+    positiveRange(
+
+      supplyRows.map(
+        row =>
+          row.publicShortRatio
+      ),
+
+      1
+    );
+
+
+  const loanRange =
+    positiveLogRange(
+
+      supplyRows.map(
+        row =>
+          row.loanRatio
+      ),
+
+      1
+    );
+
+
+  const marginRange =
+    positiveRange(
+
+      supplyRows.map(
+        row =>
+          row.marginRatio
+      ),
+
+      1
+    );
+
+
+  updatingRange =
+    true;
+
+
+  try {
+
+    await Plotly.restyle(
+
+      chart,
+
+      {
+
+        x:[
+          profile.up
+        ],
+
+        y:[
+          profile.prices
+        ],
+
+        width:[
+          profile.widths
+        ],
+
+        customdata:[
+          profile.up
+        ]
+      },
+
+      [
+        PROFILE_UP_INDEX
+      ]
+    );
+
+
+    await Plotly.restyle(
+
+      chart,
+
+      {
+
+        x:[
+          profile.down
+        ],
+
+        y:[
+          profile.prices
+        ],
+
+        width:[
+          profile.widths
+        ],
+
+        customdata:[
+          profile.down
+        ]
+      },
+
+      [
+        PROFILE_DOWN_INDEX
+      ]
+    );
+
+
+    const relayout = {
+
+      "xaxis2.range":
+        [
+          maxProfile *
+          3.5,
+
+          0
+        ],
+
+      "yaxis.range":
+        [
+          priceLow -
+          pricePadding,
+
+          priceHigh +
+          pricePadding
+        ],
+
+      "yaxis3.range":
+        nRange,
+
+      "yaxis4.range":
+        getSignalRange(),
+
+      "yaxis5.range":
+        shortRange,
+
+      "yaxis6.range":
+        loanRange,
+
+      "yaxis7.range":
+        marginRange
+    };
+
+
+    if (
+      showVolumePane
+    ) {
+
+      relayout[
+        "yaxis2.range"
+      ] =
+        [
+          0,
+
+          maxVolume *
+          1.10
+        ];
+    }
+
+
+    await Plotly.relayout(
+      chart,
+      relayout
+    );
+
+
+    currentRangeStart =
+      start;
+
+
+    currentRangeEnd =
+      end;
+
+
+    document
+      .getElementById(
+        "profileInfo"
+      )
+      .textContent =
+        `価格帯別出来高：`
+        +
+        `${start} ～ ${end} ／ `
+        +
+        `${rows.length}営業日 ／ `
+        +
+        `${profile.bins}価格帯 ／ `
+        +
+        `終値方式 ／ `
+        +
+        `左＝下落（赤）、右＝上昇（青）`;
+
+  } finally {
+
+    updatingRange =
+      false;
+  }
+}
+
+/*
+==============================================================
+Summary
+==============================================================
+*/
+
+function updateSummary() {
+
+  if (
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  const stockRows =
+    currentStock.data;
+
+
+  const latest =
+    stockRows[
+      stockRows.length -
+      1
+    ];
+
+
+  const latestSupply =
+    currentSupplyDaily.length
+      ? currentSupplyDaily[
+          currentSupplyDaily.length -
+          1
+        ]
+      : null;
+
+
+  const buyCount =
+    stockRows.filter(
+      row =>
+        row.buySignal
+    ).length;
+
+
+  const sellCount =
+    stockRows.filter(
+      row =>
+        row.sellSignal
+    ).length;
+
+
+  let signal =
+    "シグナルなし";
+
+
+  let signalClass =
+    "";
+
+
+  if (
+    latest.buySignal
+  ) {
+
+    signal =
+      "▲ BUY";
+
+    signalClass =
+      "buy";
+  }
+
+
+  if (
+    latest.sellSignal
+  ) {
+
+    signal =
+      "▼ SELL";
+
+    signalClass =
+      "sell";
+  }
+
+
+  document
+    .getElementById(
+      "summary"
+    )
+    .innerHTML =
+      `
+      <div>
+        <span class="summary-label">
+          終値
+        </span>
+
+        <strong>
+          ${formatNumber(
+            latest.close,
+            2
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          52週高値
+        </span>
+
+        ${formatNumber(
+          latest.high52,
+          2
+        )}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          RS20
+        </span>
+
+        ${
+          isFiniteNumber(
+            latest.rs20
+          )
+            ? `${(
+                latest.rs20 *
+                100
+              ).toFixed(
+                2
+              )}%`
+            : "-"
+        }
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          RS60
+        </span>
+
+        ${
+          isFiniteNumber(
+            latest.rs60
+          )
+            ? `${(
+                latest.rs60 *
+                100
+              ).toFixed(
+                2
+              )}%`
+            : "-"
+        }
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          Trend
+        </span>
+
+        <strong>
+          ${formatNumber(
+            latest.trendLine,
+            3
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          Setup
+        </span>
+
+        <strong>
+          ${formatNumber(
+            latest.setupLine,
+            3
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          Trigger
+        </span>
+
+        <strong>
+          ${formatNumber(
+            latest.triggerLine,
+            3
+          )}
+        </strong>
+      </div>
+
+
+      <div class="${signalClass}">
+        ${signal}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP N
+        </span>
+
+        <strong>
+          ${formatNumber(
+            latest.vcp26,
+            6
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP 5MA
+        </span>
+
+        ${formatNumber(
+          latest.vcp26Ma5,
+          6
+        )}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP 25MA
+        </span>
+
+        ${formatNumber(
+          latest.vcp26Ma25,
+          6
+        )}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          VCP SELL閾値
+        </span>
+
+        <strong>
+          ${currentVcpSellThreshold.toFixed(
+            2
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          公表空売り
+        </span>
+
+        ${
+          latestSupply
+            ?.publicShortRatio ===
+            null
+          ||
+          latestSupply
+            ?.publicShortRatio ===
+            undefined
+            ? "-"
+            : `${formatNumber(
+                latestSupply.publicShortRatio,
+                2
+              )}%`
+        }
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          貸借倍率
+        </span>
+
+        ${
+          latestSupply
+            ?.loanRatio ===
+            null
+          ||
+          latestSupply
+            ?.loanRatio ===
+            undefined
+            ? "-"
+            : `${formatNumber(
+                latestSupply.loanRatio,
+                2
+              )}倍`
+        }
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          信用倍率
+        </span>
+
+        ${
+          latestSupply
+            ?.marginRatio ===
+            null
+          ||
+          latestSupply
+            ?.marginRatio ===
+            undefined
+            ? "-"
+            : `${formatNumber(
+                latestSupply.marginRatio,
+                2
+              )}倍`
+        }
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          BUY
+        </span>
+
+        ${buyCount}
+      </div>
+
+
+      <div>
+        <span class="summary-label">
+          SELL
+        </span>
+
+        ${sellCount}
+      </div>
+      `;
+}
+
+
+/*
+==============================================================
+Signal Sidebar
+==============================================================
+*/
+
+function updateSignalSidebar() {
+
+  const container =
+    document.getElementById(
+      "signalSidebarBody"
+    );
+
+
+  if (
+    !currentSignalResult
+    ||
+    !currentStock
+  ) {
+
+    container.textContent =
+      "シグナルなし";
+
+    return;
+  }
+
+
+  const result =
+    currentSignalResult;
+
+
+  const summary =
+    result.summary
+    ||
+    {};
+
+
+  const latest =
+    currentStock.data[
+      currentStock.data.length -
+      1
+    ];
+
+
+  const latestTrade =
+    result.trades.length
+      ? result.trades[
+          result.trades.length -
+          1
+        ]
+      : null;
+
+
+  const stateText =
+    result.inPosition
+      ? "LONG"
+      : "FLAT";
+
+
+  const stateClass =
+    result.inPosition
+      ? "long"
+      : "flat";
+
+
+  const latestBuy =
+    result.latestBuy;
+
+
+  const latestSell =
+    result.latestSell;
+
+
+  function pctText(
+    value,
+    digits = 2
+  ) {
+
+    if (
+      !isFiniteNumber(
+        value
+      )
+    ) {
+
+      return "-";
+    }
+
+
+    return (
+      `${value >= 0 ? "+" : ""}`
+      +
+      `${value.toFixed(
+        digits
+      )}%`
+    );
+  }
+
+
+  function pctClass(
+    value
+  ) {
+
+    if (
+      !isFiniteNumber(
+        value
+      )
+    ) {
+
+      return "";
+    }
+
+
+    return value >= 0
+      ? "signal-return-positive"
+      : "signal-return-negative";
+  }
+
+
+  let tradeHtml =
+    "";
+
+
+  if (
+    latestTrade
+  ) {
+
+    tradeHtml =
+      `
+      <div class="signal-section">
+
+        <div class="signal-section-title">
+          CURRENT / LAST TRADE
+        </div>
+
+
+        <div class="signal-main-value">
+
+          ${
+            latestTrade.status ===
+            "OPEN"
+              ? "OPEN"
+              : "CLOSED"
+          }
+
+        </div>
+
+
+        <div class="signal-sub-value">
+
+          BUY
+          ${latestTrade.entryDate}
+
+          @
+
+          ${formatNumber(
+            latestTrade.entryPrice,
+            2
+          )}
+
+        </div>
+
+
+        ${
+          latestTrade.exitDate
+            ? `
+              <div class="signal-sub-value">
+
+                SELL
+                ${latestTrade.exitDate}
+
+                @
+
+                ${formatNumber(
+                  latestTrade.exitPrice,
+                  2
+                )}
+
+              </div>
+            `
+            : ""
+        }
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            Return
+          </span>
+
+          <span class="signal-metric-value ${pctClass(
+            latestTrade.returnPct
+          )}">
+            ${pctText(
+              latestTrade.returnPct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            MFE
+          </span>
+
+          <span class="signal-metric-value">
+            ${pctText(
+              latestTrade.mfePct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            MAE
+          </span>
+
+          <span class="signal-metric-value">
+            ${pctText(
+              latestTrade.maePct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            Capture Ratio
+          </span>
+
+          <span class="signal-metric-value">
+            ${
+              isFiniteNumber(
+                latestTrade.captureRatio
+              )
+                ? `${latestTrade.captureRatio.toFixed(
+                    1
+                  )}%`
+                : "-"
+            }
+          </span>
+
+        </div>
+
+      </div>
+      `;
+  }
+
+
+  container.innerHTML =
+    `
+    <div class="signal-state ${stateClass}">
+      ${stateText}
+    </div>
+
+
+    <!-- ================================================
+         Strategy performance
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        STRATEGY PERFORMANCE
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Total Return
+        </span>
+
+        <span class="signal-metric-value ${pctClass(
+          summary.totalReturnPct
+        )}">
+          ${pctText(
+            summary.totalReturnPct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Closed Return
+        </span>
+
+        <span class="signal-metric-value ${pctClass(
+          summary.closedTotalReturnPct
+        )}">
+          ${pctText(
+            summary.closedTotalReturnPct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Closed Trades
+        </span>
+
+        <span class="signal-metric-value">
+          ${summary.closedTrades ?? 0}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Win Rate
+        </span>
+
+        <span class="signal-metric-value">
+          ${
+            isFiniteNumber(
+              summary.winRate
+            )
+              ? `${summary.winRate.toFixed(
+                  1
+                )}%`
+              : "-"
+          }
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Average trade statistics
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        AVG TRADE STATS
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          MFE
+        </span>
+
+        <span class="signal-metric-value">
+          ${pctText(
+            summary.averageMfePct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          MAE
+        </span>
+
+        <span class="signal-metric-value">
+          ${pctText(
+            summary.averageMaePct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Capture Ratio
+        </span>
+
+        <span class="signal-metric-value">
+          ${
+            isFiniteNumber(
+              summary.averageCaptureRatio
+            )
+              ? `${summary.averageCaptureRatio.toFixed(
+                  1
+                )}%`
+              : "-"
+          }
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         VCP threshold
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        VCP SELL THRESHOLD
+      </div>
+
+
+      <div
+        id="vcpThresholdValue"
+        class="signal-main-value"
+      >
+        ${currentVcpSellThreshold.toFixed(
+          2
+        )}
+      </div>
+
+
+      <input
+        id="vcpSellThresholdSlider"
+        class="signal-slider"
+        type="range"
+        min="-1"
+        max="0"
+        step="0.01"
+        value="${currentVcpSellThreshold}"
+      >
+
+
+      <div class="signal-slider-scale">
+
+        <span>
+          -1.00
+        </span>
+
+        <span>
+          0.00
+        </span>
+
+      </div>
+
+
+      <div class="signal-threshold-note">
+
+        SELL条件：
+
+        <br>
+
+        VCP 5MA &lt; VCP 25MA
+
+        <br>
+
+        AND
+
+        <br>
+
+        <span id="vcpThresholdCondition">
+          VCP N &lt; ${currentVcpSellThreshold.toFixed(
+            2
+          )}
+        </span>
+
+        <br>
+
+        AND
+
+        <br>
+
+        Trend t &lt; Trend t-5
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Latest signal
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LATEST SIGNAL
+      </div>
+
+
+      <div class="signal-main-value">
+
+        ${
+          latest.buySignal
+            ? "▲ BUY"
+            : latest.sellSignal
+              ? "▼ SELL"
+              : "—"
+        }
+
+      </div>
+
+
+      <div class="signal-sub-value">
+        ${latest.date}
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Last BUY
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LAST BUY
+      </div>
+
+
+      <div class="signal-main-value">
+
+        ${
+          latestBuy
+            ? formatNumber(
+                latestBuy.price,
+                2
+              )
+            : "-"
+        }
+
+      </div>
+
+
+      <div class="signal-sub-value">
+
+        ${
+          latestBuy?.date
+          ??
+          "-"
+        }
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Last SELL
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LAST SELL
+      </div>
+
+
+      <div class="signal-main-value">
+
+        ${
+          latestSell
+            ? formatNumber(
+                latestSell.price,
+                2
+              )
+            : "-"
+        }
+
+      </div>
+
+
+      <div class="signal-sub-value">
+
+        ${
+          latestSell?.date
+          ??
+          "-"
+        }
+
+      </div>
+
+    </div>
+
+
+    ${tradeHtml}
+
+
+    <!-- ================================================
+         Current factors
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        CURRENT FACTORS
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Trigger
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.triggerLine,
+            3
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Setup
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.setupLine,
+            3
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Trend
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.trendLine,
+            3
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP N
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26,
+            4
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP 5MA
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26Ma5,
+            4
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP 25MA
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26Ma25,
+            4
+          )}
+        </span>
+
+      </div>
+
+    </div>
+    `;
+
+
+  installVcpThresholdSlider();
+}
+
+
+/*
+==============================================================
+Favorites
+==============================================================
+*/
+
+function getFavorites() {
+
+  try {
+
+    return JSON.parse(
+      localStorage.getItem(
+        "stockFavorites"
+      )
+      ||
+      "[]"
+    );
+
+  } catch {
+
+    return [];
+  }
+}
+
+
+function updateFavoriteButton() {
+
+  document
+    .getElementById(
+      "favoriteButton"
+    )
+    .textContent =
+
+      getFavorites()
+        .includes(
+          currentCode
+        )
+          ? "★ お気に入り"
+          : "☆ お気に入り";
+}
+
+
+function toggleFavorite() {
+
+  let favorites =
+    getFavorites();
+
+
+  favorites =
+    favorites.includes(
+      currentCode
+    )
+      ? favorites.filter(
+          code =>
+            code !==
+            currentCode
+        )
+      : [
+          ...favorites,
+          currentCode
+        ];
+
+
+  localStorage.setItem(
+    "stockFavorites",
+    JSON.stringify(
+      favorites
+    )
+  );
+
+
+  updateFavoriteButton();
+}
+
+
+/*
+==============================================================
+Hover vertical line
+==============================================================
+*/
+
+function installHoverLine() {
+
+  chart.on(
+    "plotly_hover",
+
+    event => {
+
+      const point =
+        event?.points?.[0];
+
+
+      if (
+        !point
+        ||
+        point.x ===
+        undefined
+      ) {
+
+        return;
+      }
+
+
+      Plotly.relayout(
+        chart,
+
+        {
+
+          "shapes[0].x0":
+            point.x,
+
+          "shapes[0].x1":
+            point.x,
+
+          "shapes[0].visible":
+            true
+        }
+      );
+    }
+  );
+
+
+  chart.on(
+    "plotly_unhover",
+
+    () => {
+
+      Plotly.relayout(
+        chart,
+
+        {
+
+          "shapes[0].visible":
+            false
+        }
+      );
+    }
+  );
+}
+
+
+/*
+==============================================================
+Chart
+==============================================================
+*/
+
+async function drawChart() {
+
+  if (
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  const rows =
+    currentStock.data;
+
+
+  const dates =
+    rows.map(
+      row =>
+        row.date
+    );
+
+
+  const {
+
+    start:
+      initialStart,
+
+    end:
+      latestDate
+
+  } =
+    getInitialDisplayRange();
+
+
+  const initialRows =
+    visibleStockRows(
+      initialStart,
+      latestDate
+    );
+
+
+  const profile =
+    calculateVolumeProfile(
+      initialRows
+    );
+
+
+  if (
+    !profile
+  ) {
+
+    return;
+  }
+
+
+  const maxProfile =
+    Math.max(
+      ...profile.totals,
+      1
+    );
+
+
+  const dailyColors =
+    rows.map(
+      row =>
+        row.close >=
+        row.open
+          ? BLUE
+          : RED
+    );
+
+
+  const buyRows =
+    rows.filter(
+      row =>
+        row.buySignal
+    );
+
+
+  const sellRows =
+    rows.filter(
+      row =>
+        row.sellSignal
+    );
+
+
+  const supplyDates =
+    currentSupplyDaily.map(
+      row =>
+        row.date
+    );
+
+
+  const shortHover =
+    currentSupplyDaily.map(
+      row =>
+        shortInstitutionText(
+          row.publicShortInstitutions
+        )
+    );
+
+
+  const pane =
+    getPaneLayout();
+
+
+  chart.style.height =
+    `${pane.height}px`;
+
+
+  const traces = [
+
+    /*
+    ==========================================================
+    Price
+    ==========================================================
+    */
+
+    {
+      type:
+        "candlestick",
+
+      name:
+        "株価",
+
+      x:
+        dates,
+
+      open:
+        rows.map(
+          row =>
+            row.open
+        ),
+
+      high:
+        rows.map(
+          row =>
+            row.high
+        ),
+
+      low:
+        rows.map(
+          row =>
+            row.low
+        ),
+
+      close:
+        rows.map(
+          row =>
+            row.close
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      increasing:{
+
+        line:{
+          color:
+            BLUE
+        },
+
+        fillcolor:
+          BLUE
+      },
+
+      decreasing:{
+
+        line:{
+          color:
+            RED
+        },
+
+        fillcolor:
+          RED
+      },
+
+      hoverinfo:
+        "skip"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "markers",
+
+      name:
+        "OHLC",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.close
+        ),
+
+      customdata:
+        rows.map(
+          row => [
+
+            row.open,
+            row.high,
+            row.low,
+            row.close
+
+          ]
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      showlegend:
+        false,
+
+      marker:{
+
+        size:
+          12,
+
+        color:
+          "rgba(0,0,0,0)"
+      },
+
+      hovertemplate:
+        "日付 %{x|%Y-%m-%d}<br>"
+        +
+        "始 %{customdata[0]:,.0f}<br>"
+        +
+        "高 %{customdata[1]:,.0f}<br>"
+        +
+        "安 %{customdata[2]:,.0f}<br>"
+        +
+        "終 %{customdata[3]:,.0f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "5MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.ma5
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1.4,
+
+        color:
+          ORANGE
+      }
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "25MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.ma25
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1.4,
+
+        color:
+          PURPLE
+      }
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "50MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.ma50
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1.4,
+
+        color:
+          GREEN
+      }
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "高値5MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.highMa5
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1,
+
+        dash:
+          "dot",
+
+        color:
+          "#777"
+      },
+
+      visible:
+        "legendonly"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "安値5MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.lowMa5
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1,
+
+        dash:
+          "dot",
+
+        color:
+          "#999"
+      },
+
+      visible:
+        "legendonly"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "52週高値",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.high52
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      line:{
+
+        width:
+          1.5,
+
+        dash:
+          "dash",
+
+        color:
+          BLACK
+      },
+
+      hovertemplate:
+        "52週高値 %{y:,.0f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    /*
+    ==========================================================
+    Volume Profile
+    ==========================================================
+    */
+
+    {
+      type:
+        "bar",
+
+      orientation:
+        "h",
+
+      name:
+        "価格帯出来高 上昇",
+
+      x:
+        profile.up,
+
+      y:
+        profile.prices,
+
+      width:
+        profile.widths,
+
+      customdata:
+        profile.up,
+
+      xaxis:
+        "x2",
+
+      yaxis:
+        "y",
+
+      marker:{
+
+        color:
+          "rgba(25,118,210,0.50)"
+      },
+
+      hovertemplate:
+        "価格 %{y:,.0f}円<br>"
+        +
+        "上昇出来高 %{customdata:,.0f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "bar",
+
+      orientation:
+        "h",
+
+      name:
+        "価格帯出来高 下落",
+
+      x:
+        profile.down,
+
+      y:
+        profile.prices,
+
+      width:
+        profile.widths,
+
+      customdata:
+        profile.down,
+
+      xaxis:
+        "x2",
+
+      yaxis:
+        "y",
+
+      marker:{
+
+        color:
+          "rgba(211,47,47,0.50)"
+      },
+
+      hovertemplate:
+        "価格 %{y:,.0f}円<br>"
+        +
+        "下落出来高 %{customdata:,.0f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    /*
+    ==========================================================
+    Volume
+    ==========================================================
+    */
+
+    {
+      type:
+        "bar",
+
+      name:
+        "出来高",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.volume
+        ),
+
+      xaxis:
+        "x3",
+
+      yaxis:
+        "y2",
+
+      visible:
+        showVolumePane,
+
+      marker:{
+
+        color:
+          dailyColors
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "出来高 %{y:,.0f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    /*
+    ==========================================================
+    VCP
+    ==========================================================
+    */
+
+    {
+      type:
+        "bar",
+
+      name:
+        "VCP N",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.vcp26
+        ),
+
+      xaxis:
+        "x4",
+
+      yaxis:
+        "y3",
+
+      marker:{
+
+        color:
+          BLUE
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "VCP N %{y:.6f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "VCP 5MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.vcp26Ma5
+        ),
+
+      xaxis:
+        "x4",
+
+      yaxis:
+        "y3",
+
+      line:{
+
+        width:
+          2,
+
+        color:
+          ORANGE
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "VCP 5MA %{y:.6f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "VCP 25MA",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.vcp26Ma25
+        ),
+
+      xaxis:
+        "x4",
+
+      yaxis:
+        "y3",
+
+      line:{
+
+        width:
+          2,
+
+        color:
+          PURPLE
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "VCP 25MA %{y:.6f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    /*
+    ==========================================================
+    Trend / Setup / Trigger
+    ==========================================================
+    */
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "Trend",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.trendLine
+        ),
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y4",
+
+      line:{
+
+        width:
+          2.2,
+
+        color:
+          BLACK
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "Trend %{y:.3f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "Setup",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.setupLine
+        ),
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y4",
+
+      line:{
+
+        width:
+          2,
+
+        color:
+          PURPLE
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "Setup %{y:.3f}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "Trigger",
+
+      x:
+        dates,
+
+      y:
+        rows.map(
+          row =>
+            row.triggerLine
+        ),
+
+      xaxis:
+        "x5",
+
+      yaxis:
+        "y4",
+
+      line:{
+
+        width:
+          2,
+
+        color:
+          ORANGE
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "Trigger %{y:.3f}"
+        +
+        "<extra></extra>"
+    },
+
+    /*
+    ==========================================================
+    Supply
+    ==========================================================
+    */
+
+    {
+      type:
+        "bar",
+
+      name:
+        "公表機関空売り",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.publicShortRatio
+        ),
+
+      customdata:
+        shortHover,
+
+      xaxis:
+        "x6",
+
+      yaxis:
+        "y5",
+
+      marker:{
+
+        color:
+          "rgba(90,90,90,0.38)"
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "公表空売り %{y:.2f}%<br>"
+        +
+        "%{customdata}"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines+markers",
+
+      name:
+        "貸借倍率",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.loanRatio
+        ),
+
+      xaxis:
+        "x6",
+
+      yaxis:
+        "y6",
+
+      line:{
+
+        width:
+          2,
+
+        color:
+          BLUE,
+
+        shape:
+          "hv"
+      },
+
+      marker:{
+
+        size:
+          4,
+
+        color:
+          BLUE
+      },
+
+      connectgaps:
+        false,
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "貸借倍率 %{y:.2f}倍"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "lines",
+
+      name:
+        "信用倍率",
+
+      x:
+        supplyDates,
+
+      y:
+        currentSupplyDaily.map(
+          row =>
+            row.marginRatio
+        ),
+
+      xaxis:
+        "x6",
+
+      yaxis:
+        "y7",
+
+      line:{
+
+        width:
+          2,
+
+        dash:
+          "dash",
+
+        color:
+          RED,
+
+        shape:
+          "hv"
+      },
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "信用倍率 %{y:.2f}倍"
+        +
+        "<extra></extra>"
+    },
+
+
+    /*
+    ==========================================================
+    BUY / SELL markers
+    ==========================================================
+    */
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "markers",
+
+      name:
+        "BUY ▲",
+
+      x:
+        buyRows.map(
+          row =>
+            row.date
+        ),
+
+      y:
+        buyRows.map(
+          row =>
+            row.low *
+            .985
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      marker:{
+
+        symbol:
+          "triangle-up",
+
+        size:
+          15,
+
+        color:
+          BLUE,
+
+        line:{
+
+          color:
+            "#fff",
+
+          width:
+            1.2
+        }
+      },
+
+      cliponaxis:
+        false,
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "BUY ▲"
+        +
+        "<extra></extra>"
+    },
+
+
+    {
+      type:
+        "scatter",
+
+      mode:
+        "markers",
+
+      name:
+        "SELL ▼",
+
+      x:
+        sellRows.map(
+          row =>
+            row.date
+        ),
+
+      y:
+        sellRows.map(
+          row =>
+            row.high *
+            1.015
+        ),
+
+      xaxis:
+        "x",
+
+      yaxis:
+        "y",
+
+      marker:{
+
+        symbol:
+          "triangle-down",
+
+        size:
+          15,
+
+        color:
+          RED,
+
+        line:{
+
+          color:
+            "#fff",
+
+          width:
+            1.2
+        }
+      },
+
+      cliponaxis:
+        false,
+
+      hovertemplate:
+        "%{x}<br>"
+        +
+        "SELL ▼"
+        +
+        "<extra></extra>"
+    }
+
+  ];
+
+
+/*
+==============================================================
+Initial ranges
+==============================================================
+*/
+
+  const initialSupply =
+    visibleSupplyRows(
+      initialStart,
+      latestDate
+    );
+
+
+  const nRange =
+    rangeIncludeZero(
+      initialRows.map(
+        row =>
+          row.vcp26
+      )
+    );
+
+
+  const shortRange =
+    positiveRange(
+
+      initialSupply.map(
+        row =>
+          row.publicShortRatio
+      ),
+
+      1
+    );
+
+
+  const loanRange =
+    positiveLogRange(
+
+      initialSupply.map(
+        row =>
+          row.loanRatio
+      ),
+
+      1
+    );
+
+
+  const marginRange =
+    positiveRange(
+
+      initialSupply.map(
+        row =>
+          row.marginRatio
+      ),
+
+      1
+    );
+
+
+/*
+==============================================================
+Layout
+==============================================================
+*/
+
+  const layout = {
+
+    height:
+      pane.height,
+
+    autosize:
+      true,
+
+    paper_bgcolor:
+      "#fff",
+
+    plot_bgcolor:
+      "#fff",
+
+    margin:{
+
+      l:
+        72,
+
+      r:
+        105,
+
+      t:
+        48,
+
+      b:
+        48
+    },
+
+    hovermode:
+      "x unified",
+
+    hoverdistance:
+      -1,
+
+    dragmode:
+      "pan",
+
+    barmode:
+      "stack",
+
+    legend:{
+
+      orientation:
+        "h",
+
+      x:
+        0,
+
+      y:
+        1.045,
+
+      font:{
+
+        size:
+          11
+      }
+    },
+
+
+    shapes:[
+
+      {
+        type:
+          "line",
+
+        xref:
+          "x",
+
+        yref:
+          "paper",
+
+        x0:
+          latestDate,
+
+        x1:
+          latestDate,
+
+        y0:
+          0,
+
+        y1:
+          1,
+
+        visible:
+          false,
+
+        layer:
+          "above",
+
+        line:{
+
+          color:
+            "rgba(60,60,60,0.65)",
+
+          width:
+            1,
+
+          dash:
+            "dot"
+        }
+      },
+
+
+      {
+        type:
+          "line",
+
+        xref:
+          "paper",
+
+        yref:
+          "y4",
+
+        x0:
+          0,
+
+        x1:
+          1,
+
+        y0:
+          0,
+
+        y1:
+          0,
+
+        line:{
+
+          color:
+            "rgba(0,0,0,0.45)",
+
+          width:
+            1.2
+        }
+      }
+    ],
+
+
+    /*
+    ==========================================================
+    X axes
+    ==========================================================
+    */
+
+    xaxis:{
+
+      type:
+        "date",
+
+      domain:[
+        0,
+        1
+      ],
+
+      anchor:
+        "y",
+
+      range:[
+        initialStart,
+        latestDate
+      ],
+
+      showticklabels:
+        false,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eee",
+
+      showspikes:
+        false,
+
+      rangeslider:{
+
+        visible:
+          true,
+
+        thickness:
+          .055,
+
+        bgcolor:
+          "#fafafa",
+
+        bordercolor:
+          "#ccc",
+
+        borderwidth:
+          1
+      },
+
+      rangebreaks:[
+
+        {
+          bounds:[
+            "sat",
+            "mon"
+          ]
+        }
+      ]
+    },
+
+
+    xaxis2:{
+
+      type:
+        "linear",
+
+      overlaying:
+        "x",
+
+      anchor:
+        "y",
+
+      side:
+        "top",
+
+      range:[
+        maxProfile *
+        3.5,
+
+        0
+      ],
+
+      fixedrange:
+        true,
+
+      showgrid:
+        false,
+
+      showticklabels:
+        false,
+
+      showline:
+        false,
+
+      zeroline:
+        false
+    },
+
+
+    xaxis3:{
+
+      type:
+        "date",
+
+      domain:[
+        0,
+        1
+      ],
+
+      anchor:
+        "y2",
+
+      matches:
+        "x",
+
+      visible:
+        showVolumePane,
+
+      showticklabels:
+        false,
+
+      showgrid:
+        showVolumePane,
+
+      gridcolor:
+        "#eee",
+
+      showspikes:
+        false,
+
+      rangeslider:{
+
+        visible:
+          false
+      }
+    },
+
+
+    xaxis4:{
+
+      type:
+        "date",
+
+      domain:[
+        0,
+        1
+      ],
+
+      anchor:
+        "y3",
+
+      matches:
+        "x",
+
+      showticklabels:
+        false,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eee",
+
+      showspikes:
+        false,
+
+      rangeslider:{
+
+        visible:
+          false
+      }
+    },
+
+
+    xaxis5:{
+
+      type:
+        "date",
+
+      domain:[
+        0,
+        1
+      ],
+
+      anchor:
+        "y4",
+
+      matches:
+        "x",
+
+      showticklabels:
+        false,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eee",
+
+      showspikes:
+        false,
+
+      rangeslider:{
+
+        visible:
+          false
+      }
+    },
+
+
+    xaxis6:{
+
+      type:
+        "date",
+
+      domain:[
+        0,
+        1
+      ],
+
+      anchor:
+        "y5",
+
+      matches:
+        "x",
+
+      showticklabels:
+        true,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eee",
+
+      showspikes:
+        false,
+
+      rangeslider:{
+
+        visible:
+          false
+      }
+    },
+
+
+    /*
+    ==========================================================
+    Y axes
+    ==========================================================
+    */
+
+    yaxis:{
+
+      domain:
+        pane.priceDomain,
+
+      side:
+        "right",
+
+      title:{
+
+        text:
+          "株価"
+      },
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#e3e3e3",
+
+      zeroline:
+        false,
+
+      showspikes:
+        false
+    },
+
+
+    yaxis2:{
+
+      domain:
+        pane.volumeDomain,
+
+      side:
+        "right",
+
+      visible:
+        showVolumePane,
+
+      title:{
+
+        text:
+          "出来高"
+      },
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        showVolumePane,
+
+      gridcolor:
+        "#eee",
+
+      zeroline:
+        false,
+
+      showspikes:
+        false
+    },
+
+
+    yaxis3:{
+
+      domain:
+        pane.vcpDomain,
+
+      side:
+        "right",
+
+      title:{
+
+        text:
+          "VCP N"
+      },
+
+      range:
+        nRange,
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#e1e1e1",
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#000",
+
+      zerolinewidth:
+        3,
+
+      showspikes:
+        false
+    },
+
+
+    yaxis4:{
+
+      domain:
+        pane.signalDomain,
+
+      side:
+        "right",
+
+      title:{
+
+        text:
+          "Trend / Setup / Trigger"
+      },
+
+      range:
+        getSignalRange(),
+
+      tickvals:[
+        -1,
+        -.5,
+        0,
+        .5,
+        1
+      ],
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#e1e1e1",
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#555",
+
+      zerolinewidth:
+        1.5,
+
+      showspikes:
+        false
+    },
+
+
+    yaxis5:{
+
+      domain:
+        pane.supplyDomain,
+
+      side:
+        "right",
+
+      title:{
+
+        text:
+          "公表空売り %",
+
+        font:{
+
+          color:
+            GRAY
+        }
+      },
+
+      range:
+        shortRange,
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        true,
+
+      gridcolor:
+        "#eee",
+
+      zeroline:
+        true,
+
+      zerolinecolor:
+        "#999",
+
+      showspikes:
+        false,
+
+      tickfont:{
+
+        color:
+          GRAY
+      }
+    },
+
+
+    yaxis6:{
+
+      domain:
+        pane.supplyDomain,
+
+      type:
+        "log",
+
+      overlaying:
+        "y5",
+
+      anchor:
+        "x6",
+
+      side:
+        "left",
+
+      title:{
+
+        text:
+          "貸借倍率（対数）",
+
+        font:{
+
+          color:
+            BLUE
+        }
+      },
+
+      range:
+        loanRange,
+
+      showgrid:
+        false,
+
+      minor:{
+
+        showgrid:
+          false
+      },
+
+      zeroline:
+        false,
+
+      showspikes:
+        false,
+
+      tickfont:{
+
+        color:
+          BLUE
+      }
+    },
+
+
+    yaxis7:{
+
+      domain:
+        pane.supplyDomain,
+
+      overlaying:
+        "y5",
+
+      anchor:
+        "free",
+
+      side:
+        "right",
+
+      position:
+        .94,
+
+      title:{
+
+        text:
+          "信用倍率",
+
+        font:{
+
+          color:
+            RED
+        }
+      },
+
+      range:
+        marginRange,
+
+      rangemode:
+        "tozero",
+
+      showgrid:
+        false,
+
+      zeroline:
+        false,
+
+      showspikes:
+        false,
+
+      tickfont:{
+
+        color:
+          RED
+      }
+    }
   };
 
-})();
+
+/*
+==============================================================
+Plot
+==============================================================
+*/
+
+  Plotly.purge(
+    chart
+  );
+
+
+  await Plotly.newPlot(
+
+    chart,
+
+    traces,
+
+    layout,
+
+    {
+
+      responsive:
+        true,
+
+      scrollZoom:
+        true,
+
+      displaylogo:
+        false,
+
+      doubleClick:
+        "reset"
+    }
+  );
+
+
+  installHoverLine();
+
+
+  await updateVisibleRange(
+    initialStart,
+    latestDate
+  );
+
+
+  chart.on(
+
+    "plotly_relayout",
+
+    event => {
+
+      if (
+        updatingRange
+        ||
+        !currentStock
+      ) {
+
+        return;
+      }
+
+
+      const start =
+        event[
+          "xaxis.range[0]"
+        ];
+
+
+      const end =
+        event[
+          "xaxis.range[1]"
+        ];
+
+
+      if (
+        start
+        &&
+        end
+      ) {
+
+        updateVisibleRange(
+
+          String(
+            start
+          ).slice(
+            0,
+            10
+          ),
+
+          String(
+            end
+          ).slice(
+            0,
+            10
+          )
+        );
+      }
+
+
+      if (
+        event[
+          "xaxis.autorange"
+        ] ===
+        true
+      ) {
+
+        updateVisibleRange(
+          currentStock.startDate,
+          currentStock.endDate
+        );
+      }
+    }
+  );
+}
+
+
+/*
+==============================================================
+TOPIX
+==============================================================
+*/
+
+async function fetchTopix() {
+
+  if (
+    currentTopix
+  ) {
+
+    return currentTopix;
+  }
+
+
+  if (
+    topixPromise
+  ) {
+
+    return topixPromise;
+  }
+
+
+  topixPromise =
+    (
+      async () => {
+
+        const response =
+          await fetch(
+            "/api/topix",
+
+            {
+              cache:
+                "no-store"
+            }
+          );
+
+
+        if (
+          !response.ok
+        ) {
+
+          throw new Error(
+            `TOPIX API HTTP ${response.status}`
+          );
+        }
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          !Array.isArray(
+            data?.data
+          )
+          ||
+          !data.data.length
+        ) {
+
+          throw new Error(
+            "TOPIXデータがありません"
+          );
+        }
+
+
+        data.data.sort(
+          (
+            a,
+            b
+          ) =>
+            a.date.localeCompare(
+              b.date
+            )
+        );
+
+
+        currentTopix =
+          data;
+
+
+        console.log(
+          "TOPIX loaded:",
+
+          {
+            startDate:
+              currentTopix.startDate,
+
+            endDate:
+              currentTopix.endDate,
+
+            rowCount:
+              currentTopix.rowCount
+          }
+        );
+
+
+        return currentTopix;
+      }
+    )();
+
+
+  try {
+
+    return await topixPromise;
+
+  } catch (
+    error
+  ) {
+
+    topixPromise =
+      null;
+
+
+    throw error;
+  }
+}
+
+
+/*
+==============================================================
+Supply
+==============================================================
+*/
+
+async function fetchSupply(
+  code
+) {
+
+  try {
+
+    const response =
+      await fetch(
+
+        `/api/supply/${code}`,
+
+        {
+          cache:
+            "no-store"
+        }
+      );
+
+
+    if (
+      response.status ===
+      404
+    ) {
+
+      return null;
+    }
+
+
+    if (
+      !response.ok
+    ) {
+
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+
+    return response.json();
+
+  } catch (
+    error
+  ) {
+
+    console.warn(
+      "Supply fetch failed:",
+      error
+    );
+
+
+    return null;
+  }
+}
+
+
+/*
+==============================================================
+Load Stock
+==============================================================
+*/
+
+async function loadStock(
+  code
+) {
+
+  code =
+    code
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    !/^[0-9A-Z]{4}$/.test(
+      code
+    )
+  ) {
+
+    throw new Error(
+      "東証銘柄コードを4文字で入力してください"
+    );
+  }
+
+
+  const status =
+    document.getElementById(
+      "status"
+    );
+
+
+  status.classList.remove(
+    "error"
+  );
+
+
+  status.textContent =
+    `${code} の株価・TOPIXを読み込み中...`;
+
+
+  currentRangeStart =
+    null;
+
+
+  currentRangeEnd =
+    null;
+
+
+  currentSignalResult =
+    null;
+
+
+  const supplyPromise =
+    fetchSupply(
+      code
+    );
+
+
+  const benchmarkPromise =
+    fetchTopix();
+
+
+  const stockResponse =
+    await fetch(
+
+      `/api/stock/${code}`,
+
+      {
+        cache:
+          "no-store"
+      }
+    );
+
+
+  if (
+    !stockResponse.ok
+  ) {
+
+    if (
+      stockResponse.status ===
+      404
+    ) {
+
+      throw new Error(
+        `${code} の株価データはR2にありません`
+      );
+    }
+
+
+    throw new Error(
+      `株価API HTTP ${stockResponse.status}`
+    );
+  }
+
+
+  const stockData =
+    await stockResponse.json();
+
+
+  if (
+    !Array.isArray(
+      stockData.data
+    )
+    ||
+    !stockData.data.length
+  ) {
+
+    throw new Error(
+      "株価データがありません"
+    );
+  }
+
+
+  let topixData;
+
+
+  try {
+
+    topixData =
+      await benchmarkPromise;
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "TOPIX fetch failed:",
+      error
+    );
+
+
+    throw new Error(
+      `TOPIXの取得に失敗しました：${error.message}`
+    );
+  }
+
+
+  currentStock =
+    stockData;
+
+
+  currentSupply =
+    null;
+
+
+  currentCode =
+    code;
+
+
+  /*
+   * 指標計算＋SignalEngine実行
+   */
+  prepareIndicators(
+    currentStock.data,
+    topixData.data
+  );
+
+
+  currentSupplyDaily =
+    buildSupplyDaily(
+      currentStock.data,
+      []
+    );
+
+
+  document
+    .getElementById(
+      "stockCode"
+    )
+    .value =
+      code;
+
+
+  document
+    .getElementById(
+      "stockTitle"
+    )
+    .textContent =
+      `${code} ${currentStock.name ?? ""}`;
+
+
+  document
+    .getElementById(
+      "signalInfo"
+    )
+    .textContent =
+      `Trend / Setup / Trigger：`
+      +
+      `TOPIX ${topixData.startDate ?? "?"} ～ `
+      +
+      `${topixData.endDate ?? "?"} ／ `
+      +
+      `${formatNumber(topixData.rowCount)}営業日 ／ `
+      +
+      `BUY＝Trigger > Setup > Trend > 0 ／ `
+      +
+      `SELL＝VCP5MA < VCP25MA ＆ `
+      +
+      `VCPN < ${currentVcpSellThreshold.toFixed(2)} ＆ `
+      +
+      `Trend < 5日前Trend`;
+
+
+  document
+    .getElementById(
+      "supplyInfo"
+    )
+    .textContent =
+      "需給データを読み込み中...";
+
+
+  updateFavoriteButton();
+
+
+  await drawChart();
+
+
+  updateSummary();
+
+
+  updateSignalSidebar();
+
+
+  status.textContent =
+    `株価：${currentStock.startDate} ～ `
+    +
+    `${currentStock.endDate} ／ `
+    +
+    `${formatNumber(currentStock.rowCount)}営業日 ／ `
+    +
+    `TOPIX：${topixData.startDate} ～ `
+    +
+    `${topixData.endDate} ／ `
+    +
+    `需給を読み込み中...`;
+
+
+  const supplyData =
+    await supplyPromise;
+
+
+  if (
+    currentCode !==
+    code
+  ) {
+
+    return;
+  }
+
+
+  currentSupply =
+    supplyData;
+
+
+  currentSupplyDaily =
+    buildSupplyDaily(
+
+      currentStock.data,
+
+      Array.isArray(
+        currentSupply?.rows
+      )
+        ? currentSupply.rows
+        : []
+    );
+
+
+  if (
+    currentSupply?.rows?.length
+  ) {
+
+    const coverage =
+      currentSupply.coverage
+      ||
+      {};
+
+
+    document
+      .getElementById(
+        "supplyInfo"
+      )
+      .textContent =
+        `需給：`
+        +
+        `公表空売り［${coverageLabel(coverage.publicShort)}］ ／ `
+        +
+        `貸借倍率［${coverageLabel(coverage.loanRatio)}］ ／ `
+        +
+        `信用倍率［${coverageLabel(coverage.marginRatio)}］ ／ `
+        +
+        `最終更新 ${currentSupply.updatedAt ?? "-"}`;
+
+  } else {
+
+    document
+      .getElementById(
+        "supplyInfo"
+      )
+      .textContent =
+        "需給データはまだR2にありません。"
+        +
+        "株価・VCP・Trend/Setup/Trigger・売買シグナルは通常表示します。";
+  }
+
+
+  await drawChart();
+
+
+  updateSummary();
+
+
+  updateSignalSidebar();
+
+
+  status.textContent =
+    `株価：${currentStock.startDate} ～ `
+    +
+    `${currentStock.endDate} ／ `
+    +
+    `${formatNumber(currentStock.rowCount)}営業日 ／ `
+    +
+    `TOPIX：${topixData.startDate} ～ `
+    +
+    `${topixData.endDate}`;
+}
+
+
+/*
+==============================================================
+Period
+==============================================================
+*/
+
+async function setPeriod(
+  period
+) {
+
+  if (
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  const end =
+    parseDate(
+      currentStock.endDate
+    );
+
+
+  let start =
+    new Date(
+      end
+    );
+
+
+  switch (
+    period
+  ) {
+
+    case "3m":
+
+      start.setMonth(
+        start.getMonth() -
+        3
+      );
+
+      break;
+
+
+    case "6m":
+
+      start.setMonth(
+        start.getMonth() -
+        6
+      );
+
+      break;
+
+
+    case "1y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        1
+      );
+
+      break;
+
+
+    case "3y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        3
+      );
+
+      break;
+
+
+    case "5y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        5
+      );
+
+      break;
+
+
+    case "10y":
+
+      start.setFullYear(
+        start.getFullYear() -
+        10
+      );
+
+      break;
+
+
+    case "all":
+
+      start =
+        parseDate(
+          currentStock.startDate
+        );
+
+      break;
+  }
+
+
+  let startText =
+    dateString(
+      start
+    );
+
+
+  if (
+    startText <
+    currentStock.startDate
+  ) {
+
+    startText =
+      currentStock.startDate;
+  }
+
+
+  const endText =
+    currentStock.endDate;
+
+
+  currentRangeStart =
+    startText;
+
+
+  currentRangeEnd =
+    endText;
+
+
+  await Plotly.relayout(
+
+    chart,
+
+    {
+      "xaxis.range":[
+        startText,
+        endText
+      ]
+    }
+  );
+
+
+  await updateVisibleRange(
+    startText,
+    endText
+  );
+}
+
+
+/*
+==============================================================
+Events
+==============================================================
+*/
+
+document
+  .getElementById(
+    "loadButton"
+  )
+  .addEventListener(
+
+    "click",
+
+    async () => {
+
+      try {
+
+        await loadStock(
+          document
+            .getElementById(
+              "stockCode"
+            )
+            .value
+        );
+
+      } catch (
+        error
+      ) {
+
+        const status =
+          document.getElementById(
+            "status"
+          );
+
+
+        status.classList.add(
+          "error"
+        );
+
+
+        status.textContent =
+          error.message
+          ??
+          String(
+            error
+          );
+      }
+    }
+  );
+
+
+document
+  .getElementById(
+    "stockCode"
+  )
+  .addEventListener(
+
+    "keydown",
+
+    event => {
+
+      if (
+        event.key ===
+        "Enter"
+      ) {
+
+        document
+          .getElementById(
+            "loadButton"
+          )
+          .click();
+      }
+    }
+  );
+
+
+document
+  .querySelectorAll(
+    "[data-period]"
+  )
+  .forEach(
+
+    button => {
+
+      button.addEventListener(
+
+        "click",
+
+        async () => {
+
+          document
+            .querySelectorAll(
+              "[data-period]"
+            )
+            .forEach(
+
+              item =>
+                item
+                  .classList
+                  .remove(
+                    "active"
+                  )
+            );
+
+
+          button
+            .classList
+            .add(
+              "active"
+            );
+
+
+          await setPeriod(
+            button.dataset.period
+          );
+        }
+      );
+    }
+  );
+
+
+document
+  .getElementById(
+    "profileBins"
+  )
+  .addEventListener(
+
+    "change",
+
+    async () => {
+
+      if (
+        !currentStock
+      ) {
+
+        return;
+      }
+
+
+      await updateVisibleRange(
+
+        currentRangeStart
+        ??
+        currentStock.startDate,
+
+        currentRangeEnd
+        ??
+        currentStock.endDate
+      );
+    }
+  );
+
+
+document
+  .getElementById(
+    "showVolumePane"
+  )
+  .addEventListener(
+
+    "change",
+
+    async event => {
+
+      showVolumePane =
+        event.target.checked;
+
+
+      if (
+        currentStock
+      ) {
+
+        await drawChart();
+
+
+        updateSummary();
+
+
+        updateSignalSidebar();
+      }
+    }
+  );
+
+
+document
+  .getElementById(
+    "favoriteButton"
+  )
+  .addEventListener(
+    "click",
+    toggleFavorite
+  );
+
+
+document
+  .getElementById(
+    "saveImage"
+  )
+  .addEventListener(
+
+    "click",
+
+    async () => {
+
+      if (
+        !currentStock
+      ) {
+
+        return;
+      }
+
+
+      const pane =
+        getPaneLayout();
+
+
+      await Plotly.downloadImage(
+
+        chart,
+
+        {
+
+          format:
+            "png",
+
+          filename:
+            `${currentCode}_${currentStock.endDate}_VCP_SIGNAL`,
+
+          width:
+            1800,
+
+          height:
+            pane.height +
+            80,
+
+          scale:
+            1
+        }
+      );
+    }
+  );
+
+
+/*
+==============================================================
+Initial state
+==============================================================
+*/
+
+document
+  .getElementById(
+    "showVolumePane"
+  )
+  .checked =
+    false;
+
+
+showVolumePane =
+  false;
+
+
+loadStock(
+  "9984"
+)
+  .catch(
+
+    error => {
+
+      const status =
+        document.getElementById(
+          "status"
+        );
+
+
+      status.classList.add(
+        "error"
+      );
+
+
+      status.textContent =
+        error.message
+        ??
+        String(
+          error
+        );
+    }
+  );
+
+
+</script>
+
+</body>
+</html>
