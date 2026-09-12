@@ -2,8 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Japan Stock VCP</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    Japan Stock VCP
+  </title>
 
   <script
     src="https://cdn.plot.ly/plotly-3.7.0.min.js"
@@ -13,6 +19,7 @@
   <script src="/signal-engine.js"></script>
 
   <style>
+
     * {
       box-sizing: border-box;
     }
@@ -21,6 +28,7 @@
       margin: 0;
       background: #f3f4f6;
       color: #202124;
+
       font-family:
         -apple-system,
         BlinkMacSystemFont,
@@ -37,7 +45,9 @@
     .header,
     .chart-card {
       background: #fff;
+
       border-radius: 10px;
+
       box-shadow:
         0 1px 4px
         rgba(0,0,0,.08);
@@ -56,7 +66,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+
       gap: 10px;
+
       flex-wrap: wrap;
     }
 
@@ -67,15 +79,19 @@
 
     #stockTitle {
       margin-top: 6px;
+
       font-size: 18px;
       font-weight: 600;
     }
 
     .controls {
       margin-top: 13px;
+
       display: flex;
       align-items: center;
+
       gap: 8px;
+
       flex-wrap: wrap;
     }
 
@@ -83,9 +99,12 @@
     select,
     button {
       padding: 7px 9px;
+
       border: 1px solid #bbb;
       border-radius: 5px;
+
       background: #fff;
+
       font-size: 14px;
     }
 
@@ -118,25 +137,34 @@
     .checkbox-control {
       display: inline-flex;
       align-items: center;
+
       gap: 5px;
+
       padding: 6px 9px;
+
       border: 1px solid #ccc;
       border-radius: 5px;
+
       background: #fafafa;
+
       cursor: pointer;
       user-select: none;
+
       font-size: 14px;
     }
 
     .checkbox-control input {
       margin: 0;
+
       width: 16px;
       height: 16px;
+
       cursor: pointer;
     }
 
     .status {
       margin-top: 9px;
+
       font-size: 13px;
       color: #666;
     }
@@ -148,9 +176,12 @@
 
     .summary {
       margin-top: 8px;
+
       display: flex;
       flex-wrap: wrap;
+
       gap: 15px;
+
       font-size: 13px;
     }
 
@@ -170,29 +201,41 @@
 
     #chart {
       width: 100%;
-      height: 1080px;
+      height: 1230px;
     }
 
     .info {
       padding: 3px 12px 8px;
+
       color: #666;
       font-size: 12px;
     }
 
+
     /*
     ==========================================================
-    Chart + Signal sidebar
+    Chart workspace
     ==========================================================
     */
 
     .chart-workspace {
       display: grid;
+
       grid-template-columns:
         minmax(0, 1fr)
-        260px;
+        280px;
+
       gap: 10px;
+
       align-items: start;
     }
+
+
+    /*
+    ==========================================================
+    Signal sidebar
+    ==========================================================
+    */
 
     .signal-sidebar {
       position: sticky;
@@ -214,14 +257,18 @@
     .signal-sidebar-title {
       font-size: 13px;
       font-weight: 700;
+
       color: #666;
+
       letter-spacing: .08em;
+
       margin-bottom: 14px;
     }
 
     .signal-state {
       font-size: 25px;
       font-weight: 800;
+
       margin-bottom: 16px;
     }
 
@@ -235,14 +282,18 @@
 
     .signal-section {
       padding: 11px 0;
+
       border-top:
         1px solid #eee;
     }
 
     .signal-section-title {
       color: #777;
+
       font-size: 11px;
-      margin-bottom: 5px;
+      font-weight: 600;
+
+      margin-bottom: 7px;
     }
 
     .signal-main-value {
@@ -252,8 +303,35 @@
 
     .signal-sub-value {
       font-size: 12px;
+
       color: #666;
-      margin-top: 4px;
+
+      margin-top: 5px;
+
+      line-height: 1.45;
+    }
+
+    .signal-metric-row {
+      display: flex;
+
+      justify-content: space-between;
+      align-items: baseline;
+
+      gap: 10px;
+
+      margin-top: 6px;
+
+      font-size: 12px;
+    }
+
+    .signal-metric-label {
+      color: #777;
+    }
+
+    .signal-metric-value {
+      font-weight: 700;
+
+      text-align: right;
     }
 
     .signal-return-positive {
@@ -264,6 +342,36 @@
     .signal-return-negative {
       color: #d32f2f;
       font-weight: 700;
+    }
+
+    .signal-slider {
+      width: 100%;
+
+      margin-top: 12px;
+
+      cursor: pointer;
+    }
+
+    .signal-slider-scale {
+      display: flex;
+
+      justify-content: space-between;
+
+      margin-top: 1px;
+
+      color: #888;
+
+      font-size: 10px;
+    }
+
+    .signal-threshold-note {
+      margin-top: 8px;
+
+      color: #777;
+
+      font-size: 11px;
+
+      line-height: 1.4;
     }
 
     @media (
@@ -291,13 +399,21 @@
   </style>
 </head>
 
+
 <body>
 
 <div class="app">
 
+
+  <!-- =====================================================
+       Header
+       ===================================================== -->
+
   <div class="header">
 
+
     <div class="title-row">
+
 
       <div>
 
@@ -324,10 +440,12 @@
 
       </div>
 
+
     </div>
 
 
     <div class="controls">
+
 
       <input
         id="stockCode"
@@ -335,6 +453,7 @@
         maxlength="4"
         placeholder="9984"
       >
+
 
       <button id="loadButton">
         読み込む
@@ -378,6 +497,7 @@
 
 
       <label>
+
         価格帯
 
         <select id="profileBins">
@@ -421,6 +541,7 @@
 
       </label>
 
+
     </div>
 
 
@@ -437,12 +558,19 @@
       class="summary"
     ></div>
 
+
   </div>
 
 
+  <!-- =====================================================
+       Chart + sidebar
+       ===================================================== -->
+
   <div class="chart-workspace">
 
+
     <div class="chart-card">
+
 
       <div id="chart"></div>
 
@@ -463,7 +591,6 @@
         オレンジ＝5MA、
         紫＝25MA、
         黒太線＝0。
-        K/L/Mは非表示。
       </div>
 
 
@@ -483,6 +610,7 @@
         需給データを確認中...
       </div>
 
+
     </div>
 
 
@@ -492,43 +620,66 @@
     >
 
       <div class="signal-sidebar-title">
-        SIGNAL
+        SIGNAL / BACKTEST
       </div>
+
 
       <div id="signalSidebarBody">
         計算中...
       </div>
 
+
     </aside>
 
+
   </div>
+
 
 </div>
 
 
 <script>
 
+
+/*
+==============================================================
+Colors
+==============================================================
+*/
+
 const BLUE =
   "#1976d2";
+
 
 const RED =
   "#d32f2f";
 
+
 const ORANGE =
   "#ef6c00";
+
 
 const PURPLE =
   "#7b1fa2";
 
+
 const GREEN =
   "#388e3c";
+
 
 const BLACK =
   "#111111";
 
+
 const GRAY =
   "#616161";
 
+
+/*
+==============================================================
+Global state
+==============================================================
+*/
 
 const chart =
   document.getElementById(
@@ -539,35 +690,65 @@ const chart =
 let currentStock =
   null;
 
+
 let currentTopix =
   null;
+
 
 let topixPromise =
   null;
 
+
 let currentSignalResult =
   null;
+
 
 let currentSupply =
   null;
 
+
 let currentSupplyDaily =
   [];
+
 
 let currentCode =
   "9984";
 
+
 let currentRangeStart =
   null;
+
 
 let currentRangeEnd =
   null;
 
+
 let updatingRange =
   false;
 
+
 let showVolumePane =
   false;
+
+
+/*
+ * SELL条件
+ *
+ * VCP N < この値
+ *
+ * スライダー範囲:
+ * -1.00 ～ 0.00
+ */
+let currentVcpSellThreshold =
+  -0.08;
+
+
+/*
+ * スライダーを連続操作した際の
+ * 再描画回数を抑える。
+ */
+let signalSliderTimer =
+  null;
 
 
 /*
@@ -575,12 +756,13 @@ let showVolumePane =
 Trace indexes
 
 価格帯別出来高は
-Plotly.restyle() で直接更新するため固定。
+Plotly.restyle()で更新するため固定。
 ==============================================================
 */
 
 const PROFILE_UP_INDEX =
   8;
+
 
 const PROFILE_DOWN_INDEX =
   9;
@@ -588,13 +770,14 @@ const PROFILE_DOWN_INDEX =
 
 /*
 ==============================================================
-基本ユーティリティ
+Utility
 ==============================================================
 */
 
 function isFiniteNumber(
   value
 ) {
+
   return (
     typeof value ===
     "number"
@@ -611,10 +794,13 @@ function toNumber(
 ) {
 
   if (
-    value === null ||
-    value === undefined ||
+    value === null
+    ||
+    value === undefined
+    ||
     value === ""
   ) {
+
     return null;
   }
 
@@ -644,15 +830,16 @@ function formatNumber(
     );
 
 
-  return number === null
-    ? "-"
-    : number.toLocaleString(
-        "ja-JP",
-        {
-          maximumFractionDigits:
-            digits
-        }
-      );
+  return number ===
+    null
+      ? "-"
+      : number.toLocaleString(
+          "ja-JP",
+          {
+            maximumFractionDigits:
+              digits
+          }
+        );
 }
 
 
@@ -671,13 +858,16 @@ function dateString(
 ) {
 
   return (
-    `${date.getFullYear()}-` +
+    `${date.getFullYear()}-`
+    +
     `${String(
-      date.getMonth() + 1
+      date.getMonth() +
+      1
     ).padStart(
       2,
       "0"
-    )}-` +
+    )}-`
+    +
     `${String(
       date.getDate()
     ).padStart(
@@ -694,11 +884,13 @@ function percentileInc(
 ) {
 
   if (
-    !values.length ||
+    !values.length
+    ||
     !values.every(
       isFiniteNumber
     )
   ) {
+
     return null;
   }
 
@@ -720,6 +912,7 @@ function percentileInc(
     sorted.length ===
     1
   ) {
+
     return sorted[0];
   }
 
@@ -748,6 +941,7 @@ function percentileInc(
     lower ===
     upper
   ) {
+
     return sorted[
       lower
     ];
@@ -794,7 +988,8 @@ function calculateSma(
 
   for (
     let i =
-      period - 1;
+      period -
+      1;
 
     i <
       rows.length;
@@ -827,11 +1022,11 @@ function calculateSma(
       result[i] =
         values.reduce(
           (
-            a,
-            b
+            sum,
+            value
           ) =>
-            a +
-            b,
+            sum +
+            value,
 
           0
         )
@@ -989,6 +1184,7 @@ function calculateRci(
         isFiniteNumber
       )
     ) {
+
       continue;
     }
 
@@ -1000,8 +1196,10 @@ function calculateRci(
             value,
             index
           ) => ({
+
             value,
             index
+
           })
         )
         .sort(
@@ -1039,6 +1237,7 @@ function calculateRci(
         sorted[q].value ===
         sorted[p].value
       ) {
+
         q++;
       }
 
@@ -1191,6 +1390,7 @@ function calculateRollingZ(
         period
       )
     ) {
+
       continue;
     }
 
@@ -1249,6 +1449,7 @@ function calculateRollingZ(
         values[i]
       )
     ) {
+
       continue;
     }
 
@@ -1319,12 +1520,14 @@ function calculateAtr(
         rows[i].low
       )
     ) {
+
       continue;
     }
 
 
     if (
-      i === 0
+      i ===
+      0
       ||
       !isFiniteNumber(
         rows[
@@ -1337,6 +1540,7 @@ function calculateAtr(
       trueRange[i] =
         rows[i].high -
         rows[i].low;
+
 
       continue;
     }
@@ -1378,12 +1582,10 @@ function calculateAtr(
 ==============================================================
 Indicators
 
-売買シグナル判定そのものは
-signal-engine.jsへ分離する。
+ここでは指標だけを計算する。
 
-ここでは、
-Trend / Setup / Triggerなど、
-signal-engineへ渡す指標まで計算する。
+BUY / SELL判定は
+signal-engine.jsに任せる。
 ==============================================================
 */
 
@@ -1392,9 +1594,10 @@ function prepareIndicators(
   topixRows = []
 ) {
 
+
   /*
   ============================================================
-  既存VCP系
+  52週高値・既存VCP
   ============================================================
   */
 
@@ -1407,10 +1610,9 @@ function prepareIndicators(
     i++
   ) {
 
+
     /*
-     * 表示用52週高値。
-     *
-     * 当日を含む。
+     * 表示用52週高値
      */
     if (
       i >=
@@ -1451,9 +1653,9 @@ function prepareIndicators(
 
 
     /*
-     * シグナル計算用52週高値。
+     * シグナル計算用52週高値
      *
-     * 当日は含めない。
+     * 当日除外。
      */
     if (
       i >=
@@ -1495,11 +1697,7 @@ function prepareIndicators(
 
 
     /*
-     * 直前20営業日高値。
-     *
-     * 現在のSignal Engineでは
-     * BUY条件に使っていないが、
-     * 今後の変更用に残しておく。
+     * 将来的なBUY条件変更用。
      */
     if (
       i >=
@@ -1607,6 +1805,7 @@ function prepareIndicators(
       rows[i].deltaP10 =
         null;
 
+
       rows[i].deltaP90 =
         null;
     }
@@ -1626,10 +1825,9 @@ function prepareIndicators(
 
 
     /*
-     * 旧シグナルでは使っていたが、
-     * 現在は表示・売買判断には使わない。
+     * 旧候補。
      *
-     * 後方互換のため計算自体は残す。
+     * 現在の売買シグナルには使用しない。
      */
     rows[i].buyCandidate =
       contraction
@@ -1706,43 +1904,8 @@ function prepareIndicators(
   ============================================================
   Trend / Setup / Trigger
   ============================================================
-
-  Trend
-    =
-    0.5 × 52週高値Factor
-    +
-    0.5 × TOPIX相対強度
-
-
-  Setup
-    =
-    0.6 × VCP Factor
-    +
-    0.4 × RCI Factor
-
-
-  Trigger
-    =
-    0.7 × 出来高Factor
-    +
-    0.3 × RCI短期加速Factor
-
-
-  Raw値
-    ↓
-  252営業日rolling Z-score
-    ↓
-  tanh(z/2)
-    ↓
-  -1 ～ +1
-  ============================================================
   */
 
-
-  /*
-   * TOPIXは配列番号ではなく
-   * 日付で対応させる。
-   */
   const topixCloseByDate =
     new Map(
 
@@ -1762,19 +1925,18 @@ function prepareIndicators(
         )
         .map(
           row => [
+
             row.date,
 
             toNumber(
               row.close
             )
+
           ]
         )
     );
 
 
-  /*
-   * ATR
-   */
   const atr10 =
     calculateAtr(
       rows,
@@ -1789,9 +1951,6 @@ function prepareIndicators(
     );
 
 
-  /*
-   * 出来高平均
-   */
   const volumes =
     rows.map(
       row =>
@@ -1822,9 +1981,6 @@ function prepareIndicators(
     );
 
 
-  /*
-   * RCI
-   */
   const rci9 =
     calculateRci(
       rows,
@@ -1839,9 +1995,6 @@ function prepareIndicators(
     );
 
 
-  /*
-   * Raw Factor
-   */
   const x52 =
     new Array(
       rows.length
@@ -1899,6 +2052,7 @@ function prepareIndicators(
     i++
   ) {
 
+
     rows[i].rci9 =
       rci9[i];
 
@@ -1910,11 +2064,6 @@ function prepareIndicators(
     /*
     ==========================================================
     52週高値Factor
-
-    ln(
-      現在値 /
-      直前52週高値
-    )
     ==========================================================
     */
 
@@ -1947,21 +2096,6 @@ function prepareIndicators(
     /*
     ==========================================================
     VCP Factor
-
-    Price contraction
-    =
-    -ln(
-      ATR10 /
-      ATR50
-    )
-
-
-    Volume contraction
-    =
-    -ln(
-      VolMA10_prev /
-      VolMA50_prev
-    )
     ==========================================================
     */
 
@@ -2048,12 +2182,6 @@ function prepareIndicators(
     /*
     ==========================================================
     RCI Factor
-
-    60%
-      RCI26
-
-    40%
-      RCI9の5営業日変化
     ==========================================================
     */
 
@@ -2111,12 +2239,7 @@ function prepareIndicators(
 
     /*
     ==========================================================
-    出来高Factor
-
-    ln(
-      当日出来高 /
-      直前20日平均出来高
-    )
+    Volume Factor
     ==========================================================
     */
 
@@ -2160,27 +2283,7 @@ function prepareIndicators(
 
     /*
     ==========================================================
-    TOPIX相対強度
-
-    ER20
-      =
-      stock20
-      -
-      TOPIX20
-
-
-    ER60
-      =
-      stock60
-      -
-      TOPIX60
-
-
-    X_RS
-      =
-      0.6 × ER20
-      +
-      0.4 × ER60
+    TOPIX Relative Strength
     ==========================================================
     */
 
@@ -2311,6 +2414,7 @@ function prepareIndicators(
           -
           topixReturn60;
 
+
         xRs[i] =
           0.6 *
           rows[i].rs20
@@ -2323,6 +2427,7 @@ function prepareIndicators(
         rows[i].rs20 =
           null;
 
+
         rows[i].rs60 =
           null;
       }
@@ -2332,11 +2437,11 @@ function prepareIndicators(
       rows[i].rs20 =
         null;
 
+
       rows[i].rs60 =
         null;
     }
   }
-
 
   /*
   ============================================================
@@ -2382,7 +2487,7 @@ function prepareIndicators(
 
   /*
   ============================================================
-  -1 ～ +1へ滑らかに変換
+  Smooth transform
   ============================================================
   */
 
@@ -2432,8 +2537,11 @@ function prepareIndicators(
 
 
     /*
-     * Trend
-     */
+    ==========================================================
+    Trend
+    ==========================================================
+    */
+
     rows[i].trendLine =
       isFiniteNumber(
         rows[i].factor52
@@ -2453,8 +2561,11 @@ function prepareIndicators(
 
 
     /*
-     * Setup
-     */
+    ==========================================================
+    Setup
+    ==========================================================
+    */
+
     rows[i].setupLine =
       isFiniteNumber(
         rows[i].factorVcp
@@ -2474,8 +2585,11 @@ function prepareIndicators(
 
 
     /*
-     * Trigger
-     */
+    ==========================================================
+    Trigger
+    ==========================================================
+    */
+
     rows[i].triggerLine =
       isFiniteNumber(
         rows[i].factorVol
@@ -2497,9 +2611,18 @@ function prepareIndicators(
 
   /*
   ============================================================
-  売買判定
+  Signal Engine
+  ============================================================
 
-  SignalEngine側で行う。
+  BUY:
+    Trigger > Setup > Trend > 0
+
+  SELL:
+    VCP5MA < VCP25MA
+    AND
+    VCPN < currentVcpSellThreshold
+    AND
+    Trend_t < Trend_t-5
   ============================================================
   */
 
@@ -2509,6 +2632,7 @@ function prepareIndicators(
     typeof window.SignalEngine.evaluate !==
       "function"
   ) {
+
     throw new Error(
       "signal-engine.js が読み込まれていません"
     );
@@ -2517,14 +2641,174 @@ function prepareIndicators(
 
   currentSignalResult =
     window.SignalEngine.evaluate(
-      rows
+
+      rows,
+
+      {
+
+        vcpSellThreshold:
+          currentVcpSellThreshold
+      }
     );
 }
 
 
 /*
 ==============================================================
-価格帯別出来高
+Signal recalculation
+
+VCP閾値変更時は、
+Trend等を再計算する必要はない。
+
+SignalEngineだけ再実行する。
+==============================================================
+*/
+
+async function recalculateSignals() {
+
+  if (
+    !currentStock
+  ) {
+
+    return;
+  }
+
+
+  currentSignalResult =
+    window.SignalEngine.evaluate(
+
+      currentStock.data,
+
+      {
+
+        vcpSellThreshold:
+          currentVcpSellThreshold
+      }
+    );
+
+
+  /*
+   * BUY / SELLマーカーも変わるので
+   * チャート再描画。
+   */
+  await drawChart();
+
+
+  updateSummary();
+
+
+  updateSignalSidebar();
+}
+
+
+/*
+==============================================================
+VCP SELL threshold slider
+==============================================================
+*/
+
+function installVcpThresholdSlider() {
+
+  const slider =
+    document.getElementById(
+      "vcpSellThresholdSlider"
+    );
+
+
+  if (
+    !slider
+  ) {
+
+    return;
+  }
+
+
+  slider.addEventListener(
+
+    "input",
+
+    event => {
+
+      const value =
+        Number(
+          event.target.value
+        );
+
+
+      if (
+        !Number.isFinite(
+          value
+        )
+      ) {
+
+        return;
+      }
+
+
+      currentVcpSellThreshold =
+        value;
+
+
+      const valueLabel =
+        document.getElementById(
+          "vcpThresholdValue"
+        );
+
+
+      if (
+        valueLabel
+      ) {
+
+        valueLabel.textContent =
+          value.toFixed(
+            2
+          );
+      }
+
+
+      const conditionLabel =
+        document.getElementById(
+          "vcpThresholdCondition"
+        );
+
+
+      if (
+        conditionLabel
+      ) {
+
+        conditionLabel.textContent =
+          `VCP N < ${value.toFixed(2)}`;
+      }
+
+
+      /*
+       * スライダー連続操作時に
+       * 毎フレームPlotlyを描き直さない。
+       */
+      clearTimeout(
+        signalSliderTimer
+      );
+
+
+      signalSliderTimer =
+        setTimeout(
+
+          async () => {
+
+            await recalculateSignals();
+
+          },
+
+          120
+        );
+    }
+  );
+}
+
+
+/*
+==============================================================
+Volume-by-Price
 ==============================================================
 */
 
@@ -2535,6 +2819,7 @@ function calculateVolumeProfile(
   if (
     !rows.length
   ) {
+
     return null;
   }
 
@@ -2573,6 +2858,7 @@ function calculateVolumeProfile(
       minPrice
     )
   ) {
+
     return null;
   }
 
@@ -2622,6 +2908,7 @@ function calculateVolumeProfile(
       index ===
       bins
     ) {
+
       index =
         bins -
         1;
@@ -2631,6 +2918,7 @@ function calculateVolumeProfile(
     index =
       Math.max(
         0,
+
         Math.min(
           bins -
           1,
@@ -2657,6 +2945,7 @@ function calculateVolumeProfile(
 
   const prices =
     Array.from(
+
       {
         length:
           bins
@@ -2710,7 +2999,7 @@ function calculateVolumeProfile(
 
 /*
 ==============================================================
-需給データ
+Supply daily
 ==============================================================
 */
 
@@ -2969,7 +3258,7 @@ function shortInstitutionText(
 
 /*
 ==============================================================
-可視範囲
+Visible rows
 ==============================================================
 */
 
@@ -3010,7 +3299,7 @@ function visibleSupplyRows(
 
 /*
 ==============================================================
-軸レンジ
+Axis range helpers
 ==============================================================
 */
 
@@ -3183,6 +3472,7 @@ function positiveLogRange(
       Math.max(
         min /
         1.5,
+
         .000001
       );
 
@@ -3196,6 +3486,7 @@ function positiveLogRange(
       Math.max(
         min *
         .85,
+
         .000001
       );
 
@@ -3229,7 +3520,7 @@ function getSignalRange() {
 
 /*
 ==============================================================
-ペイン配置
+Pane layout
 ==============================================================
 */
 
@@ -3317,7 +3608,7 @@ function getPaneLayout() {
 
 /*
 ==============================================================
-初期表示期間
+Initial display range
 ==============================================================
 */
 
@@ -3387,7 +3678,7 @@ function getInitialDisplayRange() {
 
 /*
 ==============================================================
-需給coverage表記
+Supply coverage label
 ==============================================================
 */
 
@@ -3423,16 +3714,12 @@ function coverageLabel(
 
     case "ok":
 
-      return (
-        `${period}`
-      );
+      return `${period}`;
 
 
     case "partial":
 
-      return (
-        `一部取得 ${period}`
-      );
+      return `一部取得 ${period}`;
 
 
     case "no_events_in_coverage":
@@ -3448,9 +3735,7 @@ function coverageLabel(
 
     case "unknown":
 
-      return (
-        `状態不明 ${period}`
-      );
+      return `状態不明 ${period}`;
 
 
     case "error":
@@ -3471,7 +3756,7 @@ function coverageLabel(
 
 /*
 ==============================================================
-可視範囲変更
+Visible range update
 ==============================================================
 */
 
@@ -3713,6 +3998,7 @@ async function updateVisibleRange(
         [
           maxProfile *
           3.5,
+
           0
         ],
 
@@ -3751,6 +4037,7 @@ async function updateVisibleRange(
       ] =
         [
           0,
+
           maxVolume *
           1.10
         ];
@@ -3806,6 +4093,7 @@ function updateSummary() {
   if (
     !currentStock
   ) {
+
     return;
   }
 
@@ -4035,6 +4323,19 @@ function updateSummary() {
 
       <div>
         <span class="summary-label">
+          VCP SELL閾値
+        </span>
+
+        <strong>
+          ${currentVcpSellThreshold.toFixed(
+            2
+          )}
+        </strong>
+      </div>
+
+
+      <div>
+        <span class="summary-label">
           公表空売り
         </span>
 
@@ -4150,6 +4451,12 @@ function updateSignalSidebar() {
     currentSignalResult;
 
 
+  const summary =
+    result.summary
+    ||
+    {};
+
+
   const latest =
     currentStock.data[
       currentStock.data.length -
@@ -4186,6 +4493,51 @@ function updateSignalSidebar() {
     result.latestSell;
 
 
+  function pctText(
+    value,
+    digits = 2
+  ) {
+
+    if (
+      !isFiniteNumber(
+        value
+      )
+    ) {
+
+      return "-";
+    }
+
+
+    return (
+      `${value >= 0 ? "+" : ""}`
+      +
+      `${value.toFixed(
+        digits
+      )}%`
+    );
+  }
+
+
+  function pctClass(
+    value
+  ) {
+
+    if (
+      !isFiniteNumber(
+        value
+      )
+    ) {
+
+      return "";
+    }
+
+
+    return value >= 0
+      ? "signal-return-positive"
+      : "signal-return-negative";
+  }
+
+
   let tradeHtml =
     "";
 
@@ -4193,22 +4545,6 @@ function updateSignalSidebar() {
   if (
     latestTrade
   ) {
-
-    const returnValue =
-      latestTrade.returnPct;
-
-
-    const returnClass =
-      isFiniteNumber(
-        returnValue
-      )
-        ? (
-            returnValue >= 0
-              ? "signal-return-positive"
-              : "signal-return-negative"
-          )
-        : "";
-
 
     tradeHtml =
       `
@@ -4218,48 +4554,120 @@ function updateSignalSidebar() {
           CURRENT / LAST TRADE
         </div>
 
+
         <div class="signal-main-value">
+
           ${
             latestTrade.status ===
             "OPEN"
               ? "OPEN"
               : "CLOSED"
           }
+
         </div>
 
+
         <div class="signal-sub-value">
+
+          BUY
           ${latestTrade.entryDate}
-          /
+
+          @
+
           ${formatNumber(
             latestTrade.entryPrice,
             2
           )}
+
         </div>
+
 
         ${
           latestTrade.exitDate
             ? `
               <div class="signal-sub-value">
-                →
+
+                SELL
                 ${latestTrade.exitDate}
-                /
+
+                @
+
                 ${formatNumber(
                   latestTrade.exitPrice,
                   2
                 )}
+
               </div>
             `
             : ""
         }
 
-        <div class="${returnClass}">
-          ${
-            isFiniteNumber(
-              returnValue
-            )
-              ? `${returnValue >= 0 ? "+" : ""}${returnValue.toFixed(2)}%`
-              : "-"
-          }
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            Return
+          </span>
+
+          <span class="signal-metric-value ${pctClass(
+            latestTrade.returnPct
+          )}">
+            ${pctText(
+              latestTrade.returnPct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            MFE
+          </span>
+
+          <span class="signal-metric-value">
+            ${pctText(
+              latestTrade.mfePct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            MAE
+          </span>
+
+          <span class="signal-metric-value">
+            ${pctText(
+              latestTrade.maePct
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="signal-metric-row">
+
+          <span class="signal-metric-label">
+            Capture Ratio
+          </span>
+
+          <span class="signal-metric-value">
+            ${
+              isFiniteNumber(
+                latestTrade.captureRatio
+              )
+                ? `${latestTrade.captureRatio.toFixed(
+                    1
+                  )}%`
+                : "-"
+            }
+          </span>
+
         </div>
 
       </div>
@@ -4274,13 +4682,242 @@ function updateSignalSidebar() {
     </div>
 
 
+    <!-- ================================================
+         Strategy performance
+         ================================================ -->
+
     <div class="signal-section">
 
       <div class="signal-section-title">
-        LATEST
+        STRATEGY PERFORMANCE
       </div>
 
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Total Return
+        </span>
+
+        <span class="signal-metric-value ${pctClass(
+          summary.totalReturnPct
+        )}">
+          ${pctText(
+            summary.totalReturnPct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Closed Return
+        </span>
+
+        <span class="signal-metric-value ${pctClass(
+          summary.closedTotalReturnPct
+        )}">
+          ${pctText(
+            summary.closedTotalReturnPct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Closed Trades
+        </span>
+
+        <span class="signal-metric-value">
+          ${summary.closedTrades ?? 0}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Win Rate
+        </span>
+
+        <span class="signal-metric-value">
+          ${
+            isFiniteNumber(
+              summary.winRate
+            )
+              ? `${summary.winRate.toFixed(
+                  1
+                )}%`
+              : "-"
+          }
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Average trade statistics
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        AVG TRADE STATS
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          MFE
+        </span>
+
+        <span class="signal-metric-value">
+          ${pctText(
+            summary.averageMfePct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          MAE
+        </span>
+
+        <span class="signal-metric-value">
+          ${pctText(
+            summary.averageMaePct
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Capture Ratio
+        </span>
+
+        <span class="signal-metric-value">
+          ${
+            isFiniteNumber(
+              summary.averageCaptureRatio
+            )
+              ? `${summary.averageCaptureRatio.toFixed(
+                  1
+                )}%`
+              : "-"
+          }
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         VCP threshold
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        VCP SELL THRESHOLD
+      </div>
+
+
+      <div
+        id="vcpThresholdValue"
+        class="signal-main-value"
+      >
+        ${currentVcpSellThreshold.toFixed(
+          2
+        )}
+      </div>
+
+
+      <input
+        id="vcpSellThresholdSlider"
+        class="signal-slider"
+        type="range"
+        min="-1"
+        max="0"
+        step="0.01"
+        value="${currentVcpSellThreshold}"
+      >
+
+
+      <div class="signal-slider-scale">
+
+        <span>
+          -1.00
+        </span>
+
+        <span>
+          0.00
+        </span>
+
+      </div>
+
+
+      <div class="signal-threshold-note">
+
+        SELL条件：
+
+        <br>
+
+        VCP 5MA &lt; VCP 25MA
+
+        <br>
+
+        AND
+
+        <br>
+
+        <span id="vcpThresholdCondition">
+          VCP N &lt; ${currentVcpSellThreshold.toFixed(
+            2
+          )}
+        </span>
+
+        <br>
+
+        AND
+
+        <br>
+
+        Trend t &lt; Trend t-5
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================
+         Latest signal
+         ================================================ -->
+
+    <div class="signal-section">
+
+      <div class="signal-section-title">
+        LATEST SIGNAL
+      </div>
+
+
       <div class="signal-main-value">
+
         ${
           latest.buySignal
             ? "▲ BUY"
@@ -4288,7 +4925,9 @@ function updateSignalSidebar() {
               ? "▼ SELL"
               : "—"
         }
+
       </div>
+
 
       <div class="signal-sub-value">
         ${latest.date}
@@ -4297,13 +4936,19 @@ function updateSignalSidebar() {
     </div>
 
 
+    <!-- ================================================
+         Last BUY
+         ================================================ -->
+
     <div class="signal-section">
 
       <div class="signal-section-title">
         LAST BUY
       </div>
 
+
       <div class="signal-main-value">
+
         ${
           latestBuy
             ? formatNumber(
@@ -4312,17 +4957,26 @@ function updateSignalSidebar() {
               )
             : "-"
         }
+
       </div>
 
+
       <div class="signal-sub-value">
+
         ${
-          latestBuy?.date ??
+          latestBuy?.date
+          ??
           "-"
         }
+
       </div>
 
     </div>
 
+
+    <!-- ================================================
+         Last SELL
+         ================================================ -->
 
     <div class="signal-section">
 
@@ -4330,7 +4984,9 @@ function updateSignalSidebar() {
         LAST SELL
       </div>
 
+
       <div class="signal-main-value">
+
         ${
           latestSell
             ? formatNumber(
@@ -4339,13 +4995,18 @@ function updateSignalSidebar() {
               )
             : "-"
         }
+
       </div>
 
+
       <div class="signal-sub-value">
+
         ${
-          latestSell?.date ??
+          latestSell?.date
+          ??
           "-"
         }
+
       </div>
 
     </div>
@@ -4354,68 +5015,123 @@ function updateSignalSidebar() {
     ${tradeHtml}
 
 
+    <!-- ================================================
+         Current factors
+         ================================================ -->
+
     <div class="signal-section">
 
       <div class="signal-section-title">
         CURRENT FACTORS
       </div>
 
-      <div class="signal-sub-value">
-        Trigger
-        ${formatNumber(
-          latest.triggerLine,
-          3
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Trigger
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.triggerLine,
+            3
+          )}
+        </span>
+
       </div>
 
-      <div class="signal-sub-value">
-        Setup
-        ${formatNumber(
-          latest.setupLine,
-          3
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Setup
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.setupLine,
+            3
+          )}
+        </span>
+
       </div>
 
-      <div class="signal-sub-value">
-        Trend
-        ${formatNumber(
-          latest.trendLine,
-          3
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          Trend
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.trendLine,
+            3
+          )}
+        </span>
+
       </div>
 
-      <div class="signal-sub-value">
-        VCP N
-        ${formatNumber(
-          latest.vcp26,
-          4
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP N
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26,
+            4
+          )}
+        </span>
+
       </div>
 
-      <div class="signal-sub-value">
-        VCP 5MA
-        ${formatNumber(
-          latest.vcp26Ma5,
-          4
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP 5MA
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26Ma5,
+            4
+          )}
+        </span>
+
       </div>
 
-      <div class="signal-sub-value">
-        VCP 25MA
-        ${formatNumber(
-          latest.vcp26Ma25,
-          4
-        )}
+
+      <div class="signal-metric-row">
+
+        <span class="signal-metric-label">
+          VCP 25MA
+        </span>
+
+        <span class="signal-metric-value">
+          ${formatNumber(
+            latest.vcp26Ma25,
+            4
+          )}
+        </span>
+
       </div>
 
     </div>
     `;
+
+
+  installVcpThresholdSlider();
 }
 
 
 /*
 ==============================================================
-お気に入り
+Favorites
 ==============================================================
 */
 
@@ -4490,7 +5206,7 @@ function toggleFavorite() {
 
 /*
 ==============================================================
-Hover縦線
+Hover vertical line
 ==============================================================
 */
 
@@ -4604,6 +5320,14 @@ async function drawChart() {
     calculateVolumeProfile(
       initialRows
     );
+
+
+  if (
+    !profile
+  ) {
+
+    return;
+  }
 
 
   const maxProfile =
@@ -4763,6 +5487,7 @@ async function drawChart() {
             row.high,
             row.low,
             row.close
+
           ]
         ),
 
@@ -5038,8 +5763,6 @@ async function drawChart() {
     /*
     ==========================================================
     Volume Profile
-
-    index 8 / 9
     ==========================================================
     */
 
@@ -5440,7 +6163,7 @@ async function drawChart() {
 
     /*
     ==========================================================
-    需給
+    Supply
     ==========================================================
     */
 
@@ -5727,7 +6450,7 @@ async function drawChart() {
 
 /*
 ==============================================================
-初期レンジ
+Initial ranges
 ==============================================================
 */
 
@@ -6010,6 +6733,7 @@ Layout
       range:[
         maxProfile *
         3.5,
+
         0
       ],
 
@@ -6630,6 +7354,7 @@ async function fetchTopix() {
         const response =
           await fetch(
             "/api/topix",
+
             {
               cache:
                 "no-store"
@@ -6682,6 +7407,7 @@ async function fetchTopix() {
 
         console.log(
           "TOPIX loaded:",
+
           {
             startDate:
               currentTopix.startDate,
@@ -6710,6 +7436,7 @@ async function fetchTopix() {
 
     topixPromise =
       null;
+
 
     throw error;
   }
@@ -6929,9 +7656,7 @@ async function loadStock(
 
 
   /*
-   * 指標計算
-   *
-   * 最後にSignalEngine.evaluate()も実行される。
+   * 指標計算＋SignalEngine実行
    */
   prepareIndicators(
     currentStock.data,
@@ -6977,7 +7702,11 @@ async function loadStock(
       +
       `BUY＝Trigger > Setup > Trend > 0 ／ `
       +
-      `SELL＝VCP5MA < VCP25MA ＆ VCPN < 0 ＆ Trend < 5日前Trend`;
+      `SELL＝VCP5MA < VCP25MA ＆ `
+      +
+      `VCPN < ${currentVcpSellThreshold.toFixed(2)} ＆ `
+      +
+      `Trend < 5日前Trend`;
 
 
   document
@@ -7431,7 +8160,9 @@ document
 
         await drawChart();
 
+
         updateSummary();
+
 
         updateSignalSidebar();
       }
@@ -7476,6 +8207,7 @@ document
         chart,
 
         {
+
           format:
             "png",
 
@@ -7541,6 +8273,7 @@ loadStock(
         );
     }
   );
+
 
 </script>
 
